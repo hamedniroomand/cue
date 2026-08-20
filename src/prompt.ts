@@ -6,11 +6,20 @@ export function renderPrompt(template: string, vars: Record<string, string>): st
   });
 }
 
-// Earlier directories win: [project overrides, packaged defaults].
+import { EMBEDDED_PROMPTS } from "./embedded";
+
+// Earlier directories win: [project overrides, packaged defaults]. The prompts
+// embedded in the binary are the last resort, so compiled installs work with
+// no prompts directory on disk at all.
 export async function loadPrompt(dirs: string[], name: string): Promise<string> {
   for (const dir of dirs) {
     const file = Bun.file(`${dir}/${name}.md`);
     if (await file.exists()) return file.text();
   }
-  throw new Error(`prompt not found: ${name}.md (searched: ${dirs.join(", ")})`);
+  const embedded = EMBEDDED_PROMPTS[name];
+  if (embedded) {
+    const file = Bun.file(embedded);
+    if (await file.exists()) return file.text();
+  }
+  throw new Error(`prompt not found: ${name}.md (searched: ${dirs.join(", ")}, embedded)`);
 }

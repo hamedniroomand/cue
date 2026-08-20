@@ -2,6 +2,7 @@ import { join, resolve } from "node:path";
 import type { Issue } from "./github";
 import { poll, runIssue } from "./pipeline";
 import type { ConductorEvent, StageContext } from "./stages/context";
+import { UI_FILES } from "./ui-manifest.g";
 
 /** Built SPA output (ui/ is a react-router app in SPA mode). Resolved against
  *  the package, not cwd, because conductor is installed globally. */
@@ -11,8 +12,20 @@ const NOT_BUILT =
   "conductor dashboard is not built yet — run `bun run ui:build` in the conductor package.";
 
 /** Serve the SPA, falling back to index.html so client-side routes survive a
- *  refresh. Requests that resolve outside CLIENT_DIR are refused. */
+ *  refresh. Compiled binaries serve from the embedded UI_FILES manifest;
+ *  dev mode serves ui/build/client from disk. Requests that resolve outside
+ *  CLIENT_DIR are refused. */
 async function serveClient(pathname: string): Promise<Response> {
+  if (Object.keys(UI_FILES).length > 0) {
+    const hit = UI_FILES[pathname === "/" ? "/index.html" : pathname];
+    if (hit) return new Response(Bun.file(hit));
+    const index = UI_FILES["/index.html"];
+    if (index) {
+      return new Response(Bun.file(index), {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+  }
   const index = Bun.file(join(CLIENT_DIR, "index.html"));
   if (pathname !== "/") {
     const target = resolve(CLIENT_DIR, `.${pathname}`);
