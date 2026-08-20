@@ -1,5 +1,9 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "options": {
+    "typeCheck": true,
+    "typeAware": true
+  },
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -7,7 +11,13 @@
   },
   "rules": {
     "no-console": "off",
-    "no-await-in-loop": "off"
+    "no-await-in-loop": "off",
+    // Boundary convention (see AGENTS.md): gh/claude JSON.parse results are
+    // narrowed by assertion at the parse site, nowhere else.
+    "typescript/no-unsafe-type-assertion": "off",
+    // bun:test types mark `.rejects` matchers as sync, but the runtime returns
+    // a promise that MUST be awaited — removing the await would break the tests.
+    "typescript/await-thenable": "off"
   },
-  "ignorePatterns": ["node_modules", ".runs", "docs"]
+  "ignorePatterns": ["node_modules", ".runs", "docs", "ui", ".agents", ".claude"]
 }

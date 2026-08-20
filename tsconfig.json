@@ -6,7 +6,10 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
     "types": ["bun-types"]
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "scripts"],
+  "exclude": ["ui"]
 }
