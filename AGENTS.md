@@ -121,6 +121,15 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   Do not move them into the repo; `worktreeRoot` in config is the user's override.
 - The package is installed globally (`bin: conductor` → `src/cli.ts`, shebang + Bun).
   Prompts resolve relative to the _package_ (`import.meta.dir`), never cwd.
+- **Release binaries embed all assets.** Prompts embed via `with { type: "file" }`
+  imports in `src/embedded.ts`; the dashboard embeds via `src/ui-manifest.g.ts`,
+  which is a committed EMPTY stub — `scripts/build-binaries.sh` regenerates it from
+  `ui/build/client` (via `scripts/embed-ui.ts`), compiles per-target binaries into
+  `dist/`, then restores the stub. Never commit a generated manifest. New disk assets
+  (prompts, ui output) must join this embedding path or compiled installs break.
+- Releases: push a `v*` tag → `.github/workflows/release.yml` runs
+  `scripts/build-binaries.sh` and attaches `dist/conductor-*` + `checksums.txt`;
+  `install.sh` at the repo root is the user-facing installer (checksum-verified).
 - A crashed run leaves `agent:in-dev` stuck; humans reset labels manually
   (`conductor status` mentions this).
 - `ui/` is a **react-router SPA in SPA mode** (`ssr: false`), built by Vite to

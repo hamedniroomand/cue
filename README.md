@@ -22,10 +22,20 @@ conductor install drives any number of projects.
 
 ## Install the CLI (once per machine)
 
+Self-contained binaries (macOS/Linux, arm64/x64 — no Bun or Node required) ship on
+GitHub Releases, with a checksum-verifying installer:
+
 ```bash
-bun add -g git@github.com:hamedniroomand/conductor.git   # from the team's private repo
-# or, working on conductor itself: bun link (in this repo)
+curl -fsSL https://raw.githubusercontent.com/hamedniroomand/conductor/main/install.sh | bash
 ```
+
+Options via env vars: `CONDUCTOR_VERSION` (a tag; default latest),
+`CONDUCTOR_BIN_DIR` (default `~/.local/bin`), `CONDUCTOR_REPO`. Windows is
+supported through WSL. Verify with `conductor --version`.
+
+Working on conductor itself: `bun link` in this repo (needs [Bun](https://bun.com));
+releases are cut by pushing a `v*` tag — CI builds the binaries
+(`scripts/build-binaries.sh`) and attaches them to the release.
 
 ## Adopt in a project (once per repo)
 
