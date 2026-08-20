@@ -1,44 +1,38 @@
-import { ActivityIcon, DownloadIcon, RefreshCwIcon } from "lucide-react"
-import { NavLink } from "react-router"
+import { ActivityIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
+import { NavLink } from "react-router";
 
-import { Badge } from "~/components/ui/badge"
-import { Separator } from "~/components/ui/separator"
-import { Button } from "~/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip"
-import type { DashboardState } from "~/lib/conductor"
-import { cn } from "~/lib/utils"
+import { ThemeToggle } from "~/components/theme-toggle";
+import { Badge } from "~/components/ui/badge";
+import { Separator } from "~/components/ui/separator";
+import { Button } from "~/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import type { DashboardState } from "~/lib/conductor";
+import { cn } from "~/lib/utils";
 
 const NAV = [
   { to: "/", label: "Overview" },
   { to: "/runs", label: "Runs" },
-]
+];
 
 /** Ambient depth layer: two soft radial washes plus a hairline grid.
  *  Pure CSS — deliberately no canvas/WebGL, so the CLI ships no 3D deps. */
 function Ambient() {
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-    >
-      <div className="absolute -top-40 -left-32 size-[36rem] rounded-full bg-primary/12 blur-[120px]" />
-      <div className="absolute -right-32 -bottom-48 size-[32rem] rounded-full bg-brand-accent/10 blur-[120px]" />
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div className="absolute -top-40 -left-32 size-[36rem] rounded-full bg-primary/20 blur-[120px]" />
+      <div className="absolute -right-32 -bottom-48 size-[32rem] rounded-full bg-brand-accent/15 blur-[120px]" />
       <div
-        className="absolute inset-0 opacity-[0.035]"
+        className="absolute inset-0"
         style={{
+          opacity: "var(--grid-opacity)",
           backgroundImage:
-            "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
+            "linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px)",
           backgroundSize: "64px 64px",
-          maskImage:
-            "radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent)",
+          maskImage: "radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent)",
         }}
       />
     </div>
-  )
+  );
 }
 
 export function Shell({
@@ -47,10 +41,10 @@ export function Shell({
   onExport,
   children,
 }: {
-  state: DashboardState | null
-  onPoll?: () => void
-  onExport?: () => void
-  children: React.ReactNode
+  state: DashboardState | null;
+  onPoll?: () => void;
+  onExport?: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <div className="min-h-svh">
@@ -62,9 +56,7 @@ export function Shell({
               <ActivityIcon className="size-3.5" />
             </span>
             {/* Wordmark text is the first thing to go; the icon still identifies the app. */}
-            <span className="hidden text-sm font-semibold tracking-tight sm:inline">
-              conductor
-            </span>
+            <span className="hidden text-sm font-semibold tracking-tight sm:inline">conductor</span>
           </div>
 
           <nav className="flex shrink-0 items-center gap-1">
@@ -78,7 +70,7 @@ export function Shell({
                     "rounded-lg px-2.5 py-1.5 font-mono text-label-md uppercase transition-colors",
                     isActive
                       ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )
                 }
               >
@@ -95,8 +87,7 @@ export function Shell({
                 <TooltipTrigger
                   render={
                     <span className="hidden font-mono text-label-md text-muted-foreground xl:inline">
-                      {state.models.triage}/{state.models.dev}/
-                      {state.models.review}
+                      {state.models.triage}/{state.models.dev}/{state.models.review}
                     </span>
                   }
                 />
@@ -111,49 +102,33 @@ export function Shell({
               {state.busy ? (
                 <Badge className="animate-pulse">{state.busy}</Badge>
               ) : (
-                <Badge
-                  variant="secondary"
-                  className="hidden font-mono sm:inline-flex"
-                >
+                <Badge variant="secondary" className="hidden font-mono sm:inline-flex">
                   idle
                 </Badge>
               )}
             </>
           )}
 
+          <ThemeToggle />
+
           {onExport && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-              onClick={onExport}
-            >
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={onExport}>
               <DownloadIcon data-icon="inline-start" />
               Export
             </Button>
           )}
           {onPoll && (
-            <Button
-              size="sm"
-              className="shrink-0"
-              disabled={state?.busy != null}
-              onClick={onPoll}
-            >
-              <RefreshCwIcon
-                data-icon="inline-start"
-                className="hidden sm:block"
-              />
+            <Button size="sm" className="shrink-0" disabled={state?.busy != null} onClick={onPoll}>
+              <RefreshCwIcon data-icon="inline-start" className="hidden sm:block" />
               Poll now
             </Button>
           )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[92rem] px-4 py-10 md:px-6">
-        {children}
-      </main>
+      <main className="mx-auto max-w-[92rem] px-4 py-10 md:px-6">{children}</main>
     </div>
-  )
+  );
 }
 
 /** Section label followed by a rule that fills the rest of the row.
@@ -168,7 +143,7 @@ export function SectionHeading({ children }: { children: React.ReactNode }) {
         <Separator />
       </div>
     </div>
-  )
+  );
 }
 
 /** Small mono section label, per the spec's label-md role. */
@@ -177,5 +152,5 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
     <span className="shrink-0 font-mono text-label-md whitespace-nowrap text-muted-foreground uppercase">
       {children}
     </span>
-  )
+  );
 }

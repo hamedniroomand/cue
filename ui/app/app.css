@@ -7,124 +7,184 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    /* Typography — Inter for display/body, JetBrains Mono for labels and metadata. */
-    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, monospace;
-    --font-heading: var(--font-sans);
+  /* Typography — Inter for display/body, JetBrains Mono for labels and metadata. */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
+  --font-heading: var(--font-sans);
 
-    /* Design-spec type scale. */
-    --text-display-lg: 64px;
-    --text-display-lg--line-height: 1.04;
-    --text-display-lg--letter-spacing: -0.02em;
-    --text-display-lg--font-weight: 500;
-    --text-display-md: 40px;
-    --text-display-md--line-height: 1.08;
-    --text-display-md--letter-spacing: -0.02em;
-    --text-display-md--font-weight: 500;
-    --text-body-md: 16px;
-    --text-body-md--line-height: 1.6;
-    --text-label-md: 12px;
-    --text-label-md--line-height: 1.2;
-    --text-label-md--letter-spacing: 0.06em;
-    --text-label-md--font-weight: 600;
+  /* Design-spec type scale. */
+  --text-display-lg: 64px;
+  --text-display-lg--line-height: 1.04;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 500;
+  --text-display-md: 40px;
+  --text-display-md--line-height: 1.08;
+  --text-display-md--letter-spacing: -0.02em;
+  --text-display-md--font-weight: 500;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 1.6;
+  --text-label-md: 12px;
+  --text-label-md--line-height: 1.2;
+  --text-label-md--letter-spacing: 0.06em;
+  --text-label-md--font-weight: 600;
 
-    /* Brand accent. Kept out of --accent so component hover semantics
-       (menus, ghost buttons) stay a subtle surface rather than hot pink. */
-    --color-brand: var(--primary);
-    --color-brand-accent: #f472b6;
+  /* Brand accent. Kept out of --accent so component hover semantics
+       (menus, ghost buttons) stay a neutral surface rather than orange. */
+  --color-brand: var(--primary);
+  --color-brand-accent: #ed7b46;
 
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-success: var(--success);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
+  /* The spec's `surface` (#53617A) is a dark slate on a white page, so it
+       cannot be the background of every card — #111827 text on it is ~2.2:1.
+       It is the focal visualization panel instead, with its own foreground. */
+  --color-grid-line: var(--grid-line);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-surface-muted: var(--surface-muted);
 
-    /* --radius is the 8px control radius from the spec; --radius-xl is pinned to
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  /* --radius is the 8px control radius from the spec; --radius-xl is pinned to
        the spec's 16px card radius (Card uses rounded-xl). */
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: 16px;
-    --radius-2xl: 20px;
-    --radius-3xl: 24px;
-    --radius-4xl: 28px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
 }
 
-/* Dark-only surface, per the design spec's guardrail against swapping color mode. */
-:root,
+/* Light surface, per the source spec (background #FFFFFF). Single :root block —
+   no .dark counterpart, so a future theme toggle starts from a clean slate. */
+:root {
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  /* Both spec oranges need dark text: white on #E48B59 is 2.6:1, #111827 is 6.4:1. */
+  --primary: #e48b59;
+  --primary-foreground: #111827;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #4b5563;
+  --accent: #f3f4f6;
+  --accent-foreground: #111827;
+  --destructive: #dc2626;
+  --success: #059669;
+  --border: #d8dadf;
+  --input: #d8dadf;
+  --ring: #e48b59;
+  /* Separable by hue, not by shade of orange: the two spec oranges are the
+       same hue and would be indistinguishable as adjacent bars or slices. */
+  --chart-1: #ed7b46;
+  --chart-2: #53617a;
+  --chart-3: #0e7490;
+  --chart-4: #a16207;
+  --chart-5: #7c3aed;
+  --radius: 8px;
+  --surface: #53617a;
+  --surface-foreground: #ffffff;
+  --surface-muted: #c7cdd8;
+  --grid-line: #111827;
+  --grid-opacity: 0.07;
+  --lift-shadow: 0 12px 32px -14px rgb(17 24 39 / 0.22);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #e48b59;
+  --sidebar-primary-foreground: #111827;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #d8dadf;
+  --sidebar-ring: #e48b59;
+}
+
 .dark {
-    --background: #0e0e10;
-    --foreground: #ffffff;
-    --card: #18181c;
-    --card-foreground: #ffffff;
-    --popover: #18181c;
-    --popover-foreground: #ffffff;
-    --primary: #818cf8;
-    --primary-foreground: #0e0e10;
-    --secondary: #27272a;
-    --secondary-foreground: #ffffff;
-    --muted: #1c1c20;
-    --muted-foreground: #a1a1aa;
-    --accent: #27272a;
-    --accent-foreground: #ffffff;
-    --destructive: #fb7185;
-    --success: #34d399;
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #818cf8;
-    --chart-1: #818cf8;
-    --chart-2: #f472b6;
-    --chart-3: #38bdf8;
-    --chart-4: #a78bfa;
-    --chart-5: #fbbf24;
-    --radius: 8px;
-    --sidebar: #18181c;
-    --sidebar-foreground: #ffffff;
-    --sidebar-primary: #818cf8;
-    --sidebar-primary-foreground: #0e0e10;
-    --sidebar-accent: #27272a;
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: #27272a;
-    --sidebar-ring: #818cf8;
+  --background: #12161f;
+  --foreground: #f3f4f6;
+  --card: #1a202c;
+  --card-foreground: #f3f4f6;
+  --popover: #1a202c;
+  --popover-foreground: #f3f4f6;
+  --primary: #e48b59;
+  --primary-foreground: #111827;
+  --secondary: #232a38;
+  --secondary-foreground: #f3f4f6;
+  --muted: #232a38;
+  --muted-foreground: #9ca3af;
+  --accent: #232a38;
+  --accent-foreground: #f3f4f6;
+  --destructive: #f87171;
+  --success: #34d399;
+  --border: #2a3140;
+  --input: #2a3140;
+  --ring: #e48b59;
+  --chart-1: #f59e6b;
+  --chart-2: #8b97ae;
+  --chart-3: #22b8cf;
+  --chart-4: #d4a017;
+  --chart-5: #a78bfa;
+  /* The focal panel stays the spec's slate — still a distinct raised surface
+       against the darker ground. */
+  --surface: #53617a;
+  --surface-foreground: #ffffff;
+  --surface-muted: #c7cdd8;
+  --grid-line: #ffffff;
+  --grid-opacity: 0.05;
+  --lift-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --sidebar: #1a202c;
+  --sidebar-foreground: #f3f4f6;
+  --sidebar-primary: #e48b59;
+  --sidebar-primary-foreground: #111827;
+  --sidebar-accent: #232a38;
+  --sidebar-accent-foreground: #f3f4f6;
+  --sidebar-border: #2a3140;
+  --sidebar-ring: #e48b59;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+  }
   html {
     @apply font-sans;
-    }
+  }
 }
 
 @layer utilities {
@@ -155,7 +215,7 @@
 
   .lift:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.7);
+    box-shadow: var(--lift-shadow);
   }
 
   @media (prefers-reduced-motion: reduce) {
