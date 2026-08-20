@@ -110,7 +110,7 @@ repo, in two views:
   of odd agent behaviour.
 
 It's the same pipeline the CLI runs — GitHub labels and `.conductor/runs/` stay the
-shared state either way. The dashboard is a react-router SPA (shadcn `base-nova`) built
+shared state either way. The dashboard is a React SPA (react-router library mode, React Compiler enabled, shadcn `base-nova`) built
 to `ui/build/client` and served by the CLI:
 
 ```bash

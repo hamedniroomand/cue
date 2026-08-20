@@ -47,7 +47,7 @@ src/
 └── log.ts              # per-invocation transcripts + cost under <target>/.conductor/runs/<issue>/
 prompts/                # packaged default role prompts; <target>/.conductor/prompts/ overrides per file
 scripts/fixtures.ts     # snapshots local .conductor runs into ui/app/fixtures/data.json
-ui/                     # dashboard: standalone react-router SPA (own package.json), shadcn `base-nova`
+ui/                     # dashboard: react-router (library mode) + React Compiler, shadcn `base-nova`
 ├── app/routes/home.tsx     # overview: spend summary, cost charts, label board, live log
 ├── app/routes/runs.tsx     # run explorer: per-run prompt / transcript / raw tabs
 ├── app/lib/conductor.ts    # API client + transcript normalizer (see the polymorphic-result gotcha)
@@ -132,17 +132,20 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   `install.sh` at the repo root is the user-facing installer (checksum-verified).
 - A crashed run leaves `agent:in-dev` stuck; humans reset labels manually
   (`conductor status` mentions this).
-- `ui/` is a **react-router SPA in SPA mode** (`ssr: false`), built by Vite to
-  `ui/build/client` and served statically by `src/server.ts` with an index.html
-  fallback so client routes survive a refresh. `CLIENT_DIR` resolves against
-  `import.meta.dir`, not cwd, because conductor is installed globally. After changing
-  anything under `ui/app/`, run `bun run ui:build` — `package.json` `files` ships
-  `ui/build/client`, not the sources.
+- `ui/` uses **react-router in LIBRARY mode** (`createBrowserRouter` in
+  `app/main.tsx`; routes registered there, NOT file-based) on plain Vite with
+  `@vitejs/plugin-react({ compiler: true })` — the **React Compiler automatic
+  memoization is ON** (via oxc-transform-react). Do not reintroduce
+  `@react-router/dev` (the framework plugin owns the Vite pipeline and blocks the
+  compiler). Built to `ui/build/client`, served statically by `src/server.ts` with an
+  index.html fallback so client routes survive a refresh. `CLIENT_DIR` resolves
+  against `import.meta.dir`, not cwd, because conductor is installed globally. After
+  changing anything under `ui/app/`, run `bun run ui:build`.
 - `ui/` is excluded from the root `tsconfig.json`, oxlint and oxfmt configs, but has
   its OWN: `ui/.oxlintrc.json` (react plugin incl. the React Compiler rules;
   `set-state-in-effect` is deliberately a warning) and `ui/.oxfmtrc.json` (with
   `sortTailwindcss` class sorting — prettier is gone). Run via `bun run ui:lint`,
-  `bun run ui:format`, `bun run ui:check` (react-router typegen + tsc).
+  `bun run ui:format`, `bun run ui:check` (tsc).
   `bun run check` does NOT cover the SPA — run both.
 - **Horizontal-overflow traps in the dashboard.** Two bit us already: (1) `Separator`
   carries `data-horizontal:w-full`, so as a direct `grow` flex sibling it resolves to
