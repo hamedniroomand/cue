@@ -1,14 +1,14 @@
 {
   "name": "conductor",
   "version": "0.2.0",
+  "license": "MIT",
   "bin": {
     "conductor": "./src/cli.ts"
   },
   "files": [
     "src",
     "prompts",
-    "ui/build/client",
-    "bunfig.toml"
+    "ui/build/client"
   ],
   "type": "module",
   "scripts": {
