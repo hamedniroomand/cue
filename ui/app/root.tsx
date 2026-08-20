@@ -1,54 +1,18 @@
-import {
-  isRouteErrorResponse,
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from "react-router";
+import { isRouteErrorResponse, Outlet, ScrollRestoration, useRouteError } from "react-router";
 
 import { TooltipProvider } from "~/components/ui/tooltip";
-import type { Route } from "./+types/root";
-import "./app.css";
 
-export const meta: Route.MetaFunction = () => [
-  { title: "Conductor — Capital Overview" },
-  {
-    name: "description",
-    content: "Agent pipeline spend, stage throughput, and run transcripts.",
-  },
-];
-
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Root() {
   return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <Meta />
-        <Links />
-        <script
-          // Runs before first paint so a dark preference never flashes light.
-          // Mirrors resolveTheme() in ~/lib/theme.
-          dangerouslySetInnerHTML={{
-            __html: `(()=>{try{var t=localStorage.getItem("conductor-theme")||"system";var d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d)}catch(e){}})()`,
-          }}
-        />
-      </head>
-      <body className="antialiased">
-        <TooltipProvider>{children}</TooltipProvider>
-        <ScrollRestoration />
-        <Scripts />
-      </body>
-    </html>
+    <TooltipProvider>
+      <Outlet />
+      <ScrollRestoration />
+    </TooltipProvider>
   );
 }
 
-export default function App() {
-  return <Outlet />;
-}
-
-export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+export function ErrorBoundary() {
+  const error = useRouteError();
   let message = "Something broke";
   let details = "An unexpected error occurred.";
   let stack: string | undefined;
