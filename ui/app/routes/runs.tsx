@@ -9,31 +9,25 @@ import {
   TerminalIcon,
   WrenchIcon,
   XCircleIcon,
-} from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
-import { Link, useParams } from "react-router"
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router";
 
-import { SectionLabel, Shell } from "~/components/shell"
-import { Badge } from "~/components/ui/badge"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card"
+import { SectionLabel, Shell } from "~/components/shell";
+import { Badge } from "~/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "~/components/ui/empty"
-import { ScrollArea } from "~/components/ui/scroll-area"
-import { Separator } from "~/components/ui/separator"
-import { Skeleton } from "~/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
-import type { RunDetail, RunSummary, TranscriptRow } from "~/lib/conductor"
+} from "~/components/ui/empty";
+import { ScrollArea } from "~/components/ui/scroll-area";
+import { Separator } from "~/components/ui/separator";
+import { Skeleton } from "~/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import type { RunDetail, RunSummary, TranscriptRow } from "~/lib/conductor";
 import {
   fetchRun,
   fetchRuns,
@@ -44,17 +38,17 @@ import {
   shortLabel,
   statsFor,
   toRows,
-} from "~/lib/conductor"
-import { useConductor, useRunIndex } from "~/lib/use-conductor"
-import { cn } from "~/lib/utils"
+} from "~/lib/conductor";
+import { useConductor, useRunIndex } from "~/lib/use-conductor";
+import { cn } from "~/lib/utils";
 
-const runId = (r: RunSummary) => `${r.stage}-${r.ts}`
+const runId = (r: RunSummary) => `${r.stage}-${r.ts}`;
 
 export default function Runs() {
-  const params = useParams()
-  const { state } = useConductor()
-  const index = useRunIndex()
-  const issue = params.issue ? Number(params.issue) : null
+  const params = useParams();
+  const { state } = useConductor();
+  const index = useRunIndex();
+  const issue = params.issue ? Number(params.issue) : null;
 
   /**
    * Active = still on the label board. Done = has runs recorded on disk but has
@@ -67,9 +61,9 @@ export default function Runs() {
         title: i.title,
         cost: i.cost,
         label: shortLabel(c.label),
-      }))
-    )
-    const onBoard = new Set(board.map((i) => i.number))
+      })),
+    );
+    const onBoard = new Set(board.map((i) => i.number));
     const archived = (index ?? [])
       .filter((e) => !onBoard.has(e.issue))
       .map((e) => ({
@@ -77,43 +71,43 @@ export default function Runs() {
         title: e.title ?? `Issue #${e.issue}`,
         cost: e.costUsd,
         label: "done",
-      }))
+      }));
     return {
       active: board.toSorted((a, b) => a.number - b.number),
       done: archived.toSorted((a, b) => b.number - a.number),
-    }
-  }, [state, index])
+    };
+  }, [state, index]);
 
-  const [runs, setRuns] = useState<RunSummary[] | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [detail, setDetail] = useState<RunDetail | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [runs, setRuns] = useState<RunSummary[] | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [detail, setDetail] = useState<RunDetail | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (issue == null) return
-    setRuns(null)
-    setSelected(null)
-    setDetail(null)
+    if (issue == null) return;
+    setRuns(null);
+    setSelected(null);
+    setDetail(null);
     void fetchRuns(issue).then((list) => {
-      const sorted = list.toSorted((a, b) => b.ts - a.ts)
-      setRuns(sorted)
-      if (sorted[0]) setSelected(runId(sorted[0]))
-    })
-  }, [issue])
+      const sorted = list.toSorted((a, b) => b.ts - a.ts);
+      setRuns(sorted);
+      if (sorted[0]) setSelected(runId(sorted[0]));
+    });
+  }, [issue]);
 
   useEffect(() => {
-    if (issue == null || !selected) return
-    setLoading(true)
+    if (issue == null || !selected) return;
+    setLoading(true);
     void fetchRun(issue, selected)
       .then(setDetail)
-      .finally(() => setLoading(false))
-  }, [issue, selected])
+      .finally(() => setLoading(false));
+  }, [issue, selected]);
 
   // Land on whichever tab actually holds the issue being viewed.
-  const [tab, setTab] = useState("active")
+  const [tab, setTab] = useState("active");
   useEffect(() => {
-    if (issue != null && done.some((i) => i.number === issue)) setTab("done")
-  }, [issue, done])
+    if (issue != null && done.some((i) => i.number === issue)) setTab("done");
+  }, [issue, done]);
 
   return (
     <Shell state={state} onPoll={() => void poll()}>
@@ -126,8 +120,7 @@ export default function Runs() {
             <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs">
               .conductor/runs/&lt;issue&gt;/&lt;stage&gt;-&lt;ts&gt;.json
             </code>{" "}
-            with the exact prompt sent, the full event stream, cost, and
-            duration.
+            with the exact prompt sent, the full event stream, cost, and duration.
           </p>
         </div>
 
@@ -139,9 +132,7 @@ export default function Runs() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Issues</CardTitle>
-                <CardDescription>
-                  Pick an issue to load its runs
-                </CardDescription>
+                <CardDescription>Pick an issue to load its runs</CardDescription>
               </CardHeader>
               <CardContent>
                 <Tabs value={tab} onValueChange={setTab}>
@@ -184,9 +175,7 @@ export default function Runs() {
             {issue != null && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">
-                    Runs · issue #{issue}
-                  </CardTitle>
+                  <CardTitle className="text-sm">Runs · issue #{issue}</CardTitle>
                   <CardDescription>Newest first</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -202,7 +191,7 @@ export default function Runs() {
                   ) : (
                     <div className="flex flex-col gap-1.5">
                       {runs.map((r) => {
-                        const id = runId(r)
+                        const id = runId(r);
                         return (
                           <button
                             key={id}
@@ -212,16 +201,12 @@ export default function Runs() {
                               "flex flex-col gap-1 rounded-lg px-2.5 py-2 text-left ring-1 transition-colors",
                               selected === id
                                 ? "bg-secondary ring-primary/40"
-                                : "ring-border hover:bg-secondary/50"
+                                : "ring-border hover:bg-secondary",
                             )}
                           >
                             <span className="flex items-center gap-1.5">
                               <Badge
-                                variant={
-                                  r.outcome === "ok"
-                                    ? "secondary"
-                                    : "destructive"
-                                }
+                                variant={r.outcome === "ok" ? "secondary" : "destructive"}
                                 className="font-mono"
                               >
                                 {r.stage}
@@ -232,11 +217,10 @@ export default function Runs() {
                               </span>
                             </span>
                             <span className="font-mono text-[10px] text-muted-foreground">
-                              {new Date(r.ts).toLocaleString()} ·{" "}
-                              {formatDuration(r.durationMs)}
+                              {new Date(r.ts).toLocaleString()} · {formatDuration(r.durationMs)}
                             </span>
                           </button>
-                        )
+                        );
                       })}
                     </div>
                   )}
@@ -255,8 +239,7 @@ export default function Runs() {
                   </EmptyMedia>
                   <EmptyTitle>Select an issue</EmptyTitle>
                   <EmptyDescription>
-                    Choose an issue on the left to browse its recorded stage
-                    runs.
+                    Choose an issue on the left to browse its recorded stage runs.
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
@@ -284,14 +267,14 @@ export default function Runs() {
         </div>
       </div>
     </Shell>
-  )
+  );
 }
 
 interface IssueRow {
-  number: number
-  title: string
-  cost: number
-  label: string
+  number: number;
+  title: string;
+  cost: number;
+  label: string;
 }
 
 function IssueList({
@@ -299,12 +282,12 @@ function IssueList({
   selected,
   empty,
 }: {
-  issues: IssueRow[]
-  selected: number | null
-  empty: string
+  issues: IssueRow[];
+  selected: number | null;
+  empty: string;
 }) {
   if (issues.length === 0) {
-    return <p className="px-1 py-2 text-xs text-muted-foreground">{empty}</p>
+    return <p className="px-1 py-2 text-xs text-muted-foreground">{empty}</p>;
   }
   return (
     <div className="flex flex-col gap-1">
@@ -316,27 +299,23 @@ function IssueList({
             "flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
             selected === i.number
               ? "bg-secondary text-foreground"
-              : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+              : "text-muted-foreground hover:bg-secondary hover:text-foreground",
           )}
         >
-          <span className="font-mono text-label-md text-primary">
-            #{i.number}
-          </span>
+          <span className="font-mono text-label-md text-primary">#{i.number}</span>
           <span className="min-w-0 flex-1 truncate text-xs">{i.title}</span>
-          <span className="font-mono text-[10px] tabular-nums">
-            {formatUsd(i.cost)}
-          </span>
+          <span className="font-mono text-[10px] tabular-nums">{formatUsd(i.cost)}</span>
           <ChevronRightIcon className="size-3 shrink-0" />
         </Link>
       ))}
     </div>
-  )
+  );
 }
 
 function RunView({ detail }: { detail: RunDetail }) {
-  const events = useMemo(() => normalizeEvents(detail.result), [detail])
-  const rows = useMemo(() => toRows(events), [events])
-  const stats = useMemo(() => statsFor(events), [events])
+  const events = useMemo(() => normalizeEvents(detail.result), [detail]);
+  const rows = useMemo(() => toRows(events), [events]);
+  const stats = useMemo(() => statsFor(events), [events]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -350,7 +329,7 @@ function RunView({ detail }: { detail: RunDetail }) {
               {detail.stage}
             </Badge>
             {detail.outcome === "ok" ? (
-              <CheckCircle2Icon className="size-4 text-[var(--success)]" />
+              <CheckCircle2Icon className="size-4 text-success" />
             ) : (
               <XCircleIcon className="size-4 text-destructive" />
             )}
@@ -358,9 +337,7 @@ function RunView({ detail }: { detail: RunDetail }) {
               {new Date(detail.ts).toLocaleString()}
             </span>
           </CardTitle>
-          <CardDescription>
-            {detail.error ?? "Recorded adapter invocation"}
-          </CardDescription>
+          <CardDescription>{detail.error ?? "Recorded adapter invocation"}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
@@ -369,21 +346,13 @@ function RunView({ detail }: { detail: RunDetail }) {
               label="cost"
               value={detail.costUsd != null ? formatUsd(detail.costUsd) : "—"}
             />
-            <Metric
-              icon={GaugeIcon}
-              label="duration"
-              value={formatDuration(detail.durationMs)}
-            />
+            <Metric icon={GaugeIcon} label="duration" value={formatDuration(detail.durationMs)} />
             <Metric
               icon={TerminalIcon}
               label="turns"
               value={stats.turns != null ? String(stats.turns) : "—"}
             />
-            <Metric
-              icon={WrenchIcon}
-              label="tool calls"
-              value={String(stats.tools)}
-            />
+            <Metric icon={WrenchIcon} label="tool calls" value={String(stats.tools)} />
             <Metric
               icon={ShieldOffIcon}
               label="denied"
@@ -395,10 +364,9 @@ function RunView({ detail }: { detail: RunDetail }) {
             <p className="mt-4 flex items-start gap-2 rounded-lg bg-brand-accent/10 p-3 text-xs text-muted-foreground ring-1 ring-brand-accent/25">
               <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0 text-brand-accent" />
               <span>
-                {stats.denied} tool call{stats.denied === 1 ? "" : "s"} were
-                denied by the stage&apos;s{" "}
-                <code className="font-mono">--allowedTools</code> allowlist. The
-                agent had to work around the restriction.
+                {stats.denied} tool call{stats.denied === 1 ? "" : "s"} were denied by the
+                stage&apos;s <code className="font-mono">--allowedTools</code> allowlist. The agent
+                had to work around the restriction.
               </span>
             </p>
           )}
@@ -417,15 +385,13 @@ function RunView({ detail }: { detail: RunDetail }) {
             <CardHeader>
               <CardTitle className="text-sm">{rows.length} events</CardTitle>
               <CardDescription>
-                Flattened from the stream-json event log ({events.length} raw
-                lines)
+                Flattened from the stream-json event log ({events.length} raw lines)
               </CardDescription>
             </CardHeader>
             <CardContent>
               {rows.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  This run recorded only a final result event — no transcript
-                  was captured.
+                  This run recorded only a final result event — no transcript was captured.
                 </p>
               ) : (
                 <ScrollArea className="h-[34rem]">
@@ -443,9 +409,7 @@ function RunView({ detail }: { detail: RunDetail }) {
         <TabsContent value="prompt">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">
-                Prompt sent to the adapter
-              </CardTitle>
+              <CardTitle className="text-sm">Prompt sent to the adapter</CardTitle>
               <CardDescription>
                 Rendered from the stage template — issue text is untrusted input
               </CardDescription>
@@ -464,9 +428,7 @@ function RunView({ detail }: { detail: RunDetail }) {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Raw log entry</CardTitle>
-              <CardDescription>
-                Exactly what RunLogger wrote to disk
-              </CardDescription>
+              <CardDescription>Exactly what RunLogger wrote to disk</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[34rem]">
@@ -479,7 +441,7 @@ function RunView({ detail }: { detail: RunDetail }) {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
 
 function Metric({
@@ -488,10 +450,10 @@ function Metric({
   value,
   accent,
 }: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  accent?: boolean
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  accent?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -499,24 +461,19 @@ function Metric({
         <Icon className="size-3" />
         {label}
       </span>
-      <span
-        className={cn(
-          "text-lg font-medium tabular-nums",
-          accent && "text-brand-accent"
-        )}
-      >
+      <span className={cn("text-lg font-medium tabular-nums", accent && "text-brand-accent")}>
         {value}
       </span>
     </div>
-  )
+  );
 }
 
 const ROW_META: Record<
   TranscriptRow["kind"],
   {
-    icon: React.ComponentType<{ className?: string }>
-    tone: string
-    title: string
+    icon: React.ComponentType<{ className?: string }>;
+    tone: string;
+    title: string;
   }
 > = {
   init: { icon: TerminalIcon, tone: "text-primary", title: "session" },
@@ -540,14 +497,14 @@ const ROW_META: Record<
   },
   result: {
     icon: CheckCircle2Icon,
-    tone: "text-[var(--success)]",
+    tone: "text-success",
     title: "final result",
   },
-}
+};
 
 function Row({ row }: { row: TranscriptRow }) {
-  const meta = ROW_META[row.kind]
-  const Icon = meta.icon
+  const meta = ROW_META[row.kind];
+  const Icon = meta.icon;
 
   const body =
     row.kind === "init"
@@ -556,41 +513,32 @@ function Row({ row }: { row: TranscriptRow }) {
         ? row.text
         : row.kind === "tool"
           ? `${row.name} · ${row.detail}`
-          : row.detail
+          : row.detail;
 
-  const failed = row.kind === "tool_result" && row.failed
+  const failed = row.kind === "tool_result" && row.failed;
 
   return (
     <div
       className={cn(
         "flex gap-2.5 rounded-lg px-2.5 py-2 ring-1 ring-transparent",
-        row.kind === "denied" && "bg-brand-accent/5 ring-brand-accent/20",
-        row.kind === "result" && "bg-secondary/40 ring-border",
-        failed && "bg-destructive/5 ring-destructive/20"
+        row.kind === "denied" && "bg-brand-accent/10 ring-brand-accent/30",
+        row.kind === "result" && "bg-secondary ring-border",
+        failed && "bg-destructive/10 ring-destructive/30",
       )}
     >
-      <Icon
-        className={cn(
-          "mt-0.5 size-3.5 shrink-0",
-          failed ? "text-destructive" : meta.tone
-        )}
-      />
+      <Icon className={cn("mt-0.5 size-3.5 shrink-0", failed ? "text-destructive" : meta.tone)} />
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="font-mono text-[10px] text-muted-foreground uppercase">
-          {meta.title}
-        </span>
+        <span className="font-mono text-[10px] text-muted-foreground uppercase">{meta.title}</span>
         <p
           className={cn(
             "min-w-0 text-xs leading-relaxed break-words whitespace-pre-wrap",
-            row.kind === "tool" || row.kind === "tool_result"
-              ? "font-mono"
-              : "",
-            row.kind === "thinking" && "text-muted-foreground italic"
+            row.kind === "tool" || row.kind === "tool_result" ? "font-mono" : "",
+            row.kind === "thinking" && "text-muted-foreground italic",
           )}
         >
           {body}
         </p>
       </div>
     </div>
-  )
+  );
 }
