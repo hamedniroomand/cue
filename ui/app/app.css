@@ -1,0 +1,172 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    /* Typography — Inter for display/body, JetBrains Mono for labels and metadata. */
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, monospace;
+    --font-heading: var(--font-sans);
+
+    /* Design-spec type scale. */
+    --text-display-lg: 64px;
+    --text-display-lg--line-height: 1.04;
+    --text-display-lg--letter-spacing: -0.02em;
+    --text-display-lg--font-weight: 500;
+    --text-display-md: 40px;
+    --text-display-md--line-height: 1.08;
+    --text-display-md--letter-spacing: -0.02em;
+    --text-display-md--font-weight: 500;
+    --text-body-md: 16px;
+    --text-body-md--line-height: 1.6;
+    --text-label-md: 12px;
+    --text-label-md--line-height: 1.2;
+    --text-label-md--letter-spacing: 0.06em;
+    --text-label-md--font-weight: 600;
+
+    /* Brand accent. Kept out of --accent so component hover semantics
+       (menus, ghost buttons) stay a subtle surface rather than hot pink. */
+    --color-brand: var(--primary);
+    --color-brand-accent: #f472b6;
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-success: var(--success);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* --radius is the 8px control radius from the spec; --radius-xl is pinned to
+       the spec's 16px card radius (Card uses rounded-xl). */
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+    --radius-3xl: 24px;
+    --radius-4xl: 28px;
+}
+
+/* Dark-only surface, per the design spec's guardrail against swapping color mode. */
+:root,
+.dark {
+    --background: #0e0e10;
+    --foreground: #ffffff;
+    --card: #18181c;
+    --card-foreground: #ffffff;
+    --popover: #18181c;
+    --popover-foreground: #ffffff;
+    --primary: #818cf8;
+    --primary-foreground: #0e0e10;
+    --secondary: #27272a;
+    --secondary-foreground: #ffffff;
+    --muted: #1c1c20;
+    --muted-foreground: #a1a1aa;
+    --accent: #27272a;
+    --accent-foreground: #ffffff;
+    --destructive: #fb7185;
+    --success: #34d399;
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #818cf8;
+    --chart-1: #818cf8;
+    --chart-2: #f472b6;
+    --chart-3: #38bdf8;
+    --chart-4: #a78bfa;
+    --chart-5: #fbbf24;
+    --radius: 8px;
+    --sidebar: #18181c;
+    --sidebar-foreground: #ffffff;
+    --sidebar-primary: #818cf8;
+    --sidebar-primary-foreground: #0e0e10;
+    --sidebar-accent: #27272a;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #27272a;
+    --sidebar-ring: #818cf8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+
+@layer utilities {
+  /* Masked reveal + staggered entrance, per the spec's motion section.
+     CSS only — no WebGL/canvas layer. */
+  @keyframes reveal-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+      clip-path: inset(0 0 100% 0);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      clip-path: inset(0 0 -10% 0);
+    }
+  }
+
+  .reveal {
+    animation: reveal-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  .lift {
+    transition:
+      transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.7);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .lift {
+      animation: none;
+      transition: none;
+    }
+
+    .lift:hover {
+      transform: none;
+    }
+  }
+}
