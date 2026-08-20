@@ -1,5 +1,6 @@
 import {
   AlertTriangleIcon,
+  ArrowUpRightIcon,
   BrainIcon,
   CheckCircle2Icon,
   ChevronRightIcon,
@@ -175,7 +176,21 @@ export default function Runs() {
             {issue != null && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Runs · issue #{issue}</CardTitle>
+                  <CardTitle className="flex items-center gap-1 text-sm">
+                    Runs · issue #{issue}
+                    {state?.repo && (
+                      <a
+                        href={`https://github.com/${state.repo}/issues/${issue}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 font-normal text-muted-foreground transition-colors hover:text-foreground"
+                        title={`Open ${state.repo}#${issue} on GitHub`}
+                      >
+                        GitHub
+                        <ArrowUpRightIcon className="size-3" />
+                      </a>
+                    )}
+                  </CardTitle>
                   <CardDescription>Newest first</CardDescription>
                 </CardHeader>
                 <CardContent>
