@@ -17,6 +17,8 @@
     "ui:dev": "bun run --cwd ui dev",
     "ui:build": "bun run --cwd ui build",
     "ui:check": "bun run --cwd ui typecheck",
+    "ui:lint": "bun run --cwd ui lint",
+    "ui:format": "bun run --cwd ui format",
     "fixtures": "bun run scripts/fixtures.ts",
     "lint": "oxlint",
     "format": "oxfmt",

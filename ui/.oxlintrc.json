@@ -1,0 +1,19 @@
+{
+  "plugins": ["react"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    // Legacy rule: the automatic JSX runtime (React 17+) needs no React import.
+    "react/react-in-jsx-scope": "off",
+    // Real render-cascade smell, but the data-fetch effects here use the common
+    // reset-then-fetch pattern. Keep visible as warnings; fix before adopting
+    // the React Compiler transform.
+    "react/set-state-in-effect": "warn"
+  },
+  "ignorePatterns": ["node_modules", "build", ".react-router"]
+}

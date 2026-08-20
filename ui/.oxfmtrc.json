@@ -1,0 +1,7 @@
+{
+  "ignorePatterns": ["node_modules", "build", ".react-router", "app/fixtures/data.json"],
+  "sortTailwindcss": {
+    "stylesheet": "./app/app.css",
+    "functions": ["cn", "clsx", "cva"]
+  }
+}
