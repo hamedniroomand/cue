@@ -1,0 +1,152 @@
+#!/usr/bin/env bun
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { ClaudeAdapter } from "./adapters/claude";
+import type { AgentAdapter } from "./adapters/types";
+import { resolveConfig } from "./config";
+import { realExec } from "./exec";
+import { GitHub } from "./github";
+import { RunLogger } from "./log";
+import { runCleanup } from "./cleanup";
+import { nextAction, poll, runIssue } from "./pipeline";
+import type { StageContext } from "./stages/context";
+import { WorktreeManager } from "./worktree";
+
+const LABELS: Array<[name: string, color: string, desc: string]> = [
+  ["agent:ready", "0E8A16", "Conductor: pick this up for triage"],
+  ["agent:planned", "FBCA04", "Conductor: plan posted, awaiting human approval"],
+  ["agent:approved", "0052CC", "Conductor: plan approved, ready for dev"],
+  [
+    "agent:replan",
+    "F9D0C4",
+    "Conductor: human requested a revised plan (leave feedback as comments)",
+  ],
+  ["agent:in-dev", "5319E7", "Conductor: dev stage running"],
+  ["agent:in-review", "D93F0B", "Conductor: draft PR open, awaiting human merge"],
+  ["agent:done", "C5DEF5", "Conductor: PR merged, pipeline complete"],
+  ["agent:failed", "B60205", "Conductor: a stage failed, see issue comments"],
+  ["agent:stop", "000000", "Conductor: kill switch, never touch this issue"],
+];
+
+async function makeContext(): Promise<StageContext> {
+  const cwd = process.cwd();
+  const config = await resolveConfig(realExec, cwd);
+  if (config.adapter === "codex") throw new Error("codex adapter not implemented yet");
+  const adapter: AgentAdapter = new ClaudeAdapter(realExec);
+  return {
+    config,
+    github: new GitHub(realExec, config.repo),
+    adapter,
+    logger: new RunLogger(join(cwd, ".conductor", "runs")),
+    exec: realExec,
+    worktrees: new WorktreeManager(realExec, config),
+    // Project overrides win over the prompts packaged with conductor itself.
+    promptsDirs: [join(cwd, ".conductor", "prompts"), join(import.meta.dir, "..", "prompts")],
+  };
+}
+
+async function scaffold(cwd: string): Promise<void> {
+  await mkdir(join(cwd, ".conductor", "prompts"), { recursive: true });
+  const configFile = Bun.file(join(cwd, ".conductor", "config.json"));
+  if (!(await configFile.exists())) {
+    await Bun.write(configFile, `${JSON.stringify({ gate: { test: "bun test" } }, null, 2)}\n`);
+    console.log("created .conductor/config.json — adjust the gate to this project's test command");
+  }
+  const gitignorePath = join(cwd, ".gitignore");
+  const gitignoreFile = Bun.file(gitignorePath);
+  const current = (await gitignoreFile.exists()) ? await gitignoreFile.text() : "";
+  if (!current.includes(".conductor/runs/")) {
+    await Bun.write(gitignorePath, `${current.replace(/\n?$/, "\n")}.conductor/runs/\n`);
+    console.log("added .conductor/runs/ to .gitignore");
+  }
+}
+
+async function init(ctx: StageContext): Promise<void> {
+  await scaffold(ctx.config.repoPath);
+  for (const [name, color, desc] of LABELS) {
+    const r = await realExec([
+      "gh",
+      "label",
+      "create",
+      name,
+      "--repo",
+      ctx.config.repo,
+      "--color",
+      color,
+      "--description",
+      desc,
+      "--force",
+    ]);
+    if (r.code !== 0) throw new Error(`label create ${name} failed: ${r.stderr}`);
+    console.log(`label ${name} ok`);
+  }
+}
+
+async function status(ctx: StageContext): Promise<void> {
+  const states = [
+    "agent:ready",
+    "agent:planned",
+    "agent:approved",
+    "agent:in-dev",
+    "agent:in-review",
+    "agent:failed",
+  ];
+  for (const label of states) {
+    const issues = await ctx.github.listIssues(label);
+    for (const i of issues) {
+      const cost = await ctx.logger.totalCost(i.number);
+      console.log(`${label.padEnd(16)} #${i.number} ${i.title} ($${cost.toFixed(2)} local spend)`);
+    }
+  }
+  console.log(`\nworktrees: ${ctx.config.worktreeRoot}`);
+  console.log("note: stale agent:in-dev issues (crashed runs) must be relabeled manually.");
+}
+
+async function main(): Promise<void> {
+  const [command, arg] = process.argv.slice(2);
+  if (!command) {
+    console.log("usage: conductor <init|poll|run <n>|cleanup|status>");
+    process.exitCode = 1;
+    return;
+  }
+  const ctx = await makeContext();
+  switch (command) {
+    case "init":
+      await init(ctx);
+      break;
+    case "poll":
+      await poll(ctx);
+      break;
+    case "run": {
+      const n = Number(arg);
+      if (!Number.isInteger(n)) throw new Error("usage: conductor run <issue-number>");
+      const issues = [
+        ...(await ctx.github.listIssues("agent:ready")),
+        ...(await ctx.github.listIssues("agent:approved")),
+        ...(await ctx.github.listIssues("agent:replan")),
+      ];
+      const issue = issues.find((i) => i.number === n);
+      if (!issue)
+        throw new Error(
+          `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, or agent:replan)`,
+        );
+      console.log(`running ${nextAction(issue.labels)} for #${n}`);
+      await runIssue(ctx, issue);
+      break;
+    }
+    case "cleanup":
+      await runCleanup(ctx);
+      break;
+    case "status":
+      await status(ctx);
+      break;
+    default:
+      console.log("usage: conductor <init|poll|run <n>|cleanup|status>");
+      process.exitCode = 1;
+  }
+}
+
+main().catch((err) => {
+  console.error(err instanceof Error ? err.message : err);
+  process.exit(1);
+});
