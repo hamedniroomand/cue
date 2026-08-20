@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { ClaudeAdapter } from "./adapters/claude";
 import type { AgentAdapter } from "./adapters/types";
 import { resolveConfig } from "./config";
+import { VERSION } from "./embedded";
 import { realExec } from "./exec";
 import { GitHub } from "./github";
 import { RunLogger } from "./log";
@@ -119,7 +120,8 @@ Commands:
   ui [port]    web dashboard on http://127.0.0.1:<port> (default 4224)
 
 Flags:
-  -h, --help   show this help
+  -h, --help      show this help
+  -v, --version   print the conductor version
 
 Labels drive the pipeline: agent:ready → triage plans, a human approves
 (agent:approved) → dev implements + review verdicts + draft PR, a human merges.
@@ -130,6 +132,10 @@ async function main(): Promise<void> {
   const [command, arg] = process.argv.slice(2);
   if (command === "--help" || command === "-h" || command === "help") {
     console.log(HELP);
+    return;
+  }
+  if (command === "--version" || command === "-v" || command === "version") {
+    console.log(VERSION);
     return;
   }
   const known = ["init", "poll", "run", "cleanup", "status", "ui"];
