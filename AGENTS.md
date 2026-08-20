@@ -138,8 +138,11 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   `import.meta.dir`, not cwd, because conductor is installed globally. After changing
   anything under `ui/app/`, run `bun run ui:build` — `package.json` `files` ships
   `ui/build/client`, not the sources.
-- `ui/` is excluded from the root `tsconfig.json`, oxlint and oxfmt: it has its own
-  tsconfig (with react-router typegen), and `bun run ui:check` typechecks it.
+- `ui/` is excluded from the root `tsconfig.json`, oxlint and oxfmt configs, but has
+  its OWN: `ui/.oxlintrc.json` (react plugin incl. the React Compiler rules;
+  `set-state-in-effect` is deliberately a warning) and `ui/.oxfmtrc.json` (with
+  `sortTailwindcss` class sorting — prettier is gone). Run via `bun run ui:lint`,
+  `bun run ui:format`, `bun run ui:check` (react-router typegen + tsc).
   `bun run check` does NOT cover the SPA — run both.
 - **Horizontal-overflow traps in the dashboard.** Two bit us already: (1) `Separator`
   carries `data-horizontal:w-full`, so as a direct `grow` flex sibling it resolves to
