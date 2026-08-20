@@ -8,7 +8,7 @@ const API = process.env.CONDUCTOR_API ?? "http://127.0.0.1:4224";
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
-  plugins: [tailwindcss(), react()],
+  plugins: [tailwindcss(), react({ compiler: true })],
   build: { outDir: "build/client" },
   server: {
     proxy: {
