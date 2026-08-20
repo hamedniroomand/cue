@@ -42,6 +42,10 @@ async function makeContext(): Promise<StageContext> {
     worktrees: new WorktreeManager(realExec, config),
     // Project overrides win over the prompts packaged with conductor itself.
     promptsDirs: [join(cwd, ".conductor", "prompts"), join(import.meta.dir, "..", "prompts")],
+    onEvent: (e) => {
+      const tag = e.kind === "progress" ? "" : ` ${e.kind.toUpperCase()}`;
+      console.log(`[${e.stage}${e.issue ? ` #${e.issue}` : ""}]${tag} ${e.message}`);
+    },
   };
 }
 
@@ -102,10 +106,36 @@ async function status(ctx: StageContext): Promise<void> {
   console.log("note: stale agent:in-dev issues (crashed runs) must be relabeled manually.");
 }
 
+const HELP = `conductor — drive headless coding agents through a GitHub-issue pipeline
+
+Usage: conductor <command> (run from inside a target repo)
+
+Commands:
+  init         create the agent:* labels and scaffold .conductor/ in this repo
+  poll         reconcile finished PRs, then run every actionable issue
+  run <n>      run the next pipeline stage for issue #n
+  cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
+  status       issues per pipeline state, local spend, worktree root
+  ui [port]    web dashboard on http://127.0.0.1:<port> (default 4224)
+
+Flags:
+  -h, --help   show this help
+
+Labels drive the pipeline: agent:ready → triage plans, a human approves
+(agent:approved) → dev implements + review verdicts + draft PR, a human merges.
+agent:replan requests a revised plan; agent:stop freezes an issue.
+Full state machine and configuration reference: README.md`;
+
 async function main(): Promise<void> {
   const [command, arg] = process.argv.slice(2);
-  if (!command) {
-    console.log("usage: conductor <init|poll|run <n>|cleanup|status>");
+  if (command === "--help" || command === "-h" || command === "help") {
+    console.log(HELP);
+    return;
+  }
+  const known = ["init", "poll", "run", "cleanup", "status", "ui"];
+  if (!command || !known.includes(command)) {
+    if (command) console.error(`unknown command: ${command}\n`);
+    console.log(HELP);
     process.exitCode = 1;
     return;
   }
@@ -137,12 +167,17 @@ async function main(): Promise<void> {
     case "cleanup":
       await runCleanup(ctx);
       break;
+    case "ui": {
+      const port = arg ? Number(arg) : 4224;
+      if (!Number.isInteger(port) || port <= 0) throw new Error("usage: conductor ui [port]");
+      const { startServer } = await import("./server");
+      const { url } = startServer(ctx, port);
+      console.log(`conductor ui for ${ctx.config.repo}: ${url}`);
+      break;
+    }
     case "status":
       await status(ctx);
       break;
-    default:
-      console.log("usage: conductor <init|poll|run <n>|cleanup|status>");
-      process.exitCode = 1;
   }
 }
 
