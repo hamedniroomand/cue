@@ -19,6 +19,9 @@ export function nextAction(labels: string[]): Action {
 export async function runIssue(ctx: StageContext, issue: Issue): Promise<void> {
   const action = nextAction(issue.labels);
   if (action === "skip") return;
+  const emit = (kind: "start" | "done" | "error", message: string) =>
+    ctx.onEvent({ ts: Date.now(), issue: issue.number, stage: action, kind, message });
+  emit("start", `#${issue.number} ${issue.title}`);
   try {
     if (action === "triage") {
       await runTriage(ctx, issue);
@@ -28,8 +31,10 @@ export async function runIssue(ctx: StageContext, issue: Issue): Promise<void> {
       await runDev(ctx, issue);
       await runReview(ctx, issue);
     }
+    emit("done", `#${issue.number} ${action} finished`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    emit("error", message);
     await ctx.github.comment(
       issue.number,
       `⚠️ conductor ${action} failed: ${message.slice(0, 1500)}\n\nSee \`.conductor/runs/${issue.number}/\` on the runner machine for transcripts. Reset the label to retry.`,

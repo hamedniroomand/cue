@@ -35,7 +35,14 @@ export async function runReplan(ctx: StageContext, issue: Issue): Promise<void> 
     maxTurns: ctx.config.maxTurns.triage,
     allowedTools: ["Read", "Grep", "Glob", "WebSearch"],
     timeoutMs: REPLAN_TIMEOUT_MS,
-    onProgress: (m) => console.log(`[replan #${issue.number}] ${m}`),
+    onProgress: (m) =>
+      ctx.onEvent({
+        ts: Date.now(),
+        issue: issue.number,
+        stage: "replan",
+        kind: "progress",
+        message: m,
+      }),
   });
   await ctx.logger.log(issue.number, "replan", {
     prompt,

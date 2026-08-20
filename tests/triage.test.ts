@@ -7,7 +7,7 @@ import { GitHub } from "../src/github";
 import { RunLogger } from "../src/log";
 import { WorktreeManager } from "../src/worktree";
 import { PLAN_MARKER, runTriage } from "../src/stages/triage";
-import type { StageContext } from "../src/stages/context";
+import type { ConductorEvent, StageContext } from "../src/stages/context";
 import { makeFakeAdapter } from "./helpers/fakeAdapter";
 import { makeFakeExec, type ExpectedCall } from "./helpers/fakeExec";
 
@@ -20,9 +20,11 @@ export async function makeCtx(
   ctx: StageContext;
   calls: string[][];
   runs: ReturnType<typeof makeFakeAdapter>["runs"];
+  events: ConductorEvent[];
 }> {
   const { exec, calls } = makeFakeExec(ghCalls);
   const { adapter, runs } = makeFakeAdapter(adapterResponses);
+  const events: ConductorEvent[] = [];
   const runsDir = await mkdtemp(join(tmpdir(), "conductor-test-"));
   const config = {
     repo: "acme/widgets",
@@ -44,8 +46,9 @@ export async function makeCtx(
     exec,
     worktrees: new WorktreeManager(exec, config),
     promptsDirs: ["prompts"],
+    onEvent: (e) => events.push(e),
   };
-  return { ctx, calls, runs };
+  return { ctx, calls, runs, events };
 }
 
 const GOOD_PLAN =

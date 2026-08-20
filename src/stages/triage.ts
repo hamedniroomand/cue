@@ -21,7 +21,14 @@ export async function runTriage(ctx: StageContext, issue: Issue): Promise<void> 
     maxTurns: ctx.config.maxTurns.triage,
     allowedTools: ["Read", "Grep", "Glob"],
     timeoutMs: TRIAGE_TIMEOUT_MS,
-    onProgress: (m) => console.log(`[triage #${issue.number}] ${m}`),
+    onProgress: (m) =>
+      ctx.onEvent({
+        ts: Date.now(),
+        issue: issue.number,
+        stage: "triage",
+        kind: "progress",
+        message: m,
+      }),
   });
   await ctx.logger.log(issue.number, "triage", {
     prompt,

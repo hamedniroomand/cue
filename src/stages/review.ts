@@ -45,7 +45,14 @@ async function reviewOnce(ctx: StageContext, issue: Issue, plan: string): Promis
       maxTurns: ctx.config.maxTurns.review,
       allowedTools: ["Read", "Grep", "Glob"],
       timeoutMs: REVIEW_TIMEOUT_MS,
-      onProgress: (m) => console.log(`[review #${issue.number}] ${m}`),
+      onProgress: (m) =>
+        ctx.onEvent({
+          ts: Date.now(),
+          issue: issue.number,
+          stage: "review",
+          kind: "progress",
+          message: m,
+        }),
     });
     await ctx.logger.log(issue.number, "review", {
       prompt,
@@ -75,7 +82,14 @@ async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): P
     maxTurns: ctx.config.maxTurns.dev,
     allowedTools: devTools(ctx.config),
     timeoutMs: REVIEW_TIMEOUT_MS,
-    onProgress: (m) => console.log(`[review-fix #${issue.number}] ${m}`),
+    onProgress: (m) =>
+      ctx.onEvent({
+        ts: Date.now(),
+        issue: issue.number,
+        stage: "review-fix",
+        kind: "progress",
+        message: m,
+      }),
   });
   await ctx.logger.log(issue.number, "review-fix", {
     prompt,

@@ -31,7 +31,8 @@ async function runFix(
     maxTurns: ctx.config.maxTurns.dev,
     allowedTools: devTools(ctx.config),
     timeoutMs: DEV_TIMEOUT_MS,
-    onProgress: (m) => console.log(`[fix #${issue}] ${m}`),
+    onProgress: (m) =>
+      ctx.onEvent({ ts: Date.now(), issue, stage: "fix", kind: "progress", message: m }),
   });
   await ctx.logger.log(issue, "fix", {
     prompt,
@@ -58,7 +59,14 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
     maxTurns: ctx.config.maxTurns.dev,
     allowedTools: devTools(ctx.config),
     timeoutMs: DEV_TIMEOUT_MS,
-    onProgress: (m) => console.log(`[dev #${issue.number}] ${m}`),
+    onProgress: (m) =>
+      ctx.onEvent({
+        ts: Date.now(),
+        issue: issue.number,
+        stage: "dev",
+        kind: "progress",
+        message: m,
+      }),
   });
   await ctx.logger.log(issue.number, "dev", {
     prompt,
