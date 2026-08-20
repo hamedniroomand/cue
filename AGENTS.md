@@ -14,7 +14,7 @@ bun test               # full suite — runs entirely on fakes: no network, no g
 bun run lint           # oxlint (config: .oxlintrc.json)
 bun run format         # oxfmt — always format after editing; format:check verifies
 bun run check          # lint + format:check + tsc --noEmit + tests, all in one
-bun run conductor <init|poll|run <n>|cleanup|status>   # the CLI (globally: `conductor`, run from inside a target repo)
+bun run conductor <init|poll|run <n>|cleanup|status|ui [port]>   # the CLI (globally: `conductor`, run from inside a target repo)
 ```
 
 Always run `bun run check` before claiming any change works. tsconfig has
@@ -38,6 +38,7 @@ src/
 ├── adapters/
 │   ├── types.ts        # AgentAdapter / AgentRunOptions / AgentResult
 │   └── claude.ts       # claude -p --output-format stream-json --verbose; env-scrubbed
+├── server.ts           # `conductor ui`: Bun.serve — state/runs API, SSE events, poll/run triggers, serves ui/build/client
 ├── github.ts           # typed wrapper over the `gh` CLI
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos (--allow-empty)
 ├── gates.ts            # deterministic test/lint runner (sh -c in the worktree)
@@ -45,6 +46,12 @@ src/
 ├── config.ts           # valibot schema + resolveConfig: .conductor/config.json, repo auto-detect from origin
 └── log.ts              # per-invocation transcripts + cost under <target>/.conductor/runs/<issue>/
 prompts/                # packaged default role prompts; <target>/.conductor/prompts/ overrides per file
+scripts/fixtures.ts     # snapshots local .conductor runs into ui/app/fixtures/data.json
+ui/                     # dashboard: standalone react-router SPA (own package.json), shadcn `base-nova`
+├── app/routes/home.tsx     # overview: spend summary, cost charts, label board, live log
+├── app/routes/runs.tsx     # run explorer: per-run prompt / transcript / raw tabs
+├── app/lib/conductor.ts    # API client + transcript normalizer (see the polymorphic-result gotcha)
+└── app/fixtures/           # committed run snapshot, used when /api is unreachable
 tests/                  # one test file per module + integration.test.ts
 tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAdapter
 ```
@@ -53,7 +60,10 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
 
 - **All subprocess execution goes through the `Exec` type from `src/exec.ts`.**
   Never call `Bun.spawn` anywhere else; it is what makes every module testable.
-- **Runtime dependency limit: valibot only.** Do not add packages without being asked.
+- **Lean dependencies.** The CLI package is valibot-only at runtime. The dashboard is a
+  separate package (`ui/package.json`) that owns react, react-router, tailwind and the
+  shadcn stack — its deps never enter the CLI's. Do not add packages to either without
+  being asked.
 - **Label names are exact:** `agent:ready`, `agent:planned`, `agent:approved`,
   `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:done`, `agent:failed`,
   `agent:stop`. They appear in code, tests, prompts, README, and on real repos —
@@ -113,5 +123,41 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   Prompts resolve relative to the _package_ (`import.meta.dir`), never cwd.
 - A crashed run leaves `agent:in-dev` stuck; humans reset labels manually
   (`conductor status` mentions this).
+- `ui/` is a **react-router SPA in SPA mode** (`ssr: false`), built by Vite to
+  `ui/build/client` and served statically by `src/server.ts` with an index.html
+  fallback so client routes survive a refresh. `CLIENT_DIR` resolves against
+  `import.meta.dir`, not cwd, because conductor is installed globally. After changing
+  anything under `ui/app/`, run `bun run ui:build` — `package.json` `files` ships
+  `ui/build/client`, not the sources.
+- `ui/` is excluded from the root `tsconfig.json`, oxlint and oxfmt: it has its own
+  tsconfig (with react-router typegen), and `bun run ui:check` typechecks it.
+  `bun run check` does NOT cover the SPA — run both.
+- **Horizontal-overflow traps in the dashboard.** Two bit us already: (1) `Separator`
+  carries `data-horizontal:w-full`, so as a direct `grow` flex sibling it resolves to
+  100% of the whole row and pushes the line past the viewport — put it in its own
+  `flex-1` wrapper (that is what `SectionHeading` in `shell.tsx` is for); (2) a grid item
+  defaults to `min-width: auto`, so a track sizes to its content's min-content and an
+  inner `overflow-x-auto` scroller can never constrain itself — use
+  `grid-cols-[minmax(0,…)]` plus `min-w-0` on the cards. Verify with
+  `document.documentElement.scrollWidth - clientWidth === 0` at 375, 1024 and 1440,
+  on both routes; the header needs its own responsive collapse at narrow widths.
+- **The label board is not the run archive.** `BOARD_LABELS` in `server.ts` deliberately
+  omits `agent:done`, so a completed issue has no board row. Anything listing runs must
+  read `RunLogger.index()` (`GET /api/runs`) — the on-disk issue index — not
+  `state.columns`, or finished work becomes invisible. The explorer splits the two into
+  Active (on the board) and Done (recorded but off the board) tabs; the Overview totals
+  union both. `index()` recovers issue titles from the recorded prompts, matching both
+  `Issue #<n>: <title>` (triage/replan) and `Issue: <title>` (dev), so archived and even
+  deleted issues stay browsable with no `gh` call.
+- **`RunEntry.result` is polymorphic.** Older logs store the single `result` event as an
+  object; newer ones store the whole event array. Anything reading a transcript must go
+  through `normalizeEvents` (`ui/app/lib/conductor.ts`). Getting this wrong renders old
+  runs blank while new ones look fine.
+- `RunLogger.read` matches the `<stage>-<ts>` id against a directory listing instead of
+  joining it into a path — `/api/runs/:issue/:run` takes that id straight from the URL.
+  Keep it that way; there is a traversal test.
+- Stages emit through `ctx.onEvent` (ConductorEvent in stages/context.ts) — never
+  console.log directly from a stage. The CLI prints events; `conductor ui` also
+  broadcasts them over SSE.
 - Design docs live under `docs/superpowers/` which is **gitignored on purpose** —
   don't try to commit them or "fix" the .gitignore.

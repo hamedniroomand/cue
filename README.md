@@ -81,6 +81,32 @@ conductor run 42    # run just issue #42 (must be agent:ready or agent:approved)
 conductor cleanup   # reconcile merged/closed PRs (also runs at the start of every poll):
                             #   merged → agent:done, closed unmerged → agent:failed,
                             #   worktree + local branch removed either way
+conductor ui        # web dashboard at http://127.0.0.1:4224 (optional: `conductor ui 5000`)
+```
+
+### Web dashboard
+
+`conductor ui` serves a local dashboard (localhost only, no auth) for the current
+repo, in two views:
+
+- **Overview** — total agent spend, cost per pipeline stage, cost per issue, a
+  cumulative spend trajectory, the `agent:*` label board, and a live log streamed over
+  SSE while stages run.
+- **Runs** — a transcript explorer over `.conductor/runs/`, split into **Active**
+  (issues still on the label board) and **Done** (recorded runs whose issue has left the
+  board — merged, closed, or `agent:done`). Pick an issue, pick a recorded stage run, and read the exact prompt that was sent, the flattened event
+  transcript (tool calls, thinking, results), or the raw log entry. Denied tool calls
+  are surfaced explicitly, since a stage's `--allowedTools` allowlist is a common cause
+  of odd agent behaviour.
+
+It's the same pipeline the CLI runs — GitHub labels and `.conductor/runs/` stay the
+shared state either way. The dashboard is a react-router SPA (shadcn `base-nova`) built
+to `ui/build/client` and served by the CLI:
+
+```bash
+bun run ui:build     # build the dashboard (required after changing ui/app/)
+bun run ui:dev       # Vite dev server on :5173, proxying /api to a running `conductor ui`
+bun run fixtures     # snapshot local .conductor runs so the SPA renders without the API
 ```
 
 ### Giving feedback on a plan
