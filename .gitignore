@@ -1,0 +1,5 @@
+docs/superpowers/
+node_modules/
+.runs/
+conductor.json
+tests/tmp-config-*.json
