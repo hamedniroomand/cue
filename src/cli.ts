@@ -117,7 +117,8 @@ Commands:
   run <n>      run the next pipeline stage for issue #n
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
   status       issues per pipeline state, local spend, worktree root
-  ui [port]    web dashboard on http://127.0.0.1:<port> (default 4224)
+  ui [port]    web dashboard on http://127.0.0.1:<port> (default 4224); opens your
+               browser automatically — pass --no-open to skip
 
 Flags:
   -h, --help      show this help
@@ -127,6 +128,20 @@ Labels drive the pipeline: agent:ready → triage plans, a human approves
 (agent:approved) → dev implements + review verdicts + draft PR, a human merges.
 agent:replan requests a revised plan; agent:stop freezes an issue.
 Full state machine and configuration reference: README.md`;
+
+async function openBrowser(url: string): Promise<void> {
+  const cmd =
+    process.platform === "darwin"
+      ? ["open", url]
+      : process.platform === "win32"
+        ? ["cmd", "/c", "start", "", url]
+        : ["xdg-open", url];
+  try {
+    await realExec(cmd);
+  } catch {
+    console.log("(could not open a browser automatically — use the URL above)");
+  }
+}
 
 async function main(): Promise<void> {
   const [command, arg] = process.argv.slice(2);
@@ -174,11 +189,15 @@ async function main(): Promise<void> {
       await runCleanup(ctx);
       break;
     case "ui": {
-      const port = arg ? Number(arg) : 4224;
-      if (!Number.isInteger(port) || port <= 0) throw new Error("usage: conductor ui [port]");
+      const uiArgs = process.argv.slice(3);
+      const portArg = uiArgs.find((a) => !a.startsWith("--"));
+      const port = portArg ? Number(portArg) : 4224;
+      if (!Number.isInteger(port) || port <= 0)
+        throw new Error("usage: conductor ui [port] [--no-open]");
       const { startServer } = await import("./server");
       const { url } = startServer(ctx, port);
       console.log(`conductor ui for ${ctx.config.repo}: ${url}`);
+      if (!uiArgs.includes("--no-open")) await openBrowser(url);
       break;
     }
     case "status":
