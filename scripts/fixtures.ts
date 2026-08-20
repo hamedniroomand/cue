@@ -99,7 +99,13 @@ const index = Object.entries(runs)
   }))
   .toSorted((a, b) => a.issue - b.issue);
 
-await Bun.write(OUT, JSON.stringify({ state, index, runs, details }));
+// The snapshot ships in a public repo: scrub machine-identifying home paths
+// from the raw transcripts (they appear inside string values only).
+const json = JSON.stringify({ state, index, runs, details }).replaceAll(
+  /\/(?:Users|home)\/[A-Za-z0-9._-]+/g,
+  "~",
+);
+await Bun.write(OUT, json);
 const kb = (Bun.file(OUT).size / 1024).toFixed(0);
 console.log(
   `wrote ${OUT} (${kb}K) — ${Object.keys(runs).length} issues, ${Object.values(runs).flat().length} runs`,
