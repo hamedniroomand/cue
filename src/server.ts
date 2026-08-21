@@ -5,8 +5,13 @@ import type { ConductorEvent, StageContext } from "./stages/context";
 import { UI_FILES } from "./ui-manifest.g";
 
 /** Built SPA output (ui/ is a react-router app in SPA mode). Resolved against
- *  the package, not cwd, because conductor is installed globally. */
-const CLIENT_DIR = resolve(import.meta.dir, "..", "ui", "build", "client");
+ *  the package, not cwd, because conductor is installed globally. Read lazily —
+ *  and overridable via env — so tests can point it at a fixture directory. */
+function clientDir(): string {
+  return (
+    process.env.CONDUCTOR_CLIENT_DIR ?? resolve(import.meta.dir, "..", "ui", "build", "client")
+  );
+}
 
 const NOT_BUILT =
   "conductor dashboard is not built yet — run `bun run ui:build` in the conductor package.";
@@ -14,7 +19,7 @@ const NOT_BUILT =
 /** Serve the SPA, falling back to index.html so client-side routes survive a
  *  refresh. Compiled binaries serve from the embedded UI_FILES manifest;
  *  dev mode serves ui/build/client from disk. Requests that resolve outside
- *  CLIENT_DIR are refused. */
+ *  the client dir are refused. */
 async function serveClient(pathname: string): Promise<Response> {
   if (Object.keys(UI_FILES).length > 0) {
     const hit = UI_FILES[pathname === "/" ? "/index.html" : pathname];
@@ -26,10 +31,11 @@ async function serveClient(pathname: string): Promise<Response> {
       });
     }
   }
-  const index = Bun.file(join(CLIENT_DIR, "index.html"));
+  const dir = clientDir();
+  const index = Bun.file(join(dir, "index.html"));
   if (pathname !== "/") {
-    const target = resolve(CLIENT_DIR, `.${pathname}`);
-    if (target.startsWith(CLIENT_DIR + "/")) {
+    const target = resolve(dir, `.${pathname}`);
+    if (target.startsWith(dir + "/")) {
       const file = Bun.file(target);
       if (await file.exists()) return new Response(file);
     }

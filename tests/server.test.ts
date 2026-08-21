@@ -1,6 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { startServer } from "../src/server";
 import { makeCtx } from "./triage.test";
+
+// The server serves ui/build/client, which does not exist on a fresh checkout
+// (CI runs `check` before `ui:build`). Point it at a fixture dir instead so
+// these tests never depend on a real dashboard build.
+beforeAll(async () => {
+  const dir = await mkdtemp(join(tmpdir(), "conductor-client-"));
+  await Bun.write(join(dir, "index.html"), "<!doctype html><title>conductor fixture</title>");
+  process.env.CONDUCTOR_CLIENT_DIR = dir;
+});
 
 /** Boot the dashboard server on an ephemeral port. */
 async function serve() {
