@@ -36,6 +36,20 @@ export async function runCleanup(ctx: StageContext): Promise<void> {
   // unreadable timeline means "cannot tell", never "stale" — leave it be.
   const inDev = await ctx.github.listIssues('agent:in-dev');
   for (const issue of inDev) {
+    // A failed issue that kept its claim (runs from before the failure path
+    // dropped it, or a crash between the two label edits) is healed, never
+    // reclaimed — a failure always waits for a human.
+    if (issue.labels.includes('agent:failed')) {
+      await ctx.github.removeLabel(issue.number, 'agent:in-dev');
+      ctx.onEvent({
+        ts: Date.now(),
+        issue: issue.number,
+        stage: 'cleanup',
+        kind: 'done',
+        message: 'failed run left agent:in-dev behind → claim removed',
+      });
+      continue;
+    }
     const claimedAt = await ctx.github.labelAddedAt(issue.number, 'agent:in-dev');
     if (claimedAt === null) continue;
     if (Date.now() - claimedAt < ctx.config.staleClaimMinutes * 60_000) continue;

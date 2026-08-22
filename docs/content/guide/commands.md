@@ -82,7 +82,7 @@ Reconciles merged and closed PRs for Cue-managed issues:
 - closed unmerged → `agent:failed`
 - worktree and local `agent/issue-<n>` branch removed either way
 
-It also reclaims stale claims: an `agent:in-dev` issue whose label is older than [`staleClaimMinutes`](/guide/config#fields) (default 90) with no run finishing it — a crashed or rebooted runner — is reset to `agent:approved` with an explanatory comment, so the next `process` simply picks it up again. The claim's age is read from the GitHub label event, so any machine can do the reclaiming.
+It also reclaims stale claims: an `agent:in-dev` issue whose label is older than [`staleClaimMinutes`](/guide/config#fields) (default 90) with no run finishing it — a crashed or rebooted runner — is reset to `agent:approved` with an explanatory comment, so the next `process` simply picks it up again. The claim's age is read from the GitHub label event, so any machine can do the reclaiming. An issue carrying both `agent:failed` and `agent:in-dev` is healed instead — the leftover claim is removed and the failure waits for a human, however old the claim is.
 
 Also runs at the start of every `process`. Call it on its own if you merged on GitHub and want local worktrees gone without kicking the rest of the pipeline.
 

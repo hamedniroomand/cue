@@ -47,6 +47,54 @@ describe('runIssue failure handling', () => {
     expect(await runIssue(ctx, issue)).toBe('failed');
   });
 
+  test('a dev failure drops the agent:in-dev claim so only agent:failed remains', async () => {
+    const { ctx, calls } = await makeCtx(
+      [
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:approved',
+            '--add-label',
+            'agent:in-dev',
+          ],
+        },
+        // No plan comment → runDev throws after claiming.
+        { match: ['gh', 'issue', 'view', '7'], result: { stdout: '{"comments":[]}' } },
+        { match: ['gh', 'issue', 'comment', '7'] },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:in-dev'] },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--add-label', 'agent:failed'] },
+      ],
+      [],
+    );
+    const issue: Issue = { number: 7, title: 't', body: 'b', labels: ['agent:approved'] };
+    expect(await runIssue(ctx, issue)).toBe('failed');
+    expect(calls).toHaveLength(5);
+  });
+
+  test('the failure path survives an unremovable in-dev label', async () => {
+    const { ctx } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: { stdout: '{"comments":[]}' } },
+        { match: ['gh', 'issue', 'comment', '7'] },
+        {
+          match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:in-dev'],
+          result: { code: 1, stderr: 'label does not exist' },
+        },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--add-label', 'agent:failed'] },
+      ],
+      [],
+    );
+    const issue: Issue = { number: 7, title: 't', body: 'b', labels: ['agent:approved'] };
+    expect(await runIssue(ctx, issue)).toBe('failed');
+  });
+
   test('skip labels do nothing', async () => {
     const { ctx, calls } = await makeCtx([], []);
     await runIssue(ctx, {

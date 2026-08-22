@@ -247,6 +247,40 @@ describe('stale agent:in-dev reclaim', () => {
     expect(calls).toHaveLength(3);
   });
 
+  test('a failed issue that kept its claim gets agent:in-dev removed, never reclaimed', async () => {
+    const BOTH = JSON.stringify([
+      {
+        number: 12,
+        title: 'CORS',
+        body: 'b',
+        labels: [{ name: 'agent:in-dev' }, { name: 'agent:failed' }],
+      },
+    ]);
+    const { ctx, calls, events } = await makeCtx(
+      [
+        noInReview,
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:in-dev'],
+          result: { stdout: BOTH },
+        },
+        { match: ['gh', 'issue', 'edit', '12', '--repo', '*', '--remove-label', 'agent:in-dev'] },
+      ],
+      [],
+    );
+    await runCleanup(ctx);
+    // No timeline probe, no reclaim to agent:approved — a failed issue must
+    // wait for a human, however old its leftover claim is.
+    expect(calls).toHaveLength(3);
+    expect(events).toEqual([
+      expect.objectContaining({
+        issue: 12,
+        stage: 'cleanup',
+        kind: 'done',
+        message: 'failed run left agent:in-dev behind → claim removed',
+      }),
+    ]);
+  });
+
   test('an unreadable timeline leaves the claim untouched', async () => {
     const { ctx, calls } = await makeCtx(
       [noInReview, listInDev, { match: ['gh', 'api'], result: { code: 1, stderr: 'nope' } }],

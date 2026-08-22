@@ -42,6 +42,16 @@ export async function runIssue(ctx: StageContext, issue: Issue): Promise<Outcome
       issue.number,
       `⚠️ cue ${action} failed: ${message.slice(0, 1500)}\n\nSee \`.cue/runs/${issue.number}/\` on the runner machine for transcripts. Reset the label to retry.`,
     );
+    // A failed dev must not keep its claim: in-dev + failed renders as two
+    // board columns, and a lingering claim would eventually be stale-reclaimed
+    // back to agent:approved — silently re-running a failed issue.
+    if (action === 'dev') {
+      try {
+        await ctx.github.removeLabel(issue.number, 'agent:in-dev');
+      } catch {
+        // The claim may never have been applied (the swap itself failed).
+      }
+    }
     await ctx.github.addLabel(issue.number, 'agent:failed');
     return 'failed';
   }
