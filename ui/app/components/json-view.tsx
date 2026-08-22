@@ -1,20 +1,23 @@
 import { codeToHtml } from "rangi";
-import { githubDark, githubLight } from "rangi/themes";
 import { useMemo } from "react";
 
 /**
- * Syntax-highlighted JSON for the raw log view, rendered with rangi. Its
- * output is self-contained HTML: the code text is escaped by the library and
- * colors are inlined as `light-dark()` values, which resolve through the
- * `color-scheme` scoped on the wrapper (see .json-view in app.css) so the
- * palette follows the app's class-based theme toggle.
+ * Syntax-highlighted JSON for the raw log view, rendered with rangi in class
+ * mode: the markup carries no style attribute at all (the code text is still
+ * escaped by the library), and .json-view in app.css owns every color, font,
+ * and wrap rule. Inline mode was tried first and rejected — it hardcodes
+ * `color-scheme: light dark`, so its light-dark() colors follow the OS while
+ * the app's theme toggle is class-based, and it inlines its own font stack.
  */
 export function JsonView({ value }: { value: unknown }) {
   const html = useMemo(
     () =>
       codeToHtml(JSON.stringify(value, null, 2), {
         lang: "json",
-        theme: { light: githubLight, dark: githubDark },
+        classes: true,
+        // No gutter: long string values wrap, and wrapped lines would drift
+        // out of step with a line-number column.
+        lineNumbers: false,
       }),
     [value],
   );

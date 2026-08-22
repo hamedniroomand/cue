@@ -188,24 +188,64 @@
 }
 
 @layer components {
-  /* rangi inlines light-dark() colors, which resolve via color-scheme — the
-     app's theme is class-based, so the scheme is scoped here to bridge the
-     two. Long string values wrap instead of forcing a horizontal scroll. */
-  .json-view {
-    color-scheme: light;
-  }
-  .dark .json-view {
-    color-scheme: dark;
-  }
-  .json-view pre {
+  /* rangi runs in class mode (bare .shj-* markup, zero inline styles), so the
+     raw JSON block uses the dashboard's own font and follows the class-based
+     theme toggle. Token colors are the GitHub Light/Dark palettes. Long
+     string values wrap instead of forcing a horizontal scroll. */
+  .json-view .shj {
+    display: block;
     padding: 0.625rem;
     border: 1px solid var(--border);
     border-radius: 0.5rem;
+    background: var(--secondary);
+    color: var(--foreground);
     font-family: var(--font-mono);
     font-size: 0.75rem;
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+  .json-view .shj-var {
+    color: #0550ae;
+  }
+  .json-view .shj-num,
+  .json-view .shj-bool {
+    color: #0550ae;
+  }
+  .json-view .shj-str {
+    color: #0a3069;
+  }
+  .json-view .shj-kwd,
+  .json-view .shj-oper {
+    color: #cf222e;
+  }
+  .json-view .shj-bracket {
+    color: #57606a;
+  }
+  .json-view .shj-cmnt {
+    color: #6e7781;
+  }
+  .json-view .shj-err {
+    color: #82071e;
+  }
+  .dark .json-view .shj-var,
+  .dark .json-view .shj-num,
+  .dark .json-view .shj-bool {
+    color: #79c0ff;
+  }
+  .dark .json-view .shj-str {
+    color: #a5d6ff;
+  }
+  .dark .json-view .shj-kwd,
+  .dark .json-view .shj-oper {
+    color: #ff7b72;
+  }
+  .dark .json-view .shj-bracket,
+  .dark .json-view .shj-cmnt {
+    color: #8b949e;
+  }
+  .dark .json-view .shj-err {
+    color: #ffa198;
   }
 
   /* Scoped typography for transcript/prompt markdown — deliberately small
