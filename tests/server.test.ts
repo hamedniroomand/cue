@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
 import { mkdtemp } from 'node:fs/promises';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,35 +17,44 @@ beforeAll(async () => {
 });
 
 /** Boot the dashboard server on an ephemeral port. */
-/** OS-assigned free port. Bun.serve({ port: 0 }) is broken on Windows and
- *  GitHub's windows runners reserve large port blocks (reported as EADDRINUSE
- *  by Bun even when the real error is EACCES — oven-sh/bun#7187), so random
- *  fixed ports are unreliable: node:net's listen(0) is the path that works. */
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const srv = createServer();
-    srv.once('error', reject);
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address() as { port: number };
-      srv.close(() => resolve(port));
-    });
-  });
-}
-
+/** Bind the dashboard for a test. Plain 127.0.0.1 (any port, any API) fails
+ *  under Bun on GitHub's windows runners, so try loopback spellings in order
+ *  and log the first that binds — the CI output then documents which one
+ *  works there. Locally 127.0.0.1 wins on the first attempt. */
+let boundHost: string | undefined;
 async function serve() {
   const { ctx } = await makeCtx([], []);
-  // Retry the rare close-to-rebind race on the OS-assigned port.
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const { url, stop } = startServer(ctx, await freePort());
-      return { ctx, url, stop };
-    } catch (err) {
-      if (attempt >= 9) throw err;
+  const errors: string[] = [];
+  for (const host of boundHost ? [boundHost] : ['127.0.0.1', 'localhost', '::1']) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const { url, stop } = startServer(ctx, 0, host);
+        if (boundHost !== host) {
+          boundHost = host;
+          console.error(`dashboard tests: bound via ${host}`);
+        }
+        return { ctx, url, stop };
+      } catch (err) {
+        errors.push(`${host}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
+  throw new Error(`no loopback hostname bindable:\n${errors.join('\n')}`);
 }
 
 describe('dashboard server', () => {
+  test('startServer binds the requested hostname and reports it in the url', async () => {
+    const { ctx } = await makeCtx([], []);
+    const { url, stop } = startServer(ctx, 0, 'localhost');
+    try {
+      expect(url).toContain('localhost');
+      const res = await fetch(`${url}/api/runs`);
+      expect(res.status).toBe(200);
+    } finally {
+      stop();
+    }
+  });
+
   test('serves the SPA at / and falls back to index.html for client routes', async () => {
     const { url, stop } = await serve();
     try {

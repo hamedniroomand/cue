@@ -107,7 +107,11 @@ async function findActionable(ctx: StageContext, n: number): Promise<Issue | und
   return undefined;
 }
 
-export function startServer(ctx: StageContext, port: number): { url: string; stop: () => void } {
+export function startServer(
+  ctx: StageContext,
+  port: number,
+  hostname = '127.0.0.1',
+): { url: string; stop: () => void } {
   const encoder = new TextEncoder();
   const clients = new Set<ReadableStreamDefaultController<Uint8Array>>();
   let busy: string | null = null;
@@ -152,7 +156,7 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
   }
 
   const server = Bun.serve({
-    hostname: '127.0.0.1',
+    hostname,
     port,
     idleTimeout: 0,
     routes: {
@@ -202,5 +206,5 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
     },
   });
 
-  return { url: `http://127.0.0.1:${server.port}`, stop: () => server.stop(true) };
+  return { url: server.url.origin, stop: () => server.stop(true) };
 }
