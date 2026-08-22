@@ -41,7 +41,7 @@ describe('runReview', () => {
     );
     const verdict = await runReview(ctx, ISSUE);
     expect(verdict.approve).toBe(true);
-    expect(runs[0]!.allowedTools).toEqual(['Read', 'Grep', 'Glob']);
+    expect(runs[0]!.access).toBe('read-only');
     expect(calls.at(-1)!.join(' ')).toContain('approve');
   });
 

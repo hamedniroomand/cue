@@ -14,7 +14,7 @@ GitHub is the state store: `agent:*` labels are the state machine, issue comment
 curl -fsSL https://raw.githubusercontent.com/hamedniroomand/cue/main/install.sh | bash
 ```
 
-Needs the `gh` and `claude` CLIs, both authenticated. Then, inside a target repo:
+Needs the `gh` and `codex` CLIs, both authenticated. Claude Code (`"adapter": "claude"`) and Antigravity (`"adapter": "antigravity"`) remain available in `.cue/config.json`. Then, inside a target repo:
 
 ```bash
 cue init

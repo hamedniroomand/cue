@@ -4,7 +4,7 @@ Cue (pronounced *kyoo*, like “cue the lights”) is a globally-installed CLI (
 
 **Triage → you approve the plan → Dev → Test gate → Review loop → Draft PR → you merge.**
 
-Each stage is one fresh headless `claude -p` invocation with a role prompt. Everything between stages — routing, gating, retries, label transitions — is plain TypeScript. GitHub itself holds the state, so a run can resume on another machine and the whole thread is the audit log.
+Each stage is one fresh headless `codex exec` invocation with a role prompt. Everything between stages — routing, gating, retries, label transitions — is plain TypeScript. GitHub itself holds the state, so a run can resume on another machine and the whole thread is the audit log.
 
 One Cue install drives any number of projects. All project-specific state lives in the target repo under `.cue/`.
 
@@ -13,7 +13,7 @@ One Cue install drives any number of projects. All project-specific state lives 
 You need these on the machine that will run Cue:
 
 - [`gh`](https://cli.github.com) CLI, authenticated (`gh auth login`) with a token that can read/write issues, contents, and pull requests on the target repos
-- [`claude`](https://docs.anthropic.com/en/docs/claude-code) CLI, authenticated
+- [`codex`](https://developers.openai.com/codex) CLI, authenticated
 
 The release binaries do **not** require Bun or Node. You only need [Bun](https://bun.com) ≥ 1.1 if you [clone this repo to develop Cue itself](/develop/setup).
 

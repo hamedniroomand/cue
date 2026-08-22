@@ -19,7 +19,7 @@ export async function runTriage(ctx: StageContext, issue: Issue): Promise<void> 
     cwd: ctx.config.repoPath,
     model: ctx.config.models.triage,
     maxTurns: ctx.config.maxTurns.triage,
-    allowedTools: ['Read', 'Grep', 'Glob'],
+    access: 'read-only',
     timeoutMs: TRIAGE_TIMEOUT_MS,
     onProgress: (m) =>
       ctx.onEvent({

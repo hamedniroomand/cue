@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import * as v from 'valibot';
 
+import { ADAPTERS, type AdapterName } from '@/adapters/registry';
 import type { Exec } from '@/exec';
 
 const positiveInt = v.pipe(v.number(), v.integer(), v.minValue(1));
@@ -12,12 +13,8 @@ const repoPattern = v.pipe(v.string(), v.regex(/^[\w.-]+\/[\w.-]+$/, 'repo must 
 // empty (or absent) .cue/config.json.
 const ConfigSchema = v.object({
   repo: v.optional(repoPattern),
-  adapter: v.optional(v.picklist(['claude', 'codex']), 'claude'),
-  models: v.optional(v.object({ triage: v.string(), dev: v.string(), review: v.string() }), {
-    triage: 'haiku',
-    dev: 'sonnet',
-    review: 'sonnet',
-  }),
+  adapter: v.optional(v.picklist(['claude', 'antigravity', 'agy', 'codex']), 'codex'),
+  models: v.optional(v.object({ triage: v.string(), dev: v.string(), review: v.string() })),
   maxTurns: v.optional(v.object({ triage: positiveInt, dev: positiveInt, review: positiveInt }), {
     triage: 15,
     dev: 60,
@@ -37,11 +34,17 @@ const ConfigSchema = v.object({
 
 type FileConfig = v.InferOutput<typeof ConfigSchema>;
 
-// The fully-resolved shape every stage consumes: repo detected, cwd bound.
-export interface CueConfig extends Omit<FileConfig, 'repo' | 'worktreeRoot'> {
+// The fully-resolved shape every stage consumes: repo detected, cwd bound,
+// the "agy" alias normalized away.
+export interface CueConfig extends Omit<
+  FileConfig,
+  'repo' | 'worktreeRoot' | 'models' | 'adapter'
+> {
   repo: string;
   repoPath: string;
   worktreeRoot: string;
+  adapter: AdapterName;
+  models: { triage: string; dev: string; review: string };
 }
 
 export function parseRepoFromRemote(url: string): string | null {
@@ -66,8 +69,21 @@ export async function resolveConfig(exec: Exec, cwd: string): Promise<CueConfig>
       'cannot determine repo: set "repo" in .cue/config.json or add an origin remote',
     );
 
+  const adapter: AdapterName = cfg.adapter === 'agy' ? 'antigravity' : cfg.adapter;
+  // Model names only mean something relative to an adapter, and the default
+  // adapter has changed before — explicit models with an implicit adapter is
+  // how "sonnet" ends up handed to codex.
+  const adapterIsExplicit = typeof raw === 'object' && raw !== null && 'adapter' in raw;
+  if (cfg.models && !adapterIsExplicit)
+    throw new Error(
+      '"models" is set but "adapter" is not: model names are adapter-specific, ' +
+        'so set "adapter" explicitly in .cue/config.json',
+    );
+
   return {
     ...cfg,
+    adapter,
+    models: cfg.models ?? ADAPTERS[adapter].defaultModels,
     repo,
     repoPath: cwd,
     // Home-dir store: invisible to the project's IDE indexing and tool globs,

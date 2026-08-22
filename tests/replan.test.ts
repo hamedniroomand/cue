@@ -46,7 +46,8 @@ describe('runReplan', () => {
     expect(run.prompt).toContain('old plan: use express');
     expect(run.prompt).toContain('find a better solution, no heavy frameworks');
     expect(run.prompt).not.toContain('dev failed');
-    expect(run.allowedTools).toContain('WebSearch');
+    expect(run.access).toBe('read-only');
+    expect(run.webSearch).toBe(true);
     expect(run.model).toBe('haiku');
     expect(calls[2]!.join(' ')).toContain('<!-- cue:plan -->');
   });

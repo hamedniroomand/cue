@@ -4,7 +4,6 @@ import { runGate } from '@/gates';
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import type { StageContext } from '@/stages/context';
-import { devTools } from '@/stages/dev';
 import { PLAN_MARKER } from '@/stages/triage';
 
 const VerdictSchema = v.object({
@@ -44,7 +43,7 @@ async function reviewOnce(ctx: StageContext, issue: Issue, plan: string): Promis
       cwd: ctx.worktrees.path(issue.number),
       model: ctx.config.models.review,
       maxTurns: ctx.config.maxTurns.review,
-      allowedTools: ['Read', 'Grep', 'Glob'],
+      access: 'read-only',
       timeoutMs: REVIEW_TIMEOUT_MS,
       onProgress: (m) =>
         ctx.onEvent({
@@ -81,7 +80,8 @@ async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): P
     cwd,
     model: ctx.config.models.dev,
     maxTurns: ctx.config.maxTurns.dev,
-    allowedTools: devTools(ctx.config),
+    access: 'write',
+    bashAllowlist: ctx.config.devBashAllowlist,
     timeoutMs: REVIEW_TIMEOUT_MS,
     onProgress: (m) =>
       ctx.onEvent({

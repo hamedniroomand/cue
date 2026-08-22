@@ -1,17 +1,8 @@
-import type { CueConfig } from '@/config';
 import { runGate } from '@/gates';
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import type { StageContext } from '@/stages/context';
 import { PLAN_MARKER } from '@/stages/triage';
-
-const DEV_CORE_TOOLS = ['Read', 'Grep', 'Glob', 'Write', 'Edit'];
-
-// Bash is unrestricted unless the project scopes it via devBashAllowlist.
-export function devTools(config: CueConfig): string[] {
-  if (!config.devBashAllowlist) return [...DEV_CORE_TOOLS, 'Bash'];
-  return [...DEV_CORE_TOOLS, ...config.devBashAllowlist.map((p) => `Bash(${p})`)];
-}
 
 const DEV_TIMEOUT_MS = 60 * 60_000;
 
@@ -29,7 +20,8 @@ async function runFix(
     cwd,
     model: ctx.config.models.dev,
     maxTurns: ctx.config.maxTurns.dev,
-    allowedTools: devTools(ctx.config),
+    access: 'write',
+    bashAllowlist: ctx.config.devBashAllowlist,
     timeoutMs: DEV_TIMEOUT_MS,
     onProgress: (m) =>
       ctx.onEvent({ ts: Date.now(), issue, stage: 'fix', kind: 'progress', message: m }),
@@ -57,7 +49,8 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
     cwd: wt.path,
     model: ctx.config.models.dev,
     maxTurns: ctx.config.maxTurns.dev,
-    allowedTools: devTools(ctx.config),
+    access: 'write',
+    bashAllowlist: ctx.config.devBashAllowlist,
     timeoutMs: DEV_TIMEOUT_MS,
     onProgress: (m) =>
       ctx.onEvent({

@@ -25,7 +25,7 @@ features:
     details: A person approves the plan and merges the PR. Cue never merges, never force-pushes, and never touches the base branch.
   - icon: ⚡
     title: Agents at the nodes, code between them
-    details: Each stage is one fresh headless claude -p invocation. Routing, test gates, retries, and label transitions are deterministic TypeScript.
+    details: Each stage is one fresh headless Codex invocation. Routing, test gates, retries, and label transitions are deterministic TypeScript.
   - icon: 🌲
     title: Isolated worktrees
     details: Implementation happens in a git worktree outside the target repo. The runner owns commit, push, and PR creation — agents do not.

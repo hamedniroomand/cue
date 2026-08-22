@@ -33,11 +33,16 @@ src/
 │   ├── context.ts      # StageContext — the DI bundle every stage receives
 │   ├── triage.ts       # read-only plan generation; exports PLAN_MARKER
 │   ├── replan.ts       # plan revision from human feedback comments (has WebSearch)
-│   ├── dev.ts          # worktree implementation + gate + draft PR; exports devTools()
+│   ├── dev.ts          # worktree implementation + gate + draft PR
 │   └── review.ts       # JSON verdict + bounded fix loop; exports parseVerdict, Verdict
 ├── adapters/
-│   ├── types.ts        # AgentAdapter / AgentRunOptions / AgentResult
-│   └── claude.ts       # claude -p --output-format stream-json --verbose; env-scrubbed
+│   ├── types.ts        # AgentAdapter / AgentRunOptions (semantic: access/webSearch/bashAllowlist) / AgentResult
+│   ├── base.ts         # JsonlAdapter: shared run loop (env scrub, exec, JSONL parse, progress)
+│   ├── registry.ts     # ADAPTERS: name → { make, defaultModels }; the one list of adapters
+│   ├── summarize.ts    # shared tool-input summarizer (also imported by ui/app/lib/transcript.ts)
+│   ├── antigravity.ts  # agy -p --output-format stream-json --dangerously-skip-permissions
+│   ├── claude.ts       # claude -p --output-format stream-json --verbose; maps access → --allowedTools
+│   └── codex.ts        # codex exec --json; sandbox read-only / workspace-write; --search for webSearch
 ├── server.ts           # `cue ui`: Bun.serve — state/runs API, SSE events, poll/run triggers, serves ui/build/client
 ├── github.ts           # typed wrapper over the `gh` CLI
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos (--allow-empty)
@@ -51,7 +56,7 @@ scripts/fixtures.ts     # snapshots local .cue runs into ui/app/fixtures/data.js
 ui/                     # dashboard: react-router (library mode) + React Compiler, shadcn `base-nova`
 ├── app/routes/home.tsx     # overview: spend summary, cost charts, label board, live log
 ├── app/routes/runs.tsx     # run explorer: per-run prompt / transcript / raw tabs
-├── app/lib/cue.ts    # API client + transcript normalizer (see the polymorphic-result gotcha)
+├── app/lib/cue.ts    # API client; re-exports app/lib/transcript.ts (normalizer, root-tested)
 └── app/fixtures/           # committed run snapshot, used when /api is unreachable
 tests/                  # one test file per module + integration.test.ts
 tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAdapter
@@ -73,9 +78,10 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
   `stages/triage.ts`, defined once). The dev/replan stages find plans by newest
   comment containing it.
 - **Branch naming:** `agent/issue-<number>` (WorktreeManager.branch).
-- **The GitHub token must never reach agent subprocesses.** `ClaudeAdapter` builds a
-  scrubbed env from an allowlist; there is a test asserting `GH_TOKEN` is absent.
-  Keep it passing.
+- **The GitHub token must never reach agent subprocesses.** `JsonlAdapter.run`
+  (adapters/base.ts) scrubs the env via `scrubbedEnv` (platform.ts): OS vars plus the
+  adapter's own `envKeys` — never another provider's API key, never `GH_TOKEN`. Every
+  adapter test asserts `GH_TOKEN` is absent. Keep them passing.
 - **LLMs inside the nodes, plain code between the nodes.** Routing, gating, retries,
   and label transitions are deterministic TypeScript — never ask the model something
   a script can decide (e.g. whether tests passed).
@@ -167,7 +173,8 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   deleted issues stay browsable with no `gh` call.
 - **`RunEntry.result` is polymorphic.** Older logs store the single `result` event as an
   object; newer ones store the whole event array. Anything reading a transcript must go
-  through `normalizeEvents` (`ui/app/lib/cue.ts`). Getting this wrong renders old
+  through `normalizeEvents` (`ui/app/lib/transcript.ts`, re-exported by cue.ts and
+  covered by `tests/transcript.test.ts`). Getting this wrong renders old
   runs blank while new ones look fine.
 - `RunLogger.read` matches the `<stage>-<ts>` id against a directory listing instead of
   joining it into a path — `/api/runs/:issue/:run` takes that id straight from the URL.
