@@ -1,12 +1,12 @@
-import { mkdir, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 export interface RunEntry {
   prompt: string;
   result: unknown;
   costUsd?: number;
   durationMs: number;
-  outcome: "ok" | "failed";
+  outcome: 'ok' | 'failed';
   error?: string;
 }
 
@@ -29,7 +29,7 @@ export interface RunSummary {
   ts: number;
   costUsd?: number;
   durationMs: number;
-  outcome: "ok" | "failed";
+  outcome: 'ok' | 'failed';
   error?: string;
 }
 

@@ -1,19 +1,20 @@
-import { consola } from "consola";
-import { colors } from "consola/utils";
-import type { CueEvent } from "./stages/context";
+import { consola } from 'consola';
+import { colors } from 'consola/utils';
 
-export type EventMethod = "start" | "success" | "error" | "log";
+import type { CueEvent } from '@/stages/context';
 
-export function eventMethod(kind: CueEvent["kind"]): EventMethod {
+export type EventMethod = 'start' | 'success' | 'error' | 'log';
+
+export function eventMethod(kind: CueEvent['kind']): EventMethod {
   switch (kind) {
-    case "start":
-      return "start";
-    case "done":
-      return "success";
-    case "error":
-      return "error";
+    case 'start':
+      return 'start';
+    case 'done':
+      return 'success';
+    case 'error':
+      return 'error';
     default:
-      return "log";
+      return 'log';
   }
 }
 
@@ -24,11 +25,11 @@ const STAGE_COLORS: Record<string, (text: string) => string> = {
   dev: colors.blue,
   fix: colors.blue,
   review: colors.yellow,
-  "review-fix": colors.yellow,
+  'review-fix': colors.yellow,
   cleanup: colors.green,
 };
 
-const pad = (n: number) => String(n).padStart(2, "0");
+const pad = (n: number) => String(n).padStart(2, '0');
 
 function clock(ts: number): string {
   const d = new Date(ts);

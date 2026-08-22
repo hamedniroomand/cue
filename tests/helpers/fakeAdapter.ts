@@ -1,4 +1,4 @@
-import type { AgentAdapter, AgentRunOptions } from "../../src/adapters/types";
+import type { AgentAdapter, AgentRunOptions } from '@/adapters/types';
 
 export function makeFakeAdapter(responses: string[]): {
   adapter: AgentAdapter;
@@ -10,7 +10,7 @@ export function makeFakeAdapter(responses: string[]): {
     async run(opts) {
       runs.push(opts);
       const text = queue.shift();
-      if (text === undefined) throw new Error("fake adapter exhausted");
+      if (text === undefined) throw new Error('fake adapter exhausted');
       return { text, costUsd: 0.01, turns: 1, raw: { fake: true } };
     },
   };

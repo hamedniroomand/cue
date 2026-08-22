@@ -3,20 +3,20 @@
  * Snapshot the local .cue run logs into ui/app/fixtures/data.json so the
  * dashboard renders without a cue process. Run: bun run fixtures
  */
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
-const RUNS_DIR = process.env.CUE_RUNS_DIR ?? ".runs";
-const OUT = "ui/app/fixtures/data.json";
+const RUNS_DIR = process.env.CUE_RUNS_DIR ?? '.runs';
+const OUT = 'ui/app/fixtures/data.json';
 
 const BOARD_LABELS = [
-  "agent:ready",
-  "agent:planned",
-  "agent:approved",
-  "agent:replan",
-  "agent:in-dev",
-  "agent:in-review",
-  "agent:failed",
+  'agent:ready',
+  'agent:planned',
+  'agent:approved',
+  'agent:replan',
+  'agent:in-dev',
+  'agent:in-review',
+  'agent:failed',
 ];
 
 interface Summary {
@@ -66,15 +66,15 @@ for (const issue of issueDirs.toSorted()) {
   runs[issue] = issueRuns;
   details[issue] = issueDetails;
   // Best guess at board position: a reviewed issue is in review, else planned.
-  labels[issue] = issueRuns.some((r) => r.stage === "review") ? "agent:in-review" : "agent:planned";
+  labels[issue] = issueRuns.some((r) => r.stage === 'review') ? 'agent:in-review' : 'agent:planned';
 }
 
 const cost = (issue: string) => (runs[issue] ?? []).reduce((t, r) => t + (r.costUsd ?? 0), 0);
 
 const state = {
-  repo: process.env.CUE_FIXTURE_REPO ?? "cue/pilot",
-  worktreeRoot: "~/.cue/worktrees/cue-pilot",
-  models: { triage: "haiku", dev: "sonnet", review: "sonnet" },
+  repo: process.env.CUE_FIXTURE_REPO ?? 'cue/pilot',
+  worktreeRoot: '~/.cue/worktrees/cue-pilot',
+  models: { triage: 'haiku', dev: 'sonnet', review: 'sonnet' },
   busy: null,
   columns: BOARD_LABELS.map((label) => ({
     label,
@@ -103,7 +103,7 @@ const index = Object.entries(runs)
 // from the raw transcripts (they appear inside string values only).
 const json = JSON.stringify({ state, index, runs, details }).replaceAll(
   /\/(?:Users|home)\/[A-Za-z0-9._-]+/g,
-  "~",
+  '~',
 );
 await Bun.write(OUT, json);
 const kb = (Bun.file(OUT).size / 1024).toFixed(0);

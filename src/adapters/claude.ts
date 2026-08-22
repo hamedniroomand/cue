@@ -1,6 +1,6 @@
-import type { Exec } from "../exec";
-import { currentPlatform, type Platform } from "../platform";
-import type { AgentAdapter, AgentResult, AgentRunOptions } from "./types";
+import type { AgentAdapter, AgentResult, AgentRunOptions } from '@/adapters/types';
+import type { Exec } from '@/exec';
+import { currentPlatform, type Platform } from '@/platform';
 
 interface StreamEvent {
   type?: string;
@@ -20,21 +20,21 @@ interface StreamEvent {
 }
 
 function summarizeToolInput(input: Record<string, unknown> | undefined): string {
-  if (!input) return "";
-  const interesting = input.command ?? input.file_path ?? input.pattern ?? input.description ?? "";
-  const text = typeof interesting === "string" ? interesting : JSON.stringify(interesting);
-  return (text ?? "").slice(0, 80);
+  if (!input) return '';
+  const interesting = input.command ?? input.file_path ?? input.pattern ?? input.description ?? '';
+  const text = typeof interesting === 'string' ? interesting : JSON.stringify(interesting);
+  return (text ?? '').slice(0, 80);
 }
 
 function progressFor(ev: StreamEvent): string[] {
-  if (ev.type === "system" && ev.subtype === "init")
-    return [`session started (${ev.model ?? "unknown model"})`];
-  if (ev.type !== "assistant") return [];
+  if (ev.type === 'system' && ev.subtype === 'init')
+    return [`session started (${ev.model ?? 'unknown model'})`];
+  if (ev.type !== 'assistant') return [];
   const messages: string[] = [];
   for (const block of ev.message?.content ?? []) {
-    if (block.type === "tool_use")
+    if (block.type === 'tool_use')
       messages.push(`⚙ ${block.name}: ${summarizeToolInput(block.input)}`);
-    else if (block.type === "text" && block.text?.trim())
+    else if (block.type === 'text' && block.text?.trim())
       messages.push(`… ${block.text.trim().slice(0, 100)}`);
   }
   return messages;
@@ -42,7 +42,7 @@ function progressFor(ev: StreamEvent): string[] {
 
 function parseEvents(stdout: string): StreamEvent[] {
   const events: StreamEvent[] = [];
-  for (const line of stdout.split("\n")) {
+  for (const line of stdout.split('\n')) {
     if (!line.trim()) continue;
     try {
       events.push(JSON.parse(line) as StreamEvent);
@@ -66,18 +66,18 @@ export class ClaudeAdapter implements AgentAdapter {
       if (value) env[key] = value;
     }
     const cmd = [
-      "claude",
-      "-p",
+      'claude',
+      '-p',
       opts.prompt,
-      "--output-format",
-      "stream-json",
-      "--verbose",
-      "--model",
+      '--output-format',
+      'stream-json',
+      '--verbose',
+      '--model',
       opts.model,
-      "--max-turns",
+      '--max-turns',
       String(opts.maxTurns),
     ];
-    if (opts.allowedTools.length > 0) cmd.push("--allowedTools", opts.allowedTools.join(","));
+    if (opts.allowedTools.length > 0) cmd.push('--allowedTools', opts.allowedTools.join(','));
 
     const onLine = opts.onProgress
       ? (line: string) => {
@@ -93,10 +93,10 @@ export class ClaudeAdapter implements AgentAdapter {
     if (r.code !== 0) throw new Error(`claude exited ${r.code}: ${r.stderr.slice(0, 500)}`);
 
     const events = parseEvents(r.stdout);
-    const final = events.find((e) => e.type === "result");
-    if (!final) throw new Error("claude stream contained no result event");
+    const final = events.find((e) => e.type === 'result');
+    if (!final) throw new Error('claude stream contained no result event');
     return {
-      text: final.result ?? "",
+      text: final.result ?? '',
       costUsd: final.total_cost_usd,
       turns: final.num_turns,
       raw: events,

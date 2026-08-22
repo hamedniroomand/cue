@@ -1,3 +1,25 @@
 {
-  "ignorePatterns": ["node_modules", ".runs", "docs", "ui", ".agents", ".claude"]
+  "ignorePatterns": ["node_modules", ".runs", "docs", "ui", ".agents", ".claude"],
+  "singleQuote": true,
+  "singleAttributePerLine": true,
+  "useTabs": false,
+  "trailingComma": "all",
+  "semi": true,
+  "quoteProps": "as-needed",
+  "objectWrap": "preserve",
+  "insertFinalNewline": true,
+  "endOfLine": "lf",
+  "embeddedLanguageFormatting": "auto",
+  "arrowParens": "always",
+  "bracketSameLine": false,
+  "bracketSpacing": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "sortPackageJson": true,
+  "jsxSingleQuote": false,
+  "vueIndentScriptAndStyle": true,
+  "proseWrap": "preserve",
+  "sortImports": {
+    "internalPattern": ["@/", "~/"]
+  }
 }

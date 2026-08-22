@@ -4,13 +4,13 @@
  * in ui/build/client, so `bun build --compile` bundles the dashboard into the
  * binary. Run by scripts/build-binaries.sh; the result is NOT committed.
  */
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
-const CLIENT_DIR = "ui/build/client";
-const OUT = "src/ui-manifest.g.ts";
+const CLIENT_DIR = 'ui/build/client';
+const OUT = 'src/ui-manifest.g.ts';
 
-async function walk(dir: string, prefix = ""): Promise<string[]> {
+async function walk(dir: string, prefix = ''): Promise<string[]> {
   const out: string[] = [];
   for (const entry of (await readdir(dir, { withFileTypes: true })).toSorted((a, b) =>
     a.name.localeCompare(b.name),
@@ -32,8 +32,8 @@ try {
 
 const imports = files
   .map((f, i) => `import f${i} from "../${CLIENT_DIR}/${f}" with { type: "file" };`)
-  .join("\n");
-const entries = files.map((f, i) => `  "/${f}": f${i},`).join("\n");
+  .join('\n');
+const entries = files.map((f, i) => `  "/${f}": f${i},`).join('\n');
 
 await Bun.write(
   OUT,

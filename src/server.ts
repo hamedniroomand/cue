@@ -1,17 +1,18 @@
-import { isAbsolute, join, relative, resolve } from "node:path";
-import type { Issue } from "./github";
-import { poll, runIssue } from "./pipeline";
-import type { CueEvent, StageContext } from "./stages/context";
-import { UI_FILES } from "./ui-manifest.g";
+import { isAbsolute, join, relative, resolve } from 'node:path';
+
+import type { Issue } from '@/github';
+import { poll, runIssue } from '@/pipeline';
+import type { CueEvent, StageContext } from '@/stages/context';
+import { UI_FILES } from '@/ui-manifest.g';
 
 /** Built SPA output (ui/ is a react-router app in SPA mode). Resolved against
  *  the package, not cwd, because cue is installed globally. Read lazily —
  *  and overridable via env — so tests can point it at a fixture directory. */
 function clientDir(): string {
-  return process.env.CUE_CLIENT_DIR ?? resolve(import.meta.dir, "..", "ui", "build", "client");
+  return process.env.CUE_CLIENT_DIR ?? resolve(import.meta.dir, '..', 'ui', 'build', 'client');
 }
 
-const NOT_BUILT = "Cue dashboard is not built yet — run `bun run ui:build` in the Cue package.";
+const NOT_BUILT = 'Cue dashboard is not built yet — run `bun run ui:build` in the Cue package.';
 
 /** Serve the SPA, falling back to index.html so client-side routes survive a
  *  refresh. Compiled binaries serve from the embedded UI_FILES manifest;
@@ -19,45 +20,45 @@ const NOT_BUILT = "Cue dashboard is not built yet — run `bun run ui:build` in 
  *  the client dir are refused. */
 async function serveClient(pathname: string): Promise<Response> {
   if (Object.keys(UI_FILES).length > 0) {
-    const hit = UI_FILES[pathname === "/" ? "/index.html" : pathname];
+    const hit = UI_FILES[pathname === '/' ? '/index.html' : pathname];
     if (hit) return new Response(Bun.file(hit));
-    const index = UI_FILES["/index.html"];
+    const index = UI_FILES['/index.html'];
     if (index) {
       return new Response(Bun.file(index), {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
     }
   }
   const dir = clientDir();
-  const index = Bun.file(join(dir, "index.html"));
-  if (pathname !== "/") {
+  const index = Bun.file(join(dir, 'index.html'));
+  if (pathname !== '/') {
     const target = resolve(dir, `.${pathname}`);
     // Separator-agnostic containment check: on Windows resolve() returns
     // backslashes, so a `startsWith(dir + "/")` guard would reject every
     // asset and silently serve index.html as text/html for all of them.
     const rel = relative(dir, target);
-    if (rel !== "" && !rel.startsWith("..") && !isAbsolute(rel)) {
+    if (rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)) {
       const file = Bun.file(target);
       if (await file.exists()) return new Response(file);
     }
   }
   if (await index.exists()) {
-    return new Response(index, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    return new Response(index, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
-  return new Response(NOT_BUILT, { status: 503, headers: { "Content-Type": "text/plain" } });
+  return new Response(NOT_BUILT, { status: 503, headers: { 'Content-Type': 'text/plain' } });
 }
 
 const BOARD_LABELS = [
-  "agent:ready",
-  "agent:planned",
-  "agent:approved",
-  "agent:replan",
-  "agent:in-dev",
-  "agent:in-review",
-  "agent:failed",
+  'agent:ready',
+  'agent:planned',
+  'agent:approved',
+  'agent:replan',
+  'agent:in-dev',
+  'agent:in-review',
+  'agent:failed',
 ];
 
-const ACTIONABLE = ["agent:ready", "agent:approved", "agent:replan"];
+const ACTIONABLE = ['agent:ready', 'agent:approved', 'agent:replan'];
 
 export interface BoardIssue {
   number: number;
@@ -133,7 +134,7 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
           ts: Date.now(),
           issue: 0,
           stage: name,
-          kind: "error",
+          kind: 'error',
           message: err instanceof Error ? err.message : String(err),
         });
       })
@@ -143,7 +144,7 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
           ts: Date.now(),
           issue: 0,
           stage: name,
-          kind: "done",
+          kind: 'done',
           message: `${name} finished`,
         });
       });
@@ -151,24 +152,24 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
   }
 
   const server = Bun.serve({
-    hostname: "127.0.0.1",
+    hostname: '127.0.0.1',
     port,
     idleTimeout: 0,
     routes: {
-      "/api/state": async () => Response.json(await buildState(ctx, busy)),
+      '/api/state': async () => Response.json(await buildState(ctx, busy)),
       // Sourced from disk, not the label board: archived issues (agent:done,
       // closed) still have runs worth reading.
-      "/api/runs": async () => Response.json(await ctx.logger.index()),
-      "/api/runs/:issue": async (req: Bun.BunRequest<"/api/runs/:issue">) =>
+      '/api/runs': async () => Response.json(await ctx.logger.index()),
+      '/api/runs/:issue': async (req: Bun.BunRequest<'/api/runs/:issue'>) =>
         Response.json(await ctx.logger.list(Number(req.params.issue))),
-      "/api/runs/:issue/:run": async (req: Bun.BunRequest<"/api/runs/:issue/:run">) => {
+      '/api/runs/:issue/:run': async (req: Bun.BunRequest<'/api/runs/:issue/:run'>) => {
         const detail = await ctx.logger.read(Number(req.params.issue), req.params.run);
-        if (!detail) return Response.json({ error: "run not found" }, { status: 404 });
+        if (!detail) return Response.json({ error: 'run not found' }, { status: 404 });
         return Response.json(detail);
       },
-      "/api/poll": { POST: () => launch("poll", () => poll(ctx)) },
-      "/api/run/:issue": {
-        POST: async (req: Bun.BunRequest<"/api/run/:issue">) => {
+      '/api/poll': { POST: () => launch('poll', () => poll(ctx)) },
+      '/api/run/:issue': {
+        POST: async (req: Bun.BunRequest<'/api/run/:issue'>) => {
           const n = Number(req.params.issue);
           const issue = await findActionable(ctx, n);
           if (!issue) {
@@ -177,13 +178,13 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
           return launch(`run #${n}`, () => runIssue(ctx, issue));
         },
       },
-      "/api/events": () => {
+      '/api/events': () => {
         let ctrl: ReadableStreamDefaultController<Uint8Array>;
         const stream = new ReadableStream<Uint8Array>({
           start(c) {
             ctrl = c;
             clients.add(c);
-            c.enqueue(encoder.encode(": connected\n\n"));
+            c.enqueue(encoder.encode(': connected\n\n'));
           },
           cancel() {
             clients.delete(ctrl);
@@ -191,13 +192,13 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
         });
         return new Response(stream, {
           headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
           },
         });
       },
-      "/*": (req: Request) => serveClient(new URL(req.url).pathname),
+      '/*': (req: Request) => serveClient(new URL(req.url).pathname),
     },
   });
 

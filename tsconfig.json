@@ -8,6 +8,9 @@
     "noEmit": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
     "types": ["bun-types"]
   },

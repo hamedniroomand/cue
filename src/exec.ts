@@ -18,15 +18,15 @@ async function drainStdout(
   onLine?: (line: string) => void,
 ): Promise<string> {
   const decoder = new TextDecoder();
-  let all = "";
-  let pending = "";
+  let all = '';
+  let pending = '';
   for await (const chunk of stream) {
     const text = decoder.decode(chunk, { stream: true });
     all += text;
     if (!onLine) continue;
     pending += text;
     let nl: number;
-    while ((nl = pending.indexOf("\n")) !== -1) {
+    while ((nl = pending.indexOf('\n')) !== -1) {
       const line = pending.slice(0, nl);
       pending = pending.slice(nl + 1);
       if (line.trim()) onLine(line);
@@ -40,8 +40,8 @@ export const realExec: Exec = async (cmd, opts = {}) => {
   const proc = Bun.spawn(cmd, {
     cwd: opts.cwd,
     env: opts.env ?? (process.env as Record<string, string>),
-    stdout: "pipe",
-    stderr: "pipe",
+    stdout: 'pipe',
+    stderr: 'pipe',
   });
   const killer = opts.timeoutMs ? setTimeout(() => proc.kill(), opts.timeoutMs) : null;
   const [stdout, stderr, code] = await Promise.all([

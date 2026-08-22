@@ -1,66 +1,68 @@
 #!/usr/bin/env bun
-import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
-import { consola } from "consola";
-import { ClaudeAdapter } from "./adapters/claude";
-import type { AgentAdapter } from "./adapters/types";
-import { resolveConfig } from "./config";
-import { VERSION } from "./embedded";
-import { realExec } from "./exec";
-import { GitHub } from "./github";
-import { RunLogger } from "./log";
-import { runCleanup } from "./cleanup";
-import { nextAction, poll, runIssue } from "./pipeline";
-import { currentPlatform } from "./platform";
-import { printEvent } from "./reporter";
-import type { StageContext } from "./stages/context";
-import { WorktreeManager } from "./worktree";
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import { consola } from 'consola';
+
+import { ClaudeAdapter } from '@/adapters/claude';
+import type { AgentAdapter } from '@/adapters/types';
+import { runCleanup } from '@/cleanup';
+import { resolveConfig } from '@/config';
+import { VERSION } from '@/embedded';
+import { realExec } from '@/exec';
+import { GitHub } from '@/github';
+import { RunLogger } from '@/log';
+import { nextAction, poll, runIssue } from '@/pipeline';
+import { currentPlatform } from '@/platform';
+import { printEvent } from '@/reporter';
+import type { StageContext } from '@/stages/context';
+import { WorktreeManager } from '@/worktree';
 
 const LABELS: Array<[name: string, color: string, desc: string]> = [
-  ["agent:ready", "0E8A16", "Cue: pick this up for triage"],
-  ["agent:planned", "FBCA04", "Cue: plan posted, awaiting human approval"],
-  ["agent:approved", "0052CC", "Cue: plan approved, ready for dev"],
-  ["agent:replan", "F9D0C4", "Cue: human requested a revised plan (leave feedback as comments)"],
-  ["agent:in-dev", "5319E7", "Cue: dev stage running"],
-  ["agent:in-review", "D93F0B", "Cue: draft PR open, awaiting human merge"],
-  ["agent:done", "C5DEF5", "Cue: PR merged, pipeline complete"],
-  ["agent:failed", "B60205", "Cue: a stage failed, see issue comments"],
-  ["agent:stop", "000000", "Cue: kill switch, never touch this issue"],
+  ['agent:ready', '0E8A16', 'Cue: pick this up for triage'],
+  ['agent:planned', 'FBCA04', 'Cue: plan posted, awaiting human approval'],
+  ['agent:approved', '0052CC', 'Cue: plan approved, ready for dev'],
+  ['agent:replan', 'F9D0C4', 'Cue: human requested a revised plan (leave feedback as comments)'],
+  ['agent:in-dev', '5319E7', 'Cue: dev stage running'],
+  ['agent:in-review', 'D93F0B', 'Cue: draft PR open, awaiting human merge'],
+  ['agent:done', 'C5DEF5', 'Cue: PR merged, pipeline complete'],
+  ['agent:failed', 'B60205', 'Cue: a stage failed, see issue comments'],
+  ['agent:stop', '000000', 'Cue: kill switch, never touch this issue'],
 ];
 
 async function makeContext(): Promise<StageContext> {
   const cwd = process.cwd();
   const config = await resolveConfig(realExec, cwd);
   const platform = currentPlatform();
-  if (config.adapter === "codex") throw new Error("codex adapter not implemented yet");
+  if (config.adapter === 'codex') throw new Error('codex adapter not implemented yet');
   const adapter: AgentAdapter = new ClaudeAdapter(realExec, platform);
   return {
     config,
     github: new GitHub(realExec, config.repo),
     adapter,
-    logger: new RunLogger(join(cwd, ".cue", "runs")),
+    logger: new RunLogger(join(cwd, '.cue', 'runs')),
     exec: realExec,
     platform,
     worktrees: new WorktreeManager(realExec, config),
     // Project overrides win over the prompts packaged with cue itself.
-    promptsDirs: [join(cwd, ".cue", "prompts"), join(import.meta.dir, "..", "prompts")],
+    promptsDirs: [join(cwd, '.cue', 'prompts'), join(import.meta.dir, '..', 'prompts')],
     onEvent: printEvent,
   };
 }
 
 async function scaffold(cwd: string): Promise<void> {
-  await mkdir(join(cwd, ".cue", "prompts"), { recursive: true });
-  const configFile = Bun.file(join(cwd, ".cue", "config.json"));
+  await mkdir(join(cwd, '.cue', 'prompts'), { recursive: true });
+  const configFile = Bun.file(join(cwd, '.cue', 'config.json'));
   if (!(await configFile.exists())) {
-    await Bun.write(configFile, `${JSON.stringify({ gate: { test: "bun test" } }, null, 2)}\n`);
+    await Bun.write(configFile, `${JSON.stringify({ gate: { test: 'bun test' } }, null, 2)}\n`);
     consola.success("created .cue/config.json — adjust the gate to this project's test command");
   }
-  const gitignorePath = join(cwd, ".gitignore");
+  const gitignorePath = join(cwd, '.gitignore');
   const gitignoreFile = Bun.file(gitignorePath);
-  const current = (await gitignoreFile.exists()) ? await gitignoreFile.text() : "";
-  if (!current.includes(".cue/runs/")) {
-    await Bun.write(gitignorePath, `${current.replace(/\n?$/, "\n")}.cue/runs/\n`);
-    consola.success("added .cue/runs/ to .gitignore");
+  const current = (await gitignoreFile.exists()) ? await gitignoreFile.text() : '';
+  if (!current.includes('.cue/runs/')) {
+    await Bun.write(gitignorePath, `${current.replace(/\n?$/, '\n')}.cue/runs/\n`);
+    consola.success('added .cue/runs/ to .gitignore');
   }
 }
 
@@ -69,17 +71,17 @@ async function init(ctx: StageContext): Promise<void> {
   consola.start(`creating agent:* labels on ${ctx.config.repo}`);
   for (const [name, color, desc] of LABELS) {
     const r = await realExec([
-      "gh",
-      "label",
-      "create",
+      'gh',
+      'label',
+      'create',
       name,
-      "--repo",
+      '--repo',
       ctx.config.repo,
-      "--color",
+      '--color',
       color,
-      "--description",
+      '--description',
       desc,
-      "--force",
+      '--force',
     ]);
     if (r.code !== 0) throw new Error(`label create ${name} failed: ${r.stderr}`);
     consola.success(`label ${name} ok`);
@@ -88,12 +90,12 @@ async function init(ctx: StageContext): Promise<void> {
 
 async function status(ctx: StageContext): Promise<void> {
   const states = [
-    "agent:ready",
-    "agent:planned",
-    "agent:approved",
-    "agent:in-dev",
-    "agent:in-review",
-    "agent:failed",
+    'agent:ready',
+    'agent:planned',
+    'agent:approved',
+    'agent:in-dev',
+    'agent:in-review',
+    'agent:failed',
   ];
   for (const label of states) {
     const issues = await ctx.github.listIssues(label);
@@ -103,7 +105,7 @@ async function status(ctx: StageContext): Promise<void> {
     }
   }
   consola.log(`\nworktrees: ${ctx.config.worktreeRoot}`);
-  consola.info("stale agent:in-dev issues (crashed runs) must be relabeled manually.");
+  consola.info('stale agent:in-dev issues (crashed runs) must be relabeled manually.');
 }
 
 const HELP = `cue — drive headless coding agents through a GitHub-issue pipeline
@@ -131,29 +133,29 @@ https://hamedniroomand.github.io/cue/`;
 
 async function openBrowser(url: string): Promise<void> {
   const cmd =
-    process.platform === "darwin"
-      ? ["open", url]
-      : process.platform === "win32"
-        ? ["cmd", "/c", "start", "", url]
-        : ["xdg-open", url];
+    process.platform === 'darwin'
+      ? ['open', url]
+      : process.platform === 'win32'
+        ? ['cmd', '/c', 'start', '', url]
+        : ['xdg-open', url];
   try {
     await realExec(cmd);
   } catch {
-    consola.warn("could not open a browser automatically — use the URL above");
+    consola.warn('could not open a browser automatically — use the URL above');
   }
 }
 
 async function main(): Promise<void> {
   const [command, arg] = process.argv.slice(2);
-  if (command === "--help" || command === "-h" || command === "help") {
+  if (command === '--help' || command === '-h' || command === 'help') {
     console.log(HELP);
     return;
   }
-  if (command === "--version" || command === "-v" || command === "version") {
+  if (command === '--version' || command === '-v' || command === 'version') {
     console.log(VERSION);
     return;
   }
-  const known = ["init", "poll", "run", "cleanup", "status", "ui"];
+  const known = ['init', 'poll', 'run', 'cleanup', 'status', 'ui'];
   if (!command || !known.includes(command)) {
     if (command) consola.error(`unknown command: ${command}\n`);
     console.log(HELP);
@@ -162,20 +164,20 @@ async function main(): Promise<void> {
   }
   const ctx = await makeContext();
   switch (command) {
-    case "init":
+    case 'init':
       await init(ctx);
       break;
-    case "poll":
+    case 'poll':
       await poll(ctx);
       break;
-    case "run": {
+    case 'run': {
       const n = Number(arg);
-      if (!Number.isInteger(n)) throw new Error("usage: cue run <issue-number>");
+      if (!Number.isInteger(n)) throw new Error('usage: cue run <issue-number>');
       consola.start(`looking up issue #${n} on ${ctx.config.repo}`);
       const issues = [
-        ...(await ctx.github.listIssues("agent:ready")),
-        ...(await ctx.github.listIssues("agent:approved")),
-        ...(await ctx.github.listIssues("agent:replan")),
+        ...(await ctx.github.listIssues('agent:ready')),
+        ...(await ctx.github.listIssues('agent:approved')),
+        ...(await ctx.github.listIssues('agent:replan')),
       ];
       const issue = issues.find((i) => i.number === n);
       if (!issue)
@@ -186,21 +188,21 @@ async function main(): Promise<void> {
       await runIssue(ctx, issue);
       break;
     }
-    case "cleanup":
+    case 'cleanup':
       await runCleanup(ctx);
       break;
-    case "ui": {
+    case 'ui': {
       const uiArgs = process.argv.slice(3);
-      const portArg = uiArgs.find((a) => !a.startsWith("--"));
+      const portArg = uiArgs.find((a) => !a.startsWith('--'));
       const port = portArg ? Number(portArg) : 4224;
-      if (!Number.isInteger(port) || port <= 0) throw new Error("usage: cue ui [port] [--no-open]");
-      const { startServer } = await import("./server");
+      if (!Number.isInteger(port) || port <= 0) throw new Error('usage: cue ui [port] [--no-open]');
+      const { startServer } = await import('@/server');
       const { url } = startServer(ctx, port);
       consola.info(`cue ui for ${ctx.config.repo}: ${url}`);
-      if (!uiArgs.includes("--no-open")) await openBrowser(url);
+      if (!uiArgs.includes('--no-open')) await openBrowser(url);
       break;
     }
-    case "status":
+    case 'status':
       await status(ctx);
       break;
   }

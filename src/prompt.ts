@@ -6,8 +6,9 @@ export function renderPrompt(template: string, vars: Record<string, string>): st
   });
 }
 
-import { join } from "node:path";
-import { EMBEDDED_PROMPTS } from "./embedded";
+import { join } from 'node:path';
+
+import { EMBEDDED_PROMPTS } from '@/embedded';
 
 // Earlier directories win: [project overrides, packaged defaults]. The prompts
 // embedded in the binary are the last resort, so compiled installs work with
@@ -22,5 +23,5 @@ export async function loadPrompt(dirs: string[], name: string): Promise<string> 
     const file = Bun.file(embedded);
     if (await file.exists()) return file.text();
   }
-  throw new Error(`prompt not found: ${name}.md (searched: ${dirs.join(", ")}, embedded)`);
+  throw new Error(`prompt not found: ${name}.md (searched: ${dirs.join(', ')}, embedded)`);
 }

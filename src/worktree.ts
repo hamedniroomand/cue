@@ -1,5 +1,6 @@
-import { join } from "node:path";
-import type { Exec } from "./exec";
+import { join } from 'node:path';
+
+import type { Exec } from '@/exec';
 
 export interface WorktreeConfig {
   repoPath: string;
@@ -22,78 +23,78 @@ export class WorktreeManager {
   }
 
   private async git(cwd: string, args: string[]): Promise<string> {
-    const r = await this.exec(["git", "-C", cwd, ...args]);
+    const r = await this.exec(['git', '-C', cwd, ...args]);
     if (r.code !== 0) throw new Error(`git ${args[0]} failed: ${r.stderr.trim()}`);
     return r.stdout;
   }
 
   private async bootstrapBase(): Promise<void> {
-    await this.git(this.cfg.repoPath, ["checkout", "-B", this.cfg.baseBranch]);
+    await this.git(this.cfg.repoPath, ['checkout', '-B', this.cfg.baseBranch]);
     await this.git(this.cfg.repoPath, [
-      "commit",
-      "--allow-empty",
-      "-m",
-      "chore: initialize repository (cue bootstrap)",
+      'commit',
+      '--allow-empty',
+      '-m',
+      'chore: initialize repository (cue bootstrap)',
     ]);
-    await this.git(this.cfg.repoPath, ["push", "-u", "origin", this.cfg.baseBranch]);
+    await this.git(this.cfg.repoPath, ['push', '-u', 'origin', this.cfg.baseBranch]);
   }
 
   async create(issue: number): Promise<{ path: string; branch: string }> {
     const fetched = await this.exec([
-      "git",
-      "-C",
+      'git',
+      '-C',
       this.cfg.repoPath,
-      "fetch",
-      "origin",
+      'fetch',
+      'origin',
       this.cfg.baseBranch,
     ]);
     if (fetched.code !== 0) {
       if (!fetched.stderr.includes("couldn't find remote ref"))
         throw new Error(`git fetch failed: ${fetched.stderr.trim()}`);
       await this.bootstrapBase();
-      await this.git(this.cfg.repoPath, ["fetch", "origin", this.cfg.baseBranch]);
+      await this.git(this.cfg.repoPath, ['fetch', 'origin', this.cfg.baseBranch]);
     }
     const r = await this.exec([
-      "git",
-      "-C",
+      'git',
+      '-C',
       this.cfg.repoPath,
-      "worktree",
-      "add",
-      "-b",
+      'worktree',
+      'add',
+      '-b',
       this.branch(issue),
       this.path(issue),
       `origin/${this.cfg.baseBranch}`,
     ]);
-    if (r.code !== 0 && !r.stderr.includes("already exists"))
+    if (r.code !== 0 && !r.stderr.includes('already exists'))
       throw new Error(`git worktree add failed: ${r.stderr.trim()}`);
     return { path: this.path(issue), branch: this.branch(issue) };
   }
 
   async commitAll(issue: number, message: string): Promise<boolean> {
-    await this.git(this.path(issue), ["add", "-A"]);
-    const r = await this.exec(["git", "-C", this.path(issue), "commit", "-m", message]);
+    await this.git(this.path(issue), ['add', '-A']);
+    const r = await this.exec(['git', '-C', this.path(issue), 'commit', '-m', message]);
     return r.code === 0;
   }
 
   async push(issue: number): Promise<void> {
-    await this.git(this.path(issue), ["push", "-u", "origin", this.branch(issue)]);
+    await this.git(this.path(issue), ['push', '-u', 'origin', this.branch(issue)]);
   }
 
   // Tolerant by design: the worktree may live on another developer's machine.
   async remove(issue: number): Promise<void> {
     await this.exec([
-      "git",
-      "-C",
+      'git',
+      '-C',
       this.cfg.repoPath,
-      "worktree",
-      "remove",
-      "--force",
+      'worktree',
+      'remove',
+      '--force',
       this.path(issue),
     ]);
-    await this.exec(["git", "-C", this.cfg.repoPath, "branch", "-D", this.branch(issue)]);
+    await this.exec(['git', '-C', this.cfg.repoPath, 'branch', '-D', this.branch(issue)]);
   }
 
   async diff(issue: number): Promise<string> {
-    return this.git(this.path(issue), ["diff", `origin/${this.cfg.baseBranch}...HEAD`]);
+    return this.git(this.path(issue), ['diff', `origin/${this.cfg.baseBranch}...HEAD`]);
   }
 }

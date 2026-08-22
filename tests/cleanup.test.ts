@@ -1,48 +1,50 @@
-import { describe, expect, test } from "bun:test";
-import { runCleanup } from "../src/cleanup";
-import { poll } from "../src/pipeline";
-import { makeCtx } from "./triage.test";
-import { wt } from "./helpers/paths";
+import { describe, expect, test } from 'bun:test';
+
+import { runCleanup } from '@/cleanup';
+import { poll } from '@/pipeline';
+
+import { wt } from './helpers/paths';
+import { makeCtx } from './triage.test';
 
 const IN_REVIEW = JSON.stringify([
-  { number: 7, title: "Fix login", body: "b", labels: [{ name: "agent:in-review" }] },
+  { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:in-review' }] },
 ]);
 
-describe("runCleanup", () => {
-  test("merged PR: label → agent:done, worktree and branch removed", async () => {
+describe('runCleanup', () => {
+  test('merged PR: label → agent:done, worktree and branch removed', async () => {
     const { ctx, calls } = await makeCtx(
       [
         {
           match: [
-            "gh",
-            "issue",
-            "list",
-            "--repo",
-            "*",
-            "--label",
-            "agent:in-review",
-            "--state",
-            "all",
+            'gh',
+            'issue',
+            'list',
+            '--repo',
+            '*',
+            '--label',
+            'agent:in-review',
+            '--state',
+            'all',
           ],
           result: { stdout: IN_REVIEW },
         },
-        { match: ["gh", "pr", "view", "agent/issue-7"], result: { stdout: '{"state":"MERGED"}' } },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: { stdout: '{"state":"MERGED"}' } },
         {
           match: [
-            "gh",
-            "issue",
-            "edit",
-            "7",
-            "--repo",
-            "*",
-            "--remove-label",
-            "agent:in-review",
-            "--add-label",
-            "agent:done",
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:in-review',
+            '--add-label',
+            'agent:done',
           ],
         },
-        { match: ["git", "-C", "/repos/widgets", "worktree", "remove", "--force", wt(7)] },
-        { match: ["git", "-C", "/repos/widgets", "branch", "-D", "agent/issue-7"] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'remove', '--force', wt(7)] },
+        { match: ['git', '-C', '/repos/widgets', 'branch', '-D', 'agent/issue-7'] },
       ],
       [],
     );
@@ -50,14 +52,14 @@ describe("runCleanup", () => {
     expect(calls).toHaveLength(5);
   });
 
-  test("merged PR emits a cleanup done event", async () => {
+  test('merged PR emits a cleanup done event', async () => {
     const { ctx, events } = await makeCtx(
       [
-        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
-        { match: ["gh", "pr", "view", "agent/issue-7"], result: { stdout: '{"state":"MERGED"}' } },
-        { match: ["gh", "issue", "edit", "7"] },
-        { match: ["git", "*", "*", "worktree", "remove"] },
-        { match: ["git", "*", "*", "branch", "-D"] },
+        { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: { stdout: '{"state":"MERGED"}' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['git', '*', '*', 'worktree', 'remove'] },
+        { match: ['git', '*', '*', 'branch', '-D'] },
       ],
       [],
     );
@@ -65,21 +67,21 @@ describe("runCleanup", () => {
     expect(events).toEqual([
       expect.objectContaining({
         issue: 7,
-        stage: "cleanup",
-        kind: "done",
-        message: "merged → agent:done, worktree cleaned",
+        stage: 'cleanup',
+        kind: 'done',
+        message: 'merged → agent:done, worktree cleaned',
       }),
     ]);
   });
 
-  test("closed PR emits a cleanup error event", async () => {
+  test('closed PR emits a cleanup error event', async () => {
     const { ctx, events } = await makeCtx(
       [
-        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
-        { match: ["gh", "pr", "view", "agent/issue-7"], result: { stdout: '{"state":"CLOSED"}' } },
-        { match: ["gh", "issue", "edit", "7"] },
-        { match: ["git", "*", "*", "worktree", "remove"] },
-        { match: ["git", "*", "*", "branch", "-D"] },
+        { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: { stdout: '{"state":"CLOSED"}' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['git', '*', '*', 'worktree', 'remove'] },
+        { match: ['git', '*', '*', 'branch', '-D'] },
       ],
       [],
     );
@@ -87,34 +89,34 @@ describe("runCleanup", () => {
     expect(events).toEqual([
       expect.objectContaining({
         issue: 7,
-        stage: "cleanup",
-        kind: "error",
-        message: "PR closed without merge → agent:failed",
+        stage: 'cleanup',
+        kind: 'error',
+        message: 'PR closed without merge → agent:failed',
       }),
     ]);
   });
 
-  test("PR closed without merge: label → agent:failed", async () => {
+  test('PR closed without merge: label → agent:failed', async () => {
     const { ctx, calls } = await makeCtx(
       [
-        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
-        { match: ["gh", "pr", "view", "agent/issue-7"], result: { stdout: '{"state":"CLOSED"}' } },
+        { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: { stdout: '{"state":"CLOSED"}' } },
         {
           match: [
-            "gh",
-            "issue",
-            "edit",
-            "7",
-            "--repo",
-            "*",
-            "--remove-label",
-            "agent:in-review",
-            "--add-label",
-            "agent:failed",
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:in-review',
+            '--add-label',
+            'agent:failed',
           ],
         },
-        { match: ["git", "*", "*", "worktree", "remove"] },
-        { match: ["git", "*", "*", "branch", "-D"] },
+        { match: ['git', '*', '*', 'worktree', 'remove'] },
+        { match: ['git', '*', '*', 'branch', '-D'] },
       ],
       [],
     );
@@ -122,11 +124,11 @@ describe("runCleanup", () => {
     expect(calls).toHaveLength(5);
   });
 
-  test("open PR is left untouched", async () => {
+  test('open PR is left untouched', async () => {
     const { ctx, calls } = await makeCtx(
       [
-        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
-        { match: ["gh", "pr", "view", "agent/issue-7"], result: { stdout: '{"state":"OPEN"}' } },
+        { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: { stdout: '{"state":"OPEN"}' } },
       ],
       [],
     );
@@ -134,30 +136,30 @@ describe("runCleanup", () => {
     expect(calls).toHaveLength(2);
   });
 
-  test("tolerates a missing PR and a missing worktree on this machine", async () => {
+  test('tolerates a missing PR and a missing worktree on this machine', async () => {
     const { ctx } = await makeCtx(
       [
-        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
-        { match: ["gh", "pr", "view"], result: { code: 1, stderr: "no pull requests found" } },
+        { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
+        { match: ['gh', 'pr', 'view'], result: { code: 1, stderr: 'no pull requests found' } },
       ],
       [],
     );
     await runCleanup(ctx); // must not throw
   });
 
-  test("merged cleanup survives worktree-remove failures (worktree lives on another machine)", async () => {
+  test('merged cleanup survives worktree-remove failures (worktree lives on another machine)', async () => {
     const { ctx, calls } = await makeCtx(
       [
-        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
-        { match: ["gh", "pr", "view"], result: { stdout: '{"state":"MERGED"}' } },
-        { match: ["gh", "issue", "edit", "7"] },
+        { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
+        { match: ['gh', 'pr', 'view'], result: { stdout: '{"state":"MERGED"}' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
         {
-          match: ["git", "*", "*", "worktree", "remove"],
-          result: { code: 128, stderr: "not a working tree" },
+          match: ['git', '*', '*', 'worktree', 'remove'],
+          result: { code: 128, stderr: 'not a working tree' },
         },
         {
-          match: ["git", "*", "*", "branch", "-D"],
-          result: { code: 1, stderr: "branch not found" },
+          match: ['git', '*', '*', 'branch', '-D'],
+          result: { code: 1, stderr: 'branch not found' },
         },
       ],
       [],
@@ -167,40 +169,40 @@ describe("runCleanup", () => {
   });
 });
 
-describe("poll runs cleanup first", () => {
-  test("the in-review sweep happens before ready/approved listing", async () => {
+describe('poll runs cleanup first', () => {
+  test('the in-review sweep happens before ready/approved listing', async () => {
     const { ctx, calls } = await makeCtx(
       [
         {
           match: [
-            "gh",
-            "issue",
-            "list",
-            "--repo",
-            "*",
-            "--label",
-            "agent:in-review",
-            "--state",
-            "all",
+            'gh',
+            'issue',
+            'list',
+            '--repo',
+            '*',
+            '--label',
+            'agent:in-review',
+            '--state',
+            'all',
           ],
-          result: { stdout: "[]" },
+          result: { stdout: '[]' },
         },
         {
-          match: ["gh", "issue", "list", "--repo", "*", "--label", "agent:ready"],
-          result: { stdout: "[]" },
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
+          result: { stdout: '[]' },
         },
         {
-          match: ["gh", "issue", "list", "--repo", "*", "--label", "agent:approved"],
-          result: { stdout: "[]" },
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:approved'],
+          result: { stdout: '[]' },
         },
         {
-          match: ["gh", "issue", "list", "--repo", "*", "--label", "agent:replan"],
-          result: { stdout: "[]" },
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:replan'],
+          result: { stdout: '[]' },
         },
       ],
       [],
     );
     await poll(ctx);
-    expect(calls[0]).toContain("agent:in-review");
+    expect(calls[0]).toContain('agent:in-review');
   });
 });

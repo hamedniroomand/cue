@@ -1,4 +1,4 @@
-import type { Exec } from "./exec";
+import type { Exec } from '@/exec';
 
 export interface Issue {
   number: number;
@@ -14,24 +14,24 @@ export class GitHub {
   ) {}
 
   private async gh(args: string[]): Promise<string> {
-    const r = await this.exec(["gh", ...args]);
+    const r = await this.exec(['gh', ...args]);
     if (r.code !== 0)
-      throw new Error(`gh failed: gh ${args.slice(0, 3).join(" ")}: ${r.stderr.trim()}`);
+      throw new Error(`gh failed: gh ${args.slice(0, 3).join(' ')}: ${r.stderr.trim()}`);
     return r.stdout;
   }
 
-  async listIssues(label: string, state: "open" | "all" = "open"): Promise<Issue[]> {
+  async listIssues(label: string, state: 'open' | 'all' = 'open'): Promise<Issue[]> {
     const out = await this.gh([
-      "issue",
-      "list",
-      "--repo",
+      'issue',
+      'list',
+      '--repo',
       this.repo,
-      "--label",
+      '--label',
       label,
-      "--state",
+      '--state',
       state,
-      "--json",
-      "number,title,body,labels",
+      '--json',
+      'number,title,body,labels',
     ]);
     const raw = JSON.parse(out) as Array<{
       number: number;
@@ -42,62 +42,62 @@ export class GitHub {
     return raw.map((i) => ({
       number: i.number,
       title: i.title,
-      body: i.body ?? "",
+      body: i.body ?? '',
       labels: i.labels.map((l) => l.name),
     }));
   }
 
   async addLabel(n: number, label: string): Promise<void> {
-    await this.gh(["issue", "edit", String(n), "--repo", this.repo, "--add-label", label]);
+    await this.gh(['issue', 'edit', String(n), '--repo', this.repo, '--add-label', label]);
   }
 
   async removeLabel(n: number, label: string): Promise<void> {
-    await this.gh(["issue", "edit", String(n), "--repo", this.repo, "--remove-label", label]);
+    await this.gh(['issue', 'edit', String(n), '--repo', this.repo, '--remove-label', label]);
   }
 
   async swapLabel(n: number, remove: string, add: string): Promise<void> {
     await this.gh([
-      "issue",
-      "edit",
+      'issue',
+      'edit',
       String(n),
-      "--repo",
+      '--repo',
       this.repo,
-      "--remove-label",
+      '--remove-label',
       remove,
-      "--add-label",
+      '--add-label',
       add,
     ]);
   }
 
   async comment(n: number, body: string): Promise<void> {
-    await this.gh(["issue", "comment", String(n), "--repo", this.repo, "--body", body]);
+    await this.gh(['issue', 'comment', String(n), '--repo', this.repo, '--body', body]);
   }
 
   async comments(n: number): Promise<Array<{ author: string; body: string }>> {
     const out = await this.gh([
-      "issue",
-      "view",
+      'issue',
+      'view',
       String(n),
-      "--repo",
+      '--repo',
       this.repo,
-      "--json",
-      "comments",
+      '--json',
+      'comments',
     ]);
     const { comments } = JSON.parse(out) as {
       comments: Array<{ author?: { login?: string }; body: string }>;
     };
-    return comments.map((c) => ({ author: c.author?.login ?? "unknown", body: c.body }));
+    return comments.map((c) => ({ author: c.author?.login ?? 'unknown', body: c.body }));
   }
 
   async findComment(n: number, marker: string): Promise<string | null> {
     const out = await this.gh([
-      "issue",
-      "view",
+      'issue',
+      'view',
       String(n),
-      "--repo",
+      '--repo',
       this.repo,
-      "--json",
-      "comments",
+      '--json',
+      'comments',
     ]);
     const { comments } = JSON.parse(out) as { comments: Array<{ body: string }> };
     const hit = comments.toReversed().find((c) => c.body.includes(marker));
@@ -111,35 +111,35 @@ export class GitHub {
     body: string;
   }): Promise<string> {
     const out = await this.gh([
-      "pr",
-      "create",
-      "--repo",
+      'pr',
+      'create',
+      '--repo',
       this.repo,
-      "--draft",
-      "--head",
+      '--draft',
+      '--head',
       o.branch,
-      "--base",
+      '--base',
       o.base,
-      "--title",
+      '--title',
       o.title,
-      "--body",
+      '--body',
       o.body,
     ]);
-    return out.trim().split("\n").at(-1) ?? "";
+    return out.trim().split('\n').at(-1) ?? '';
   }
 
   // Tolerant by design: cleanup probes branches that may have no PR at all.
-  async prState(branch: string): Promise<"OPEN" | "MERGED" | "CLOSED" | null> {
-    const r = await this.exec(["gh", "pr", "view", branch, "--repo", this.repo, "--json", "state"]);
+  async prState(branch: string): Promise<'OPEN' | 'MERGED' | 'CLOSED' | null> {
+    const r = await this.exec(['gh', 'pr', 'view', branch, '--repo', this.repo, '--json', 'state']);
     if (r.code !== 0) return null;
     try {
-      return (JSON.parse(r.stdout) as { state: "OPEN" | "MERGED" | "CLOSED" }).state;
+      return (JSON.parse(r.stdout) as { state: 'OPEN' | 'MERGED' | 'CLOSED' }).state;
     } catch {
       return null;
     }
   }
 
   async prComment(branch: string, body: string): Promise<void> {
-    await this.gh(["pr", "comment", branch, "--repo", this.repo, "--body", body]);
+    await this.gh(['pr', 'comment', branch, '--repo', this.repo, '--body', body]);
   }
 }

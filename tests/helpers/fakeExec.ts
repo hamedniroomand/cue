@@ -1,4 +1,4 @@
-import type { Exec, ExecResult } from "../../src/exec";
+import type { Exec, ExecResult } from '@/exec';
 
 export interface ExpectedCall {
   match: string[];
@@ -11,14 +11,14 @@ export function makeFakeExec(expected: ExpectedCall[]): { exec: Exec; calls: str
   const exec: Exec = async (cmd, opts) => {
     calls.push(cmd);
     const next = queue.shift();
-    if (!next) throw new Error(`unexpected exec: ${cmd.join(" ")}`);
+    if (!next) throw new Error(`unexpected exec: ${cmd.join(' ')}`);
     next.match.forEach((tok, i) => {
-      if (tok !== "*" && cmd[i] !== tok)
-        throw new Error(`expected [${next.match.join(" ")}], got [${cmd.join(" ")}]`);
+      if (tok !== '*' && cmd[i] !== tok)
+        throw new Error(`expected [${next.match.join(' ')}], got [${cmd.join(' ')}]`);
     });
-    const res = { code: 0, stdout: "", stderr: "", ...next.result };
+    const res = { code: 0, stdout: '', stderr: '', ...next.result };
     if (opts?.onLine) {
-      for (const line of res.stdout.split("\n")) if (line.trim()) opts.onLine(line);
+      for (const line of res.stdout.split('\n')) if (line.trim()) opts.onLine(line);
     }
     return res;
   };

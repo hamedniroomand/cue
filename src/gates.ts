@@ -1,5 +1,5 @@
-import type { Exec } from "./exec";
-import type { Platform } from "./platform";
+import type { Exec } from '@/exec';
+import type { Platform } from '@/platform';
 
 export interface GateResult {
   ok: boolean;
@@ -21,5 +21,5 @@ export async function runGate(
       return { ok: false, output: `$ ${command}\n${r.stdout}\n${r.stderr}`.slice(-8000) };
     }
   }
-  return { ok: true, output: "all gates passed" };
+  return { ok: true, output: 'all gates passed' };
 }
