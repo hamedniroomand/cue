@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "typescript", "node", "unicorn", "oxc", "promise", "eslint"],
   "options": {
     "typeCheck": true,
     "typeAware": true
@@ -10,6 +11,7 @@
     "perf": "warn"
   },
   "rules": {
+    "import/first": "error",
     "no-console": "off",
     "no-await-in-loop": "off",
     // Boundary convention (see AGENTS.md): gh/claude JSON.parse results are

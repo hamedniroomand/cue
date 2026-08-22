@@ -1,3 +1,7 @@
+import { join } from 'node:path';
+
+import { EMBEDDED_PROMPTS } from '@/embedded';
+
 export function renderPrompt(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_m, name: string) => {
     const value = vars[name];
@@ -5,10 +9,6 @@ export function renderPrompt(template: string, vars: Record<string, string>): st
     return value;
   });
 }
-
-import { join } from 'node:path';
-
-import { EMBEDDED_PROMPTS } from '@/embedded';
 
 // Earlier directories win: [project overrides, packaged defaults]. The prompts
 // embedded in the binary are the last resort, so compiled installs work with
