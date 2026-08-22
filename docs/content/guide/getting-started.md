@@ -89,10 +89,10 @@ my-project/
 
 1. Open (or write) a GitHub issue that describes the work.
 2. Apply the `agent:ready` label.
-3. From the repo: `cue poll`.
+3. From the repo: `cue process`.
 4. Triage posts a plan comment and the label becomes `agent:planned`.
 5. Read the plan. If it looks right, swap the label to `agent:approved`. If not, [ask for a revision](/guide/pipeline#giving-feedback-on-a-plan).
-6. `cue poll` again. Dev implements in a worktree, the test gate runs, a draft PR opens, and the review agent comments a verdict. The label becomes `agent:in-review`.
-7. You review and merge the draft PR. The next `poll` (or `cue cleanup`) marks the issue `agent:done` and removes the worktree.
+6. `cue process` again. Dev implements in a worktree, the test gate runs, a draft PR opens, and the review agent comments a verdict. The label becomes `agent:in-review`.
+7. You review and merge the draft PR. The next `process` (or `cue cleanup`) marks the issue `agent:done` and removes the worktree.
 
 That is the whole human loop. Details, labels, and edge cases live in [Pipeline](/guide/pipeline). Command reference: [Commands](/guide/commands).

@@ -38,10 +38,10 @@ Switching adapter drops any `models` you had set, because model names are adapte
 
 Safe to re-run: labels that already exist are refreshed in place, and an existing config is only rewritten if your answers actually changed something.
 
-## poll
+## process
 
 ```bash
-cue poll
+cue process
 ```
 
 The main loop. It:
@@ -51,6 +51,14 @@ The main loop. It:
 3. Runs the next stage for each one.
 
 Use this after you label work, after you approve a plan, and after you merge.
+
+## poll
+
+```bash
+cue poll
+```
+
+Compatibility alias for `cue process`. New scripts and documentation should use `process`.
 
 ## run
 
@@ -74,7 +82,7 @@ Reconciles merged and closed PRs for Cue-managed issues:
 - closed unmerged → `agent:failed`
 - worktree and local `agent/issue-<n>` branch removed either way
 
-Also runs at the start of every `poll`. Call it on its own if you merged on GitHub and want local worktrees gone without kicking the rest of the pipeline.
+Also runs at the start of every `process`. Call it on its own if you merged on GitHub and want local worktrees gone without kicking the rest of the pipeline.
 
 ## status
 

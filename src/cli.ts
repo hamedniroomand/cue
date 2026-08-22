@@ -140,7 +140,8 @@ Usage: cue <command> (run from inside a target repo)
 Commands:
   init         configure .cue/ and create the agent:* labels in this repo
                (asks for adapter + test/lint commands; --yes keeps the defaults)
-  poll         reconcile finished PRs, then run every actionable issue
+  process      reconcile finished PRs, then run every actionable issue
+  poll         alias for process (kept for compatibility)
   run <n>      run the next pipeline stage for issue #n
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
   status       issues per pipeline state, local spend, worktree root
@@ -206,7 +207,7 @@ async function main(): Promise<void> {
     });
     return;
   }
-  const known = ['init', 'poll', 'run', 'cleanup', 'status', 'ui', 'upgrade'];
+  const known = ['init', 'process', 'poll', 'run', 'cleanup', 'status', 'ui', 'upgrade'];
   if (!command || !known.includes(command)) {
     if (command) consola.error(`unknown command: ${command}\n`);
     // oxlint-disable-next-line no-console -- plain stdout so --help pipes cleanly
@@ -219,6 +220,7 @@ async function main(): Promise<void> {
     case 'init':
       await init(ctx);
       break;
+    case 'process':
     case 'poll':
       await poll(ctx);
       break;

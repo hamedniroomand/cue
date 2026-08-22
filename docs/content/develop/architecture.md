@@ -19,7 +19,7 @@ GitHub is the state store: `agent:*` labels are the state machine, issue comment
 ```
 src/
 ├── cli.ts              # entrypoint + label definitions; builds the real StageContext
-├── pipeline.ts         # nextAction (label → stage), runIssue (failure → agent:failed), poll
+├── pipeline.ts         # nextAction (label → stage), runIssue (failure → agent:failed), process loop
 ├── cleanup.ts          # merged/closed PRs → agent:done / agent:failed + worktree removal
 ├── stages/
 │   ├── context.ts      # StageContext — DI bundle every stage receives
@@ -35,7 +35,7 @@ src/
 │   ├── antigravity.ts  # agy -p --output-format stream-json --dangerously-skip-permissions
 │   ├── claude.ts       # claude -p --output-format stream-json --verbose; maps access → --allowedTools
 │   └── codex.ts        # codex exec --json; sandbox read-only / workspace-write; --search
-├── server.ts           # cue ui: Bun.serve, SSE, poll/run triggers
+├── server.ts           # cue ui: Bun.serve, SSE, process/run triggers
 ├── github.ts           # typed wrapper over the gh CLI
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos
 ├── gates.ts            # deterministic test/lint runner (sh -c in the worktree)
@@ -61,7 +61,7 @@ These are load-bearing. Tests encode most of them.
 - **Humans gate two moments:** plan approval and PR merge. Do not automate either.
 - **Issue bodies and comments are untrusted input.** Every prompt states this.
 
-## How a poll works
+## How processing works
 
 1. `cleanup` reconciles PRs that have been merged or closed since the last run.
 2. `nextAction` maps the issue's labels to a stage (`triage` / `replan` / `dev`).

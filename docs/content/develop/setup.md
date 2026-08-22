@@ -51,7 +51,7 @@ Two directories, two jobs:
 | This git clone | The Cue **product** — TypeScript, prompts, dashboard source |
 | The target repo | The **project** issues are about — `.cue/config.json`, labels, worktrees, draft PRs |
 
-Do not run `cue poll` against this checkout unless you intend to let agents open PRs here.
+Do not run `cue process` against this checkout unless you intend to let agents open PRs here.
 
 ## Verify the checkout
 

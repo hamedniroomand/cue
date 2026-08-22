@@ -120,7 +120,7 @@ export function Shell({
           {onPoll && (
             <Button size="sm" className="shrink-0" disabled={state?.busy != null} onClick={onPoll}>
               <RefreshCwIcon data-icon="inline-start" className="hidden sm:block" />
-              Poll now
+              Process now
             </Button>
           )}
         </div>
