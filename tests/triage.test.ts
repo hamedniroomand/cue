@@ -72,7 +72,8 @@ describe('runTriage', () => {
     const run = runs[0]!;
     expect(run.model).toBe('haiku');
     expect(run.cwd).toBe('/repos/widgets');
-    expect(run.allowedTools).toEqual(['Read', 'Grep', 'Glob']);
+    expect(run.access).toBe('read-only');
+    expect(run.webSearch).toBeUndefined();
     expect(run.prompt).toContain('Fix login');
     const commentCall = calls[1]!;
     expect(commentCall.join(' ')).toContain(PLAN_MARKER);

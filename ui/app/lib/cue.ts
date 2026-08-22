@@ -3,7 +3,12 @@
  *
  * Every fetch falls back to the bundled fixtures in app/fixtures so the
  * dashboard is reviewable without a cue process running.
+ *
+ * Transcript normalization lives in ./transcript (pure, covered by the root
+ * test suite) and is re-exported here for the routes.
  */
+
+export * from "./transcript";
 
 export interface BoardIssue {
   number: number;
@@ -49,158 +54,6 @@ export interface RunIndexEntry {
 export interface RunDetail extends RunSummary {
   prompt: string;
   result: unknown;
-}
-
-/** A single line of a `claude -p --output-format stream-json` transcript. */
-export interface StreamEvent {
-  type?: string;
-  subtype?: string;
-  model?: string;
-  result?: string;
-  total_cost_usd?: number;
-  num_turns?: number;
-  duration_api_ms?: number;
-  is_error?: boolean;
-  tool_name?: string;
-  message?: {
-    role?: string;
-    content?: Array<{
-      type?: string;
-      text?: string;
-      thinking?: string;
-      name?: string;
-      input?: Record<string, unknown>;
-      content?: unknown;
-      is_error?: boolean;
-    }>;
-  };
-}
-
-export type TranscriptRow =
-  | { key: string; kind: "init"; model: string }
-  | { key: string; kind: "text"; role: string; text: string }
-  | { key: string; kind: "thinking"; text: string }
-  | { key: string; kind: "tool"; name: string; detail: string }
-  | { key: string; kind: "tool_result"; detail: string; failed: boolean }
-  | { key: string; kind: "denied"; detail: string }
-  | { key: string; kind: "rate_limit"; detail: string }
-  | {
-      key: string;
-      kind: "result";
-      text: string;
-      costUsd?: number;
-      turns?: number;
-    };
-
-/**
- * `RunEntry.result` is polymorphic across recorded runs: older logs store the
- * single `result` event as an object, newer ones store the whole event array.
- * Everything downstream reads StreamEvent[].
- */
-export function normalizeEvents(result: unknown): StreamEvent[] {
-  if (Array.isArray(result)) return result as StreamEvent[];
-  if (result && typeof result === "object") return [result as StreamEvent];
-  return [];
-}
-
-function summarizeInput(input: Record<string, unknown> | undefined): string {
-  if (!input) return "";
-  const first =
-    input.command ?? input.file_path ?? input.pattern ?? input.description ?? input.prompt;
-  const text = typeof first === "string" ? first : JSON.stringify(first ?? input);
-  return text.slice(0, 240);
-}
-
-function asText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((c) => (c && typeof c === "object" && "text" in c ? String(c.text) : ""))
-      .join("");
-  }
-  return content === undefined ? "" : JSON.stringify(content);
-}
-
-/** Flatten a raw transcript into renderable rows, dropping empty noise. */
-export function toRows(events: StreamEvent[]): TranscriptRow[] {
-  const rows: TranscriptRow[] = [];
-  events.forEach((ev, i) => {
-    const key = String(i);
-    if (ev.type === "system") {
-      if (ev.subtype === "init") rows.push({ key, kind: "init", model: ev.model ?? "unknown" });
-      else if (ev.subtype === "permission_denied")
-        rows.push({
-          key,
-          kind: "denied",
-          detail: ev.tool_name ?? "unknown tool",
-        });
-      // Hook lifecycle events are infrastructure noise; the Raw tab keeps them.
-      return;
-    }
-    if (ev.type === "rate_limit_event") {
-      rows.push({
-        key,
-        kind: "rate_limit",
-        detail: ev.subtype ?? "rate limited",
-      });
-      return;
-    }
-    if (ev.type === "result") {
-      rows.push({
-        key,
-        kind: "result",
-        text: ev.result ?? "",
-        costUsd: ev.total_cost_usd,
-        turns: ev.num_turns,
-      });
-      return;
-    }
-    for (const [j, block] of (ev.message?.content ?? []).entries()) {
-      const bk = `${i}-${j}`;
-      if (block.type === "tool_use")
-        rows.push({
-          key: bk,
-          kind: "tool",
-          name: block.name ?? "tool",
-          detail: summarizeInput(block.input),
-        });
-      else if (block.type === "tool_result")
-        rows.push({
-          key: bk,
-          kind: "tool_result",
-          detail: asText(block.content).slice(0, 400),
-          failed: block.is_error === true,
-        });
-      else if (block.type === "thinking" && block.thinking?.trim())
-        rows.push({ key: bk, kind: "thinking", text: block.thinking.trim() });
-      else if (block.type === "text" && block.text?.trim())
-        rows.push({
-          key: bk,
-          kind: "text",
-          role: ev.message?.role ?? ev.type ?? "assistant",
-          text: block.text.trim(),
-        });
-    }
-  });
-  return rows;
-}
-
-export interface RunStats {
-  events: number;
-  tools: number;
-  denied: number;
-  turns?: number;
-}
-
-export function statsFor(events: StreamEvent[]): RunStats {
-  const rows = toRows(events);
-  const result = rows.find((r) => r.kind === "result");
-  return {
-    events: events.length,
-    tools: rows.filter((r) => r.kind === "tool").length,
-    denied: rows.filter((r) => r.kind === "denied").length,
-    turns: result?.kind === "result" ? result.turns : undefined,
-  };
 }
 
 export const STAGES = ["triage", "replan", "dev", "fix", "review", "review-fix"] as const;

@@ -4,8 +4,7 @@ import { join } from 'node:path';
 
 import { consola } from 'consola';
 
-import { ClaudeAdapter } from '@/adapters/claude';
-import type { AgentAdapter } from '@/adapters/types';
+import { ADAPTERS } from '@/adapters/registry';
 import { runCleanup } from '@/cleanup';
 import { resolveConfig } from '@/config';
 import { VERSION } from '@/embedded';
@@ -34,12 +33,10 @@ async function makeContext(): Promise<StageContext> {
   const cwd = process.cwd();
   const config = await resolveConfig(realExec, cwd);
   const platform = currentPlatform();
-  if (config.adapter === 'codex') throw new Error('codex adapter not implemented yet');
-  const adapter: AgentAdapter = new ClaudeAdapter(realExec, platform);
   return {
     config,
     github: new GitHub(realExec, config.repo),
-    adapter,
+    adapter: ADAPTERS[config.adapter].make(realExec, platform),
     logger: new RunLogger(join(cwd, '.cue', 'runs')),
     exec: realExec,
     platform,
@@ -101,7 +98,9 @@ async function status(ctx: StageContext): Promise<void> {
     const issues = await ctx.github.listIssues(label);
     for (const i of issues) {
       const cost = await ctx.logger.totalCost(i.number);
-      consola.log(`${label.padEnd(16)} #${i.number} ${i.title} ($${cost.toFixed(2)} local spend)`);
+      // Codex reports no dollar cost, so zero means "unknown", not "free".
+      const spend = cost > 0 ? ` ($${cost.toFixed(2)} local spend)` : '';
+      consola.log(`${label.padEnd(16)} #${i.number} ${i.title}${spend}`);
     }
   }
   consola.log(`\nworktrees: ${ctx.config.worktreeRoot}`);

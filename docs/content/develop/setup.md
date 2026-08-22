@@ -5,7 +5,7 @@ This page is for people changing Cue itself. If you only want to run agents agai
 ## Prerequisites
 
 - [Bun](https://bun.com) ≥ 1.1
-- `gh` and `claude` CLIs if you will drive a real pipeline (the test suite does not need them)
+- `gh` and `codex` CLIs if you will drive a real pipeline (the test suite does not need them)
 
 ## Clone
 

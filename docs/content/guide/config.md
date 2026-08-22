@@ -16,12 +16,12 @@ All project-specific state lives in the **target** repo, not in the Cue install:
 | Field | Default | Notes |
 | --- | --- | --- |
 | `repo` | from the `origin` remote | `owner/name` |
-| `adapter` | `"claude"` | `"codex"` is planned and currently exits with a clear error |
-| `models` | triage `haiku`, dev `sonnet`, review `sonnet` | Passed to the Claude CLI |
-| `maxTurns` | triage 15, dev 60, review 25 | Per-stage turn cap |
+| `adapter` | `"codex"` | Options: `"codex"`, `"antigravity"` (or `"agy"`), `"claude"` |
+| `models` | Codex: `gpt-5.3-codex`; Antigravity: triage `gemini-3.7-flash-medium`, dev/review `gemini-3.7-flash-high`; Claude: triage `haiku`, dev/review `sonnet` | Passed to the selected CLI. Model names are adapter-specific, so setting `models` requires setting `adapter` explicitly too — Cue refuses the combination of explicit models with a defaulted adapter. |
+| `maxTurns` | triage 15, dev 60, review 25 | Per-stage turn cap, enforced by Claude (`--max-turns`) only. Codex and Antigravity have no turn cap — the stage timeout is their only bound. |
 | `gate` | `{ "test": "bun test" }` | Optional `lint` string. Run in the worktree via the OS shell (`sh -c`; `cmd /c` on Windows) — keep commands shell-portable |
 | `reviewFixIterations` | `2` | Bounded review → fix loop |
-| `devBashAllowlist` | unset | Claude permission patterns such as `"bun *"`, `"git status"`. Unset = unrestricted Bash for dev/fix agents |
+| `devBashAllowlist` | unset | Per-command shell scoping, e.g. `"bun *"`, `"git status"`. **Enforced by Claude only.** Codex and Antigravity cannot scope individual commands: their write stages get a full shell inside the sandbox (`workspace-write` / `accept-edits`), so this field does not restrict them. |
 | `worktreeRoot` | `~/.cue/worktrees/<owner>-<repo>` | Deliberately **outside** the target repo |
 | `baseBranch` | `"main"` | Branch draft PRs target |
 | `staleClaimMinutes` | `90` | How long an `agent:in-dev` claim is considered live |
@@ -30,14 +30,15 @@ Example:
 
 ```json
 {
+  "adapter": "codex",
   "gate": {
     "test": "npm test",
     "lint": "npm run lint"
   },
   "models": {
-    "triage": "haiku",
-    "dev": "sonnet",
-    "review": "sonnet"
+    "triage": "gpt-5.3-codex",
+    "dev": "gpt-5.3-codex",
+    "review": "gpt-5.3-codex"
   },
   "maxTurns": {
     "triage": 15,
@@ -75,3 +76,15 @@ The target repo may be empty: Cue bootstraps an empty initial commit (`--allow-e
 ## Runs and cost
 
 Every adapter invocation is logged under `.cue/runs/<issue>/<stage>-<timestamp>.json` with the prompt, full event transcript, duration, and cost. The [dashboard](/guide/dashboard) reads this directory. Do not commit it.
+
+Claude and Antigravity report a dollar cost per run; Codex reports token usage but no cost, so Codex runs show no spend (unknown, not free).
+
+Each agent subprocess runs with a scrubbed environment: the OS basics plus that adapter's own API keys — never another provider's credentials, and never `GH_TOKEN`.
+
+## Codex
+
+Set `"adapter": "codex"` and authenticate the `codex` CLI. Cue invokes `codex exec --json` for each stage. Planning and review run in Codex's `read-only` sandbox; dev and repair stages run in `workspace-write`. The replan stage gets `--search` so it can research alternatives on the web. Cue still owns every GitHub, commit, push, and pull-request operation.
+
+## Antigravity
+
+Set `"adapter": "antigravity"` (or `"adapter": "agy"` — normalized to `antigravity` internally) and authenticate the `agy` CLI. Cue invokes `agy -p <prompt> --output-format stream-json --dangerously-skip-permissions`, using Antigravity's `plan` mode for planning/review and `accept-edits` for implementation. `agy` has no web-search flag, so the replan stage logs a warning that web access is not guaranteed. Antigravity executes its tools; Cue owns transcripts, gates, GitHub operations, commits, pushes, and pull requests.

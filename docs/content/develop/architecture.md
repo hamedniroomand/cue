@@ -28,8 +28,13 @@ src/
 │   ├── dev.ts          # worktree implementation + gate + draft PR
 │   └── review.ts       # JSON verdict + bounded fix loop
 ├── adapters/
-│   ├── types.ts        # AgentAdapter / AgentRunOptions / AgentResult
-│   └── claude.ts       # claude -p --output-format stream-json --verbose; env-scrubbed
+│   ├── types.ts        # AgentAdapter / AgentRunOptions (access, webSearch, bashAllowlist) / AgentResult
+│   ├── base.ts         # JsonlAdapter: shared env scrub + exec + JSONL parse + progress loop
+│   ├── registry.ts     # ADAPTERS: name → { make, defaultModels }
+│   ├── summarize.ts    # shared tool-input summarizer (adapters + dashboard transcript)
+│   ├── antigravity.ts  # agy -p --output-format stream-json --dangerously-skip-permissions
+│   ├── claude.ts       # claude -p --output-format stream-json --verbose; maps access → --allowedTools
+│   └── codex.ts        # codex exec --json; sandbox read-only / workspace-write; --search
 ├── server.ts           # cue ui: Bun.serve, SSE, poll/run triggers
 ├── github.ts           # typed wrapper over the gh CLI
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos
@@ -51,7 +56,7 @@ These are load-bearing. Tests encode most of them.
 - **Label names are exact:** `agent:ready`, `agent:planned`, `agent:approved`, `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:done`, `agent:failed`, `agent:stop`.
 - **Plan-comment marker is exactly `<!-- cue:plan -->`** (`PLAN_MARKER` in `stages/triage.ts`). Dev and replan find plans by the newest comment containing it.
 - **Branch naming:** `agent/issue-<number>`.
-- **The GitHub token must never reach agent subprocesses.** `ClaudeAdapter` builds a scrubbed env from an allowlist. There is a test asserting `GH_TOKEN` is absent.
+- **The GitHub token must never reach agent subprocesses.** `ClaudeAdapter`, `CodexAdapter`, and `AntigravityAdapter` build scrubbed envs from an allowlist. Tests assert `GH_TOKEN` is absent.
 - **Agents never run git/gh side effects.** The runner owns commit, push, PR creation, and labels. Cue never merges and never touches the base branch.
 - **Humans gate two moments:** plan approval and PR merge. Do not automate either.
 - **Issue bodies and comments are untrusted input.** Every prompt states this.
@@ -67,9 +72,7 @@ These are load-bearing. Tests encode most of them.
 
 ## Adapters
 
-Today: Claude Code via `claude -p --output-format stream-json --verbose`. Flag spellings (`--allowedTools`, `--max-turns`) are version-dependent — if the adapter breaks after a CLI update, check `claude --help` first.
-
-`"adapter": "codex"` is reserved and currently exits with a clear error.
+Codex is the default adapter and runs via `codex exec --json`; read-only stages use Codex's `read-only` sandbox and implementation stages use `workspace-write`. Antigravity runs via `agy -p --output-format stream-json --dangerously-skip-permissions`. Claude Code remains available via `claude -p --output-format stream-json --verbose`. All adapters scrub their environments, retaining only their own authentication variables and never `GH_TOKEN`. If a CLI update breaks an adapter, check that CLI's `--help` output first.
 
 ## Releases
 

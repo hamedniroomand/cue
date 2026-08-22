@@ -8,15 +8,17 @@ export interface Platform {
   name: 'posix' | 'windows';
   /** Wrap a user-authored gate command for the OS shell (gates.ts). */
   shell(command: string): string[];
-  /** Env vars the scrubbed agent subprocess env may carry (adapters/claude.ts).
-   *  Everything else — GH_TOKEN above all — is dropped. */
+  /** OS vars the scrubbed agent subprocess env may carry (see scrubbedEnv).
+   *  Credentials never live here: each adapter names its own provider keys,
+   *  so a codex run never sees ANTHROPIC_API_KEY and vice versa. GH_TOKEN
+   *  above all is dropped. */
   agentEnvAllowlist: string[];
 }
 
 export const POSIX: Platform = {
   name: 'posix',
   shell: (command) => ['sh', '-c', command],
-  agentEnvAllowlist: ['PATH', 'HOME', 'SHELL', 'TERM', 'USER', 'TMPDIR', 'ANTHROPIC_API_KEY'],
+  agentEnvAllowlist: ['PATH', 'HOME', 'SHELL', 'TERM', 'USER', 'TMPDIR'],
 };
 
 export const WINDOWS: Platform = {
@@ -39,9 +41,25 @@ export const WINDOWS: Platform = {
     'COMSPEC',
     'PATHEXT',
     'USERNAME',
-    'ANTHROPIC_API_KEY',
   ],
 };
+
+/**
+ * The credential boundary for every agent subprocess: platform OS vars plus
+ * the adapter's own provider keys, nothing else. Empty values are dropped.
+ */
+export function scrubbedEnv(
+  platform: Platform,
+  adapterEnvKeys: string[],
+  source: Record<string, string | undefined> = process.env,
+): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of [...platform.agentEnvAllowlist, ...adapterEnvKeys]) {
+    const value = source[key];
+    if (value) env[key] = value;
+  }
+  return env;
+}
 
 export function currentPlatform(): Platform {
   return process.platform === 'win32' ? WINDOWS : POSIX;

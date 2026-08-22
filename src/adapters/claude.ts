@@ -1,6 +1,6 @@
-import type { AgentAdapter, AgentResult, AgentRunOptions } from '@/adapters/types';
-import type { Exec } from '@/exec';
-import { currentPlatform, type Platform } from '@/platform';
+import { JsonlAdapter } from '@/adapters/base';
+import { summarizeToolInput } from '@/adapters/summarize';
+import type { AgentResult, AgentRunOptions } from '@/adapters/types';
 
 interface StreamEvent {
   type?: string;
@@ -19,53 +19,25 @@ interface StreamEvent {
   };
 }
 
-function summarizeToolInput(input: Record<string, unknown> | undefined): string {
-  if (!input) return '';
-  const interesting = input.command ?? input.file_path ?? input.pattern ?? input.description ?? '';
-  const text = typeof interesting === 'string' ? interesting : JSON.stringify(interesting);
-  return (text ?? '').slice(0, 80);
-}
-
-function progressFor(ev: StreamEvent): string[] {
-  if (ev.type === 'system' && ev.subtype === 'init')
-    return [`session started (${ev.model ?? 'unknown model'})`];
-  if (ev.type !== 'assistant') return [];
-  const messages: string[] = [];
-  for (const block of ev.message?.content ?? []) {
-    if (block.type === 'tool_use')
-      messages.push(`⚙ ${block.name}: ${summarizeToolInput(block.input)}`);
-    else if (block.type === 'text' && block.text?.trim())
-      messages.push(`… ${block.text.trim().slice(0, 100)}`);
+// Claude enforces permissions per tool name, so the semantic run options map
+// to an explicit allowlist here — the one adapter that can scope Bash.
+function allowedTools(opts: AgentRunOptions): string[] {
+  const tools = ['Read', 'Grep', 'Glob'];
+  if (opts.webSearch) tools.push('WebSearch');
+  if (opts.access === 'write') {
+    tools.push('Write', 'Edit');
+    tools.push(...(opts.bashAllowlist?.map((p) => `Bash(${p})`) ?? ['Bash']));
   }
-  return messages;
+  return tools;
 }
 
-function parseEvents(stdout: string): StreamEvent[] {
-  const events: StreamEvent[] = [];
-  for (const line of stdout.split('\n')) {
-    if (!line.trim()) continue;
-    try {
-      events.push(JSON.parse(line) as StreamEvent);
-    } catch {
-      // non-JSON noise on stdout is ignored
-    }
-  }
-  return events;
-}
+export class ClaudeAdapter extends JsonlAdapter<StreamEvent> {
+  protected readonly bin = 'claude';
+  protected readonly envKeys = ['ANTHROPIC_API_KEY'];
+  protected readonly supportsWebSearch = true;
 
-export class ClaudeAdapter implements AgentAdapter {
-  constructor(
-    private exec: Exec,
-    private platform: Platform = currentPlatform(),
-  ) {}
-
-  async run(opts: AgentRunOptions): Promise<AgentResult> {
-    const env: Record<string, string> = {};
-    for (const key of this.platform.agentEnvAllowlist) {
-      const value = process.env[key];
-      if (value) env[key] = value;
-    }
-    const cmd = [
+  protected command(opts: AgentRunOptions): string[] {
+    return [
       'claude',
       '-p',
       opts.prompt,
@@ -76,24 +48,27 @@ export class ClaudeAdapter implements AgentAdapter {
       opts.model,
       '--max-turns',
       String(opts.maxTurns),
+      '--allowedTools',
+      allowedTools(opts).join(','),
     ];
-    if (opts.allowedTools.length > 0) cmd.push('--allowedTools', opts.allowedTools.join(','));
+  }
 
-    const onLine = opts.onProgress
-      ? (line: string) => {
-          try {
-            for (const msg of progressFor(JSON.parse(line) as StreamEvent)) opts.onProgress!(msg);
-          } catch {
-            // partial or non-JSON line; skip
-          }
-        }
-      : undefined;
+  protected progressFor(ev: StreamEvent): string[] {
+    if (ev.type === 'system' && ev.subtype === 'init')
+      return [`session started (${ev.model ?? 'unknown model'})`];
+    if (ev.type !== 'assistant') return [];
+    const messages: string[] = [];
+    for (const block of ev.message?.content ?? []) {
+      if (block.type === 'tool_use')
+        messages.push(`⚙ ${block.name}: ${summarizeToolInput(block.input, 80)}`);
+      else if (block.type === 'text' && block.text?.trim())
+        messages.push(`… ${block.text.trim().slice(0, 100)}`);
+    }
+    return messages;
+  }
 
-    const r = await this.exec(cmd, { cwd: opts.cwd, env, timeoutMs: opts.timeoutMs, onLine });
-    if (r.code !== 0) throw new Error(`claude exited ${r.code}: ${r.stderr.slice(0, 500)}`);
-
-    const events = parseEvents(r.stdout);
-    const final = events.find((e) => e.type === 'result');
+  protected extract(events: StreamEvent[]): AgentResult {
+    const final = events.findLast((e) => e.type === 'result');
     if (!final) throw new Error('claude stream contained no result event');
     return {
       text: final.result ?? '',

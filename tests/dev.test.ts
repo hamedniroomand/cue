@@ -1,26 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 
 import type { Issue } from '@/github';
-import { devTools, runDev } from '@/stages/dev';
+import { runDev } from '@/stages/dev';
 
 import { wt } from './helpers/paths';
 import { makeCtx } from './triage.test';
-
-describe('devTools', () => {
-  test('allows unrestricted Bash by default', async () => {
-    const { ctx } = await makeCtx([], []);
-    expect(devTools(ctx.config)).toContain('Bash');
-  });
-
-  test('scopes Bash to configured patterns when devBashAllowlist is set', async () => {
-    const { ctx } = await makeCtx([], []);
-    const tools = devTools({ ...ctx.config, devBashAllowlist: ['bun *', 'git status'] });
-    expect(tools).not.toContain('Bash');
-    expect(tools).toContain('Bash(bun *)');
-    expect(tools).toContain('Bash(git status)');
-    expect(tools).toContain('Edit'); // core tools unaffected
-  });
-});
 
 const ISSUE: Issue = {
   number: 7,
@@ -84,9 +68,31 @@ describe('runDev', () => {
     const run = runs[0]!;
     expect(run.cwd).toBe(wt(7));
     expect(run.model).toBe('sonnet');
-    expect(run.allowedTools).toContain('Bash');
+    expect(run.access).toBe('write');
+    expect(run.bashAllowlist).toBeUndefined(); // default: shell unrestricted
     expect(run.prompt).toContain('## Approach');
     expect(calls.some((c) => c.includes('--draft'))).toBe(true);
+  });
+
+  test('forwards the configured devBashAllowlist to the adapter', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push', '-u', 'origin', 'agent/issue-7'] },
+        { match: ['gh', 'pr', 'create'], result: { stdout: 'pr url' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      ['implemented the feature'],
+    );
+    ctx.config.devBashAllowlist = ['bun *', 'git status'];
+    await runDev(ctx, ISSUE);
+    expect(runs[0]!.bashAllowlist).toEqual(['bun *', 'git status']);
   });
 
   test('gate failure triggers one fix run, then succeeds', async () => {
