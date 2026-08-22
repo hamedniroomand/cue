@@ -69,6 +69,7 @@ describe('poll reporting', () => {
     const { ctx, events } = await makeCtx(
       [
         emptyList('agent:in-review'),
+        emptyList('agent:in-dev'),
         emptyList('agent:ready'),
         emptyList('agent:approved'),
         emptyList('agent:replan'),
@@ -89,6 +90,7 @@ describe('poll reporting', () => {
     const { ctx, events } = await makeCtx(
       [
         emptyList('agent:in-review'),
+        emptyList('agent:in-dev'),
         {
           match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
           result: { stdout: READY },

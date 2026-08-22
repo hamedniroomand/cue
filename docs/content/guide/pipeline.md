@@ -69,7 +69,7 @@ stateDiagram-v2
 | `agent:failed` | A stage failed, or the PR was closed unmerged | Cue | human |
 | `agent:stop` | Kill switch — Cue skips this issue everywhere | human | — |
 
-A crashed run leaves an issue stuck in `agent:in-dev`. Reset the label by hand to retry (`cue status` lists them).
+A crashed run leaves an issue stuck in `agent:in-dev`. [`cleanup`](/guide/commands#cleanup) (which every `process` runs first) resets claims older than [`staleClaimMinutes`](/guide/config#fields) to `agent:approved` automatically; reset the label by hand only if you want to retry sooner.
 
 ## Giving feedback on a plan
 

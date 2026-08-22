@@ -10,6 +10,12 @@ const IN_REVIEW = JSON.stringify([
   { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:in-review' }] },
 ]);
 
+// Every runCleanup ends with the stale-claim sweep; these tests have none.
+const noInDev = {
+  match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:in-dev'],
+  result: { stdout: '[]' },
+};
+
 describe('runCleanup', () => {
   test('merged PR: label → agent:done, worktree and branch removed', async () => {
     const { ctx, calls } = await makeCtx(
@@ -45,11 +51,12 @@ describe('runCleanup', () => {
         },
         { match: ['git', '-C', '/repos/widgets', 'worktree', 'remove', '--force', wt(7)] },
         { match: ['git', '-C', '/repos/widgets', 'branch', '-D', 'agent/issue-7'] },
+        noInDev,
       ],
       [],
     );
     await runCleanup(ctx);
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(6);
   });
 
   test('merged PR emits a cleanup done event', async () => {
@@ -60,6 +67,7 @@ describe('runCleanup', () => {
         { match: ['gh', 'issue', 'edit', '7'] },
         { match: ['git', '*', '*', 'worktree', 'remove'] },
         { match: ['git', '*', '*', 'branch', '-D'] },
+        noInDev,
       ],
       [],
     );
@@ -82,6 +90,7 @@ describe('runCleanup', () => {
         { match: ['gh', 'issue', 'edit', '7'] },
         { match: ['git', '*', '*', 'worktree', 'remove'] },
         { match: ['git', '*', '*', 'branch', '-D'] },
+        noInDev,
       ],
       [],
     );
@@ -117,11 +126,12 @@ describe('runCleanup', () => {
         },
         { match: ['git', '*', '*', 'worktree', 'remove'] },
         { match: ['git', '*', '*', 'branch', '-D'] },
+        noInDev,
       ],
       [],
     );
     await runCleanup(ctx);
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(6);
   });
 
   test('open PR is left untouched', async () => {
@@ -129,11 +139,12 @@ describe('runCleanup', () => {
       [
         { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
         { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: { stdout: '{"state":"OPEN"}' } },
+        noInDev,
       ],
       [],
     );
     await runCleanup(ctx);
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
   });
 
   test('tolerates a missing PR and a missing worktree on this machine', async () => {
@@ -141,6 +152,7 @@ describe('runCleanup', () => {
       [
         { match: ['gh', 'issue', 'list'], result: { stdout: IN_REVIEW } },
         { match: ['gh', 'pr', 'view'], result: { code: 1, stderr: 'no pull requests found' } },
+        noInDev,
       ],
       [],
     );
@@ -161,11 +173,87 @@ describe('runCleanup', () => {
           match: ['git', '*', '*', 'branch', '-D'],
           result: { code: 1, stderr: 'branch not found' },
         },
+        noInDev,
       ],
       [],
     );
     await runCleanup(ctx); // must not throw
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(6);
+  });
+});
+
+describe('stale agent:in-dev reclaim', () => {
+  const IN_DEV = JSON.stringify([
+    { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:in-dev' }] },
+  ]);
+  const noInReview = {
+    match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:in-review', '--state', 'all'],
+    result: { stdout: '[]' },
+  };
+  const listInDev = {
+    match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:in-dev'],
+    result: { stdout: IN_DEV },
+  };
+
+  test('a claim older than staleClaimMinutes is reset to agent:approved', async () => {
+    const { ctx, calls, events } = await makeCtx(
+      [
+        noInReview,
+        listInDev,
+        { match: ['gh', 'api'], result: { stdout: '2000-01-01T00:00:00Z\n' } },
+        { match: ['git', '*', '*', 'worktree', 'remove'] },
+        { match: ['git', '*', '*', 'branch', '-D'] },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:in-dev',
+            '--add-label',
+            'agent:approved',
+          ],
+        },
+        { match: ['gh', 'issue', 'comment', '7'] },
+      ],
+      [],
+    );
+    await runCleanup(ctx);
+    expect(calls).toHaveLength(7);
+    expect(calls.at(-1)!.join(' ')).toContain('stale');
+    expect(events).toEqual([
+      expect.objectContaining({
+        issue: 7,
+        stage: 'cleanup',
+        kind: 'done',
+        message: 'stale agent:in-dev claim → agent:approved',
+      }),
+    ]);
+  });
+
+  test('a fresh claim is left running', async () => {
+    const { ctx, calls } = await makeCtx(
+      [
+        noInReview,
+        listInDev,
+        { match: ['gh', 'api'], result: { stdout: `${new Date().toISOString()}\n` } },
+      ],
+      [],
+    );
+    await runCleanup(ctx);
+    expect(calls).toHaveLength(3);
+  });
+
+  test('an unreadable timeline leaves the claim untouched', async () => {
+    const { ctx, calls } = await makeCtx(
+      [noInReview, listInDev, { match: ['gh', 'api'], result: { code: 1, stderr: 'nope' } }],
+      [],
+    );
+    await runCleanup(ctx); // must not throw, must not relabel
+    expect(calls).toHaveLength(3);
   });
 });
 
@@ -187,6 +275,7 @@ describe('poll runs cleanup first', () => {
           ],
           result: { stdout: '[]' },
         },
+        noInDev,
         {
           match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
           result: { stdout: '[]' },
