@@ -32,6 +32,7 @@ src/
 │   ├── base.ts         # JsonlAdapter: shared env scrub + exec + JSONL parse + progress loop
 │   ├── registry.ts     # ADAPTERS: name → { make, defaultModels }
 │   ├── summarize.ts    # shared tool-input summarizer (adapters + dashboard transcript)
+│   ├── usage.ts        # shared token extractor: per-adapter usage → one disjoint TokenUsage
 │   ├── antigravity.ts  # agy -p --output-format stream-json --dangerously-skip-permissions
 │   ├── claude.ts       # claude -p --output-format stream-json --verbose; maps access → --allowedTools
 │   └── codex.ts        # codex exec --json; sandbox read-only / workspace-write; --search

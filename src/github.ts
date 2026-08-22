@@ -20,6 +20,26 @@ export class GitHub {
     return r.stdout;
   }
 
+  /**
+   * List several labels at once, CHUNK at a time. Full fan-out would be
+   * fastest, but `gh` calls land on GitHub's secondary rate limiter, which
+   * dislikes concurrent bursts — three at a time keeps the dashboard's
+   * seven-label board snappy without tripping it.
+   */
+  async listIssuesByLabel(
+    labels: string[],
+    state: 'open' | 'all' = 'open',
+  ): Promise<Map<string, Issue[]>> {
+    const CHUNK = 2;
+    const result = new Map<string, Issue[]>();
+    for (let i = 0; i < labels.length; i += CHUNK) {
+      const chunk = labels.slice(i, i + CHUNK);
+      const lists = await Promise.all(chunk.map((label) => this.listIssues(label, state)));
+      chunk.forEach((label, j) => result.set(label, lists[j]!));
+    }
+    return result;
+  }
+
   async listIssues(label: string, state: 'open' | 'all' = 'open'): Promise<Issue[]> {
     const out = await this.gh([
       'issue',

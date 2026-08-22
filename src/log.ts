@@ -1,10 +1,14 @@
 import { mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { extractUsage, type TokenUsage } from '@/adapters/usage';
+
 export interface RunEntry {
   prompt: string;
   result: unknown;
   costUsd?: number;
+  /** Recorded by the adapter when it knows; otherwise derived from `result`. */
+  usage?: TokenUsage;
   durationMs: number;
   outcome: 'ok' | 'failed';
   error?: string;
@@ -15,6 +19,7 @@ export interface RunIndexEntry {
   issue: number;
   runs: number;
   costUsd: number;
+  tokens: number;
   lastTs: number;
   title?: string;
 }
@@ -28,6 +33,7 @@ export interface RunSummary {
   stage: string;
   ts: number;
   costUsd?: number;
+  usage?: TokenUsage;
   durationMs: number;
   outcome: 'ok' | 'failed';
   error?: string;
@@ -61,6 +67,7 @@ export class RunLogger {
         stage: m[1]!,
         ts: Number(m[2]!),
         costUsd: entry.costUsd,
+        usage: entry.usage ?? extractUsage(entry.result),
         durationMs: entry.durationMs,
         outcome: entry.outcome,
         error: entry.error,
@@ -91,6 +98,7 @@ export class RunLogger {
       stage: m[1]!,
       ts: Number(m[2]!),
       costUsd: entry.costUsd,
+      usage: entry.usage ?? extractUsage(entry.result),
       durationMs: entry.durationMs,
       outcome: entry.outcome,
       error: entry.error,
@@ -103,6 +111,10 @@ export class RunLogger {
    * Every issue with runs on disk — including ones no longer on the label board
    * (agent:done, closed, deleted). Titles are recovered from the recorded
    * prompts so archived issues stay browsable without any `gh` call.
+   *
+   * This is the ONLY per-issue rollup: `cue status` and the dashboard's board
+   * both look their cost/token totals up in one call rather than re-sweeping
+   * the directory per issue.
    */
   async index(): Promise<RunIndexEntry[]> {
     let dirs: string[];
@@ -123,6 +135,7 @@ export class RunLogger {
       }
       let runs = 0;
       let costUsd = 0;
+      let tokens = 0;
       let lastTs = 0;
       let title: string | undefined;
       for (const f of files.toSorted()) {
@@ -131,27 +144,12 @@ export class RunLogger {
         const entry = (await Bun.file(join(this.runsDir, name, f)).json()) as RunEntry;
         runs += 1;
         costUsd += entry.costUsd ?? 0;
+        tokens += (entry.usage ?? extractUsage(entry.result))?.total ?? 0;
         lastTs = Math.max(lastTs, Number(m[2]!));
         title ??= entry.prompt.match(/^Issue(?: #\d+)?: (.+)$/m)?.[1]?.trim();
       }
-      if (runs > 0) entries.push({ issue, runs, costUsd, lastTs, title });
+      if (runs > 0) entries.push({ issue, runs, costUsd, tokens, lastTs, title });
     }
     return entries.toSorted((a, b) => a.issue - b.issue);
-  }
-
-  async totalCost(issue: number): Promise<number> {
-    const dir = join(this.runsDir, String(issue));
-    let files: string[];
-    try {
-      files = await readdir(dir);
-    } catch {
-      return 0;
-    }
-    let total = 0;
-    for (const f of files) {
-      const entry = (await Bun.file(join(dir, f)).json()) as RunEntry;
-      total += entry.costUsd ?? 0;
-    }
-    return total;
   }
 }

@@ -1,5 +1,5 @@
 import { ArrowUpRightIcon, CircleSlashIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import {
   Area,
@@ -14,6 +14,7 @@ import {
 } from "recharts";
 
 import { SectionHeading, Shell } from "~/components/shell";
+import { BoardSkeleton, ChartSkeleton, StatSkeleton } from "~/components/skeletons";
 import { Stat } from "~/components/stat";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -32,7 +33,17 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { formatDuration, formatUsd, poll, shortLabel, STAGES } from "~/lib/cue";
+import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
+import { Skeleton } from "~/components/ui/skeleton";
+import {
+  formatDuration,
+  formatTokens,
+  formatUsage,
+  formatUsd,
+  poll,
+  shortLabel,
+  STAGES,
+} from "~/lib/cue";
 import { useAllRuns, useCue, useRunIndex } from "~/lib/use-cue";
 import { cn } from "~/lib/utils";
 
@@ -45,57 +56,87 @@ const STAGE_COLORS: Record<string, string> = {
   "review-fix": "var(--chart-5)",
 };
 
-const chartConfig = {
-  cost: { label: "Cost (USD)", color: "var(--chart-1)" },
-  cumulative: { label: "Cumulative (USD)", color: "var(--chart-2)" },
-} satisfies ChartConfig;
+/**
+ * Charts plot one metric at a time. Cost is meaningless for codex and
+ * antigravity (neither reports dollars), so the axis is switchable and defaults
+ * to whichever the recorded runs actually carry.
+ */
+type Metric = "cost" | "tokens";
+
+const CHART_CONFIG: Record<Metric, ChartConfig> = {
+  cost: {
+    value: { label: "Cost (USD)", color: "var(--chart-1)" },
+    cumulative: { label: "Cumulative (USD)", color: "var(--chart-2)" },
+  },
+  tokens: {
+    value: { label: "Tokens", color: "var(--chart-1)" },
+    cumulative: { label: "Cumulative tokens", color: "var(--chart-2)" },
+  },
+};
 
 export default function Home() {
   const { state, events, live } = useCue();
   const index = useRunIndex();
   const runs = useAllRuns(state, index);
 
+  // null = the run fetches have not landed. Everything derived from runs renders
+  // a skeleton until then; rendering the zeros would be a truthful-looking lie.
+  const loadingRuns = runs === null;
+  const loadingBoard = state === null;
+
   const totals = useMemo(() => {
-    const spend = runs.reduce((t, r) => t + (r.costUsd ?? 0), 0);
-    const failed = runs.filter((r) => r.outcome === "failed").length;
-    const duration = runs.reduce((t, r) => t + r.durationMs, 0);
+    const rows = runs ?? [];
+    const spend = rows.reduce((t, r) => t + (r.costUsd ?? 0), 0);
+    const tokens = rows.reduce((t, r) => t + (r.usage?.total ?? 0), 0);
+    const failed = rows.filter((r) => r.outcome === "failed").length;
+    const duration = rows.reduce((t, r) => t + r.durationMs, 0);
     const inFlight =
       state?.columns
         .filter((c) => c.label !== "agent:failed")
         .reduce((t, c) => t + c.issues.length, 0) ?? 0;
-    return { spend, failed, duration, inFlight };
+    return { spend, tokens, failed, duration, inFlight };
   }, [runs, state]);
 
+  // null = the user has not picked, so follow the data: a codex/antigravity
+  // pipeline reports no dollars and would otherwise render three empty charts.
+  const [picked, setPicked] = useState<Metric | null>(null);
+  const metric: Metric = picked ?? (totals.spend > 0 ? "cost" : "tokens");
+  const valueOf = useCallback(
+    (r: { costUsd?: number; usage?: { total: number } }) =>
+      metric === "cost" ? (r.costUsd ?? 0) : (r.usage?.total ?? 0),
+    [metric],
+  );
   const byStage = useMemo(
     () =>
       STAGES.map((stage) => ({
         stage,
-        cost: runs.filter((r) => r.stage === stage).reduce((t, r) => t + (r.costUsd ?? 0), 0),
-      })).filter((d) => d.cost > 0),
-    [runs],
+        value: (runs ?? []).filter((r) => r.stage === stage).reduce((t, r) => t + valueOf(r), 0),
+      })).filter((d) => d.value > 0),
+    [runs, valueOf],
   );
 
   const byIssue = useMemo(() => {
     const map = new Map<number, number>();
-    for (const r of runs) map.set(r.issue, (map.get(r.issue) ?? 0) + (r.costUsd ?? 0));
+    for (const r of runs ?? []) map.set(r.issue, (map.get(r.issue) ?? 0) + valueOf(r));
     return [...map.entries()]
-      .map(([issue, cost]) => ({ issue: `#${issue}`, cost }))
-      .toSorted((a, b) => b.cost - a.cost);
-  }, [runs]);
+      .map(([issue, value]) => ({ issue: `#${issue}`, value }))
+      .filter((d) => d.value > 0)
+      .toSorted((a, b) => b.value - a.value);
+  }, [runs, valueOf]);
 
   const trajectory = useMemo(() => {
-    const sorted = runs.toSorted((a, b) => a.ts - b.ts);
+    const sorted = (runs ?? []).toSorted((a, b) => a.ts - b.ts);
     const rows: Array<{ at: string; cumulative: number }> = [];
     for (let i = 0, acc = 0; i < sorted.length; i++) {
       const r = sorted[i]!;
-      acc += r.costUsd ?? 0;
+      acc += valueOf(r);
       rows.push({ at: `${r.stage} #${r.issue}`, cumulative: Number(acc.toFixed(4)) });
     }
     return rows;
-  }, [runs]);
+  }, [runs, valueOf]);
 
   function exportReport() {
-    const blob = new Blob([JSON.stringify({ state, runs }, null, 2)], {
+    const blob = new Blob([JSON.stringify({ state, runs: runs ?? [] }, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -116,21 +157,45 @@ export default function Home() {
               <span className="font-mono text-label-md text-surface-muted uppercase">
                 Executive Summary
               </span>
-              <h1 className="text-display-md text-balance lg:text-display-lg">
-                {formatUsd(totals.spend)}
-              </h1>
+              {loadingRuns ? (
+                <Skeleton className="h-[43px] w-56 bg-white/15 lg:h-[67px] lg:w-72" />
+              ) : (
+                <h1 className="text-display-md text-balance lg:text-display-lg">
+                  {metric === "cost" ? formatUsd(totals.spend) : formatTokens(totals.tokens)}
+                </h1>
+              )}
               <p className="max-w-xl text-body-md text-surface-muted">
-                Total agent spend across every recorded run. Monitor stage throughput, structural
-                cost distribution, and per-run transcripts for the issue pipeline.
+                {metric === "cost"
+                  ? "Total agent spend across every recorded run."
+                  : "Total tokens processed across every recorded run — the comparable figure when an adapter reports no dollar cost."}{" "}
+                Monitor stage throughput, usage distribution, and per-run transcripts for the issue
+                pipeline.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="font-mono">{live ? "live" : "snapshot"}</Badge>
-                <Badge
-                  variant="outline"
-                  className="border-white/25 font-mono text-surface-foreground"
-                >
-                  {runs.length} runs
-                </Badge>
+                {loadingRuns ? (
+                  <>
+                    <Skeleton className="h-5 w-20 rounded-4xl bg-white/15" />
+                    <Skeleton className="h-5 w-24 rounded-4xl bg-white/15" />
+                  </>
+                ) : (
+                  <>
+                    <Badge
+                      variant="outline"
+                      className="border-white/25 font-mono text-surface-foreground"
+                    >
+                      {runs.length} runs
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-white/25 font-mono text-surface-foreground"
+                    >
+                      {metric === "cost"
+                        ? `${formatTokens(totals.tokens)} tokens`
+                        : formatUsd(totals.spend)}
+                    </Badge>
+                  </>
+                )}
                 <Button size="sm" nativeButton={false} render={<Link to="/runs" />}>
                   Explore transcripts
                   <ArrowUpRightIcon data-icon="inline-end" />
@@ -142,14 +207,16 @@ export default function Home() {
                 highest-contrast pairing the spec's palette offers. */}
             <div className="flex min-w-0 flex-col gap-2">
               <span className="font-mono text-label-md text-surface-muted uppercase">
-                Trajectory · cumulative spend
+                Trajectory · cumulative {metric === "cost" ? "spend" : "tokens"}
               </span>
-              {trajectory.length === 0 ? (
+              {loadingRuns ? (
+                <ChartSkeleton className="h-52" surface />
+              ) : trajectory.length === 0 ? (
                 <p className="py-12 text-center text-xs text-surface-muted">
                   No runs recorded yet.
                 </p>
               ) : (
-                <ChartContainer config={chartConfig} className="h-52 w-full">
+                <ChartContainer config={CHART_CONFIG[metric]} className="h-52 w-full">
                   <AreaChart data={trajectory} margin={{ left: -20, top: 8 }}>
                     <defs>
                       <linearGradient id="traj" x1="0" y1="0" x2="0" y2="1">
@@ -174,49 +241,96 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Stat
-            label="Issues in flight"
-            value={String(totals.inFlight)}
-            hint="on the board, excluding failed"
-            style={{ animationDelay: "60ms" }}
-          />
-          <Stat
-            label="Agent time"
-            value={formatDuration(totals.duration)}
-            hint="summed wall-clock across runs"
-            style={{ animationDelay: "120ms" }}
-          />
-          <Stat
-            label="Runs recorded"
-            value={String(runs.length)}
-            hint="stage invocations logged"
-            style={{ animationDelay: "180ms" }}
-          />
-          <Stat
-            label="Failed"
-            value={String(totals.failed)}
-            hint="stages that hit agent:failed"
-            accent={totals.failed > 0}
-            style={{ animationDelay: "240ms" }}
-          />
+        <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          {loadingRuns ? (
+            <StatSkeleton style={{ animationDelay: "60ms" }} />
+          ) : (
+            <Stat
+              label="Total tokens"
+              value={formatTokens(totals.tokens)}
+              hint="input + cache + output, all runs"
+              style={{ animationDelay: "60ms" }}
+            />
+          )}
+          {/* The only board-derived tile: it lands with /api/state, not the runs. */}
+          {loadingBoard ? (
+            <StatSkeleton style={{ animationDelay: "120ms" }} />
+          ) : (
+            <Stat
+              label="Issues in flight"
+              value={String(totals.inFlight)}
+              hint="on the board, excluding failed"
+              style={{ animationDelay: "120ms" }}
+            />
+          )}
+          {loadingRuns ? (
+            <>
+              <StatSkeleton style={{ animationDelay: "180ms" }} />
+              <StatSkeleton style={{ animationDelay: "240ms" }} />
+              <StatSkeleton style={{ animationDelay: "300ms" }} />
+            </>
+          ) : (
+            <>
+              <Stat
+                label="Agent time"
+                value={formatDuration(totals.duration)}
+                hint="summed wall-clock across runs"
+                style={{ animationDelay: "180ms" }}
+              />
+              <Stat
+                label="Runs recorded"
+                value={String(runs.length)}
+                hint="stage invocations logged"
+                style={{ animationDelay: "240ms" }}
+              />
+              <Stat
+                label="Failed"
+                value={String(totals.failed)}
+                hint="stages that hit agent:failed"
+                accent={totals.failed > 0}
+                style={{ animationDelay: "300ms" }}
+              />
+            </>
+          )}
         </section>
 
         {/* ---------------------------------------------------- capital charts */}
         <section className="flex flex-col gap-4">
-          <SectionHeading>Capital Overview</SectionHeading>
+          <SectionHeading
+            action={
+              <ToggleGroup
+                value={[metric]}
+                onValueChange={(v) => setPicked((v[0] as Metric | undefined) ?? metric)}
+                size="sm"
+                variant="outline"
+              >
+                <ToggleGroupItem value="cost" className="font-mono text-[10px] uppercase">
+                  cost
+                </ToggleGroupItem>
+                <ToggleGroupItem value="tokens" className="font-mono text-[10px] uppercase">
+                  tokens
+                </ToggleGroupItem>
+              </ToggleGroup>
+            }
+          >
+            Usage Overview
+          </SectionHeading>
 
           <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
             <Card className="lift reveal">
               <CardHeader>
-                <CardTitle className="text-sm">Cost Breakdown</CardTitle>
-                <CardDescription>Spend per pipeline stage</CardDescription>
+                <CardTitle className="text-sm">Stage Breakdown</CardTitle>
+                <CardDescription>
+                  {metric === "cost" ? "Spend" : "Tokens"} per pipeline stage
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {byStage.length === 0 ? (
+                {loadingRuns ? (
+                  <ChartSkeleton className="h-56" />
+                ) : byStage.length === 0 ? (
                   <NoData />
                 ) : (
-                  <ChartContainer config={chartConfig} className="h-56 w-full">
+                  <ChartContainer config={CHART_CONFIG[metric]} className="h-56 w-full">
                     <BarChart data={byStage} margin={{ left: -20, top: 8 }}>
                       <CartesianGrid vertical={false} stroke="var(--border)" />
                       <XAxis
@@ -227,7 +341,7 @@ export default function Home() {
                         className="font-mono text-[10px]"
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="cost" radius={[6, 6, 0, 0]}>
+                      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                         {byStage.map((d) => (
                           <Cell key={d.stage} fill={STAGE_COLORS[d.stage] ?? "var(--chart-1)"} />
                         ))}
@@ -240,19 +354,25 @@ export default function Home() {
 
             <Card className="lift reveal" style={{ animationDelay: "80ms" }}>
               <CardHeader>
-                <CardTitle className="text-sm">Revenue Sources</CardTitle>
-                <CardDescription>Spend attributed per issue</CardDescription>
+                <CardTitle className="text-sm">Issue Distribution</CardTitle>
+                <CardDescription>
+                  {metric === "cost" ? "Spend" : "Tokens"} attributed per issue
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {byIssue.length === 0 ? (
+                {loadingRuns ? (
+                  <div className="grid h-56 place-items-center">
+                    <Skeleton className="size-40 rounded-full" />
+                  </div>
+                ) : byIssue.length === 0 ? (
                   <NoData />
                 ) : (
-                  <ChartContainer config={chartConfig} className="h-56 w-full">
+                  <ChartContainer config={CHART_CONFIG[metric]} className="h-56 w-full">
                     <PieChart>
                       <ChartTooltip content={<ChartTooltipContent nameKey="issue" />} />
                       <Pie
                         data={byIssue}
-                        dataKey="cost"
+                        dataKey="value"
                         nameKey="issue"
                         innerRadius={48}
                         strokeWidth={2}
@@ -282,37 +402,43 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid auto-cols-[minmax(9rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2">
-                  {state?.columns.map((column) => (
-                    <div key={column.label} className="flex min-w-0 flex-col gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate font-mono text-label-md text-muted-foreground uppercase">
-                          {shortLabel(column.label)}
-                        </span>
-                        <Badge variant="secondary" className="tabular-nums">
-                          {column.issues.length}
-                        </Badge>
+                {loadingBoard ? (
+                  <BoardSkeleton />
+                ) : (
+                  <div className="grid auto-cols-[minmax(9rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2">
+                    {state.columns.map((column) => (
+                      <div key={column.label} className="flex min-w-0 flex-col gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate font-mono text-label-md text-muted-foreground uppercase">
+                            {shortLabel(column.label)}
+                          </span>
+                          <Badge variant="secondary" className="tabular-nums">
+                            {column.issues.length}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {column.issues.map((issue) => (
+                            <Link
+                              key={issue.number}
+                              to={`/runs/${issue.number}`}
+                              className="lift flex flex-col gap-1.5 rounded-lg bg-secondary p-2.5 ring-1 ring-border transition-colors hover:bg-accent"
+                            >
+                              <span className="font-mono text-label-md text-primary">
+                                #{issue.number}
+                              </span>
+                              <span className="line-clamp-2 text-xs leading-snug">
+                                {issue.title}
+                              </span>
+                              <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                                {formatUsage(issue.cost, issue.tokens)}
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        {column.issues.map((issue) => (
-                          <Link
-                            key={issue.number}
-                            to={`/runs/${issue.number}`}
-                            className="lift flex flex-col gap-1.5 rounded-lg bg-secondary p-2.5 ring-1 ring-border transition-colors hover:bg-accent"
-                          >
-                            <span className="font-mono text-label-md text-primary">
-                              #{issue.number}
-                            </span>
-                            <span className="line-clamp-2 text-xs leading-snug">{issue.title}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                              {formatUsd(issue.cost)}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

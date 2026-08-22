@@ -28,6 +28,22 @@ describe('GitHub', () => {
     expect(calls[0]).toContain('--json');
   });
 
+  test('listIssuesByLabel fans out in chunks and maps results per label', async () => {
+    const labels = ['l1', 'l2', 'l3', 'l4'];
+    const { exec, calls } = makeFakeExec(
+      labels.map((label) => ({
+        match: ['gh', 'issue', 'list', '--repo', '*', '--label', label],
+        result: { stdout: label === 'l4' ? ISSUE_JSON : '[]' },
+      })),
+    );
+    const byLabel = await new GitHub(exec, 'acme/widgets').listIssuesByLabel(labels);
+    expect([...byLabel.keys()]).toEqual(labels);
+    expect(byLabel.get('l4')?.[0]?.number).toBe(7);
+    expect(byLabel.get('l1')).toEqual([]);
+    // Chunked fan-out still issues one gh call per label, in label order.
+    expect(calls.map((c) => c[6])).toEqual(labels);
+  });
+
   test('swapLabel edits both labels in one gh call', async () => {
     const { exec, calls } = makeFakeExec([{ match: ['gh', 'issue', 'edit', '7'] }]);
     await new GitHub(exec, 'acme/widgets').swapLabel(7, 'agent:ready', 'agent:planned');

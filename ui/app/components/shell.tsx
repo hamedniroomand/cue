@@ -1,6 +1,7 @@
 import { ActivityIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { NavLink } from "react-router";
 
+import { ChipSkeleton } from "~/components/skeletons";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
@@ -81,7 +82,14 @@ export function Shell({
 
           <div className="grow" />
 
-          {state && (
+          {state === null ? (
+            /* Placeholders keep the header from reflowing when /api/state lands. */
+            <>
+              <ChipSkeleton className="hidden h-3 w-32 rounded-md xl:block" />
+              <ChipSkeleton className="hidden w-40 lg:block" />
+              <ChipSkeleton className="hidden w-12 sm:block" />
+            </>
+          ) : (
             <>
               <Tooltip>
                 <TooltipTrigger
@@ -135,13 +143,25 @@ export function Shell({
  *  Separator carries `data-horizontal:w-full`, so it must sit in its own flex
  *  child — as a direct `grow` sibling it resolves to 100% of the whole row and
  *  pushes the line past the viewport. */
-export function SectionHeading({ children }: { children: React.ReactNode }) {
+/**
+ * `action` renders after the rule. The Separator stays wrapped in its own
+ * `flex-1` div because `data-horizontal:w-full` makes it 100% of the whole row
+ * as a bare grow sibling, which pushes the line past the viewport.
+ */
+export function SectionHeading({
+  children,
+  action,
+}: {
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="flex items-baseline gap-3">
       <SectionLabel>{children}</SectionLabel>
       <div className="min-w-0 flex-1">
         <Separator />
       </div>
+      {action && <div className="shrink-0 self-center">{action}</div>}
     </div>
   );
 }

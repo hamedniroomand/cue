@@ -110,4 +110,34 @@ describe('toRows: antigravity stream', () => {
     expect(a).toMatchObject({ kind: 'result', text: 'Answer.', costUsd: 0.5 });
     expect(b).toMatchObject({ kind: 'result', text: 'Answer.', costUsd: 0.5 });
   });
+
+  test('statsFor surfaces the shared token extractor on the stream', () => {
+    // Extraction itself is covered in tests/usage.test.ts; this only pins that
+    // statsFor wires it up, so the RunView metric and the run index agree.
+    const stats = statsFor([
+      { event: 'init', init: { model: 'gemini-3.7-flash-medium' } },
+      {
+        event: 'result',
+        result: {
+          status: 'SUCCESS',
+          response: 'Plan.',
+          usage: {
+            input_tokens: 63333,
+            output_tokens: 2293,
+            thinking_tokens: 1213,
+            cache_read_tokens: 4000,
+            total_tokens: 65626,
+          },
+        },
+      },
+    ]);
+    expect(stats.usage).toEqual({
+      input: 63333,
+      cachedInput: 4000,
+      cacheWrite: 0,
+      output: 2293,
+      reasoning: 1213,
+      total: 69626,
+    });
+  });
 });
