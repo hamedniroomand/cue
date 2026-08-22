@@ -4,8 +4,8 @@ Conductor is a deterministic Bun + TypeScript runner that drives headless coding
 agents (Claude Code via `claude -p`) through a GitHub-issue pipeline:
 **Triage → human approves plan → Dev → Test gate → Review loop → Draft PR → human merges.**
 GitHub is the state store: `agent:*` labels are the state machine, issue comments
-carry handoffs (the plan), draft PRs are the output. See `README.md` for the
-user-facing flow and label table.
+carry handoffs (the plan), draft PRs are the output. User-facing flow and
+label table: `docs/content/` (VitePress) and https://hamedniroomand.github.io/conductor/
 
 ## Commands
 
@@ -115,7 +115,7 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
 - Conductor runs **from inside the target repo** (cwd = repoPath); all per-project
   state lives in the target's `.conductor/` directory. Every config field is optional
   (`repo` auto-detects from the origin remote). Config changes must update the valibot
-  schema in `config.ts` and the defaults table in README.
+  schema in `config.ts` and the defaults table in `docs/content/guide/config.md`.
 - Worktrees default to `~/.conductor/worktrees/<owner>-<repo>/issue-<n>` — deliberately
   OUTSIDE the target repo so IDE indexing and repo-root tool globs never see them.
   Do not move them into the repo; `worktreeRoot` in config is the user's override.

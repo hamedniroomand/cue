@@ -65,4 +65,5 @@ esac
 
 echo
 echo "next steps: install and authenticate the 'gh' and 'claude' CLIs, then run"
-echo "'conductor init' inside a target repo. Docs: https://github.com/${REPO}"
+echo "'conductor init' inside a target repo."
+echo "Docs: https://hamedniroomand.github.io/conductor/"

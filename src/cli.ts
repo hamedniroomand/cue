@@ -127,7 +127,8 @@ Flags:
 Labels drive the pipeline: agent:ready → triage plans, a human approves
 (agent:approved) → dev implements + review verdicts + draft PR, a human merges.
 agent:replan requests a revised plan; agent:stop freezes an issue.
-Full state machine and configuration reference: README.md`;
+Full state machine and configuration:
+https://hamedniroomand.github.io/conductor/`;
 
 async function openBrowser(url: string): Promise<void> {
   const cmd =

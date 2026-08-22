@@ -23,7 +23,10 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "check": "bun run lint && bun run format:check && bun test"
+    "check": "bun run lint && bun run format:check && bun test",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "valibot": "^1.4.2"
@@ -32,6 +35,7 @@
     "@types/bun": "latest",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
-    "oxlint-tsgolint": "^7.0.2001"
+    "oxlint-tsgolint": "^7.0.2001",
+    "vitepress": "^2.0.0-alpha.19"
   }
 }
