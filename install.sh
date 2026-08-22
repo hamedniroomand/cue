@@ -39,9 +39,9 @@ fi
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-echo "downloading ${asset} (${VERSION}) from ${REPO}…"
-curl -fsSL "${base}/${asset}" -o "${tmp}/conductor"
-curl -fsSL "${base}/checksums.txt" -o "${tmp}/checksums.txt"
+echo "downloading ${asset} (${VERSION}) from ${REPO} (~60MB)…"
+curl -fL --retry 3 --progress-bar "${base}/${asset}" -o "${tmp}/conductor"
+curl -fsSL --retry 3 "${base}/checksums.txt" -o "${tmp}/checksums.txt"
 
 expected="$(grep " ${asset}\$" "${tmp}/checksums.txt" | awk '{print $1}')"
 actual="$(shasum -a 256 "${tmp}/conductor" | awk '{print $1}')"
