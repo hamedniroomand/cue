@@ -15,9 +15,10 @@ bun run ui:build
 bun scripts/embed-ui.ts
 
 mkdir -p dist
-targets=(bun-darwin-arm64 bun-darwin-x64 bun-linux-x64 bun-linux-arm64)
+targets=(bun-darwin-arm64 bun-darwin-x64 bun-linux-x64 bun-linux-arm64 bun-windows-x64)
 for target in "${targets[@]}"; do
   out="dist/cue-${target#bun-}"
+  [[ "${target}" == *windows* ]] && out+=".exe"
   echo "compiling ${out}"
   bun build --compile --target="${target}" src/cli.ts --outfile "${out}"
 done

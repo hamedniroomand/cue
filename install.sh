@@ -15,7 +15,7 @@ case "$(uname -s)" in
   Darwin) os="darwin" ;;
   Linux) os="linux" ;;
   *)
-    echo "error: unsupported OS $(uname -s) — cue supports macOS and Linux (Windows via WSL)" >&2
+    echo "error: unsupported OS $(uname -s) — on Windows, use install.ps1 (see the docs)" >&2
     exit 1
     ;;
 esac
