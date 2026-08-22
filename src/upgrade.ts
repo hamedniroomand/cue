@@ -1,5 +1,7 @@
 import { chmod, rename, unlink } from 'node:fs/promises';
 
+import { noPhase, type PhaseRunner } from '@/spinner';
+
 const DEFAULT_REPO = 'hamedniroomand/cue';
 
 export interface UpgradeOptions {
@@ -10,6 +12,8 @@ export interface UpgradeOptions {
   repo?: string;
   fetchImpl?: typeof fetch;
   log: (message: string) => void;
+  /** Wraps each network phase — the CLI passes a spinner, tests pass nothing. */
+  phase?: PhaseRunner;
 }
 
 /** Release asset for a host, mirroring scripts/build-binaries.sh output.
@@ -35,9 +39,12 @@ async function fetchOk(fetchImpl: typeof fetch, url: string): Promise<Response> 
 export async function runUpgrade(opts: UpgradeOptions): Promise<boolean> {
   const repo = opts.repo ?? DEFAULT_REPO;
   const fetchImpl = opts.fetchImpl ?? fetch;
+  const phase = opts.phase ?? noPhase;
   const started = Date.now();
 
-  const latest = await fetchOk(fetchImpl, `https://api.github.com/repos/${repo}/releases/latest`);
+  const latest = await phase('checking for a newer release', () =>
+    fetchOk(fetchImpl, `https://api.github.com/repos/${repo}/releases/latest`),
+  );
   const { tag_name: tag } = (await latest.json()) as { tag_name: string };
   if (tag === `v${opts.currentVersion}`) {
     opts.log(`You're on the latest version of Cue (${tag})`);
@@ -47,10 +54,12 @@ export async function runUpgrade(opts: UpgradeOptions): Promise<boolean> {
 
   const asset = assetName(opts.platform, opts.arch);
   const base = `https://github.com/${repo}/releases/download/${tag}`;
-  const [binary, checksums] = await Promise.all([
-    fetchOk(fetchImpl, `${base}/${asset}`).then((r) => r.arrayBuffer()),
-    fetchOk(fetchImpl, `${base}/checksums.txt`).then((r) => r.text()),
-  ]);
+  const [binary, checksums] = await phase(`downloading ${asset} ${tag}`, () =>
+    Promise.all([
+      fetchOk(fetchImpl, `${base}/${asset}`).then((r) => r.arrayBuffer()),
+      fetchOk(fetchImpl, `${base}/checksums.txt`).then((r) => r.text()),
+    ]),
+  );
 
   const expected = checksums
     .split('\n')

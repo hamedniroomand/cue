@@ -120,4 +120,23 @@ describe('runUpgrade', () => {
     ).rejects.toThrow('checksum mismatch');
     expect(await Bun.file(execPath).text()).toBe('old-binary');
   });
+
+  test('each network phase is announced through the injected phase runner', async () => {
+    const execPath = await scratchBinary('cue');
+    const { fetchImpl } = fakeRelease('v9.9.9', 'cue-linux-x64', 'new-binary');
+    const phases: string[] = [];
+    await runUpgrade({
+      currentVersion: '0.3.0',
+      execPath,
+      platform: 'linux',
+      arch: 'x64',
+      fetchImpl,
+      log: () => {},
+      phase: async (text, task) => {
+        phases.push(text);
+        return await task();
+      },
+    });
+    expect(phases).toEqual(['checking for a newer release', 'downloading cue-linux-x64 v9.9.9']);
+  });
 });

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { consola } from 'consola';
@@ -14,6 +13,8 @@ import { RunLogger } from '@/log';
 import { nextAction, poll, runIssue } from '@/pipeline';
 import { currentPlatform } from '@/platform';
 import { printEvent } from '@/reporter';
+import { scaffold } from '@/scaffold';
+import { cliPhase, cliSpinner, withSpinner } from '@/spinner';
 import type { StageContext } from '@/stages/context';
 import { WorktreeManager } from '@/worktree';
 
@@ -47,42 +48,32 @@ async function makeContext(): Promise<StageContext> {
   };
 }
 
-async function scaffold(cwd: string): Promise<void> {
-  await mkdir(join(cwd, '.cue', 'prompts'), { recursive: true });
-  const configFile = Bun.file(join(cwd, '.cue', 'config.json'));
-  if (!(await configFile.exists())) {
-    await Bun.write(configFile, `${JSON.stringify({ gate: { test: 'bun test' } }, null, 2)}\n`);
-    consola.success("created .cue/config.json — adjust the gate to this project's test command");
-  }
-  const gitignorePath = join(cwd, '.gitignore');
-  const gitignoreFile = Bun.file(gitignorePath);
-  const current = (await gitignoreFile.exists()) ? await gitignoreFile.text() : '';
-  if (!current.includes('.cue/runs/')) {
-    await Bun.write(gitignorePath, `${current.replace(/\n?$/, '\n')}.cue/runs/\n`);
-    consola.success('added .cue/runs/ to .gitignore');
-  }
-}
-
 async function init(ctx: StageContext): Promise<void> {
-  await scaffold(ctx.config.repoPath);
-  consola.start(`creating agent:* labels on ${ctx.config.repo}`);
-  for (const [name, color, desc] of LABELS) {
-    const r = await realExec([
-      'gh',
-      'label',
-      'create',
-      name,
-      '--repo',
-      ctx.config.repo,
-      '--color',
-      color,
-      '--description',
-      desc,
-      '--force',
-    ]);
-    if (r.code !== 0) throw new Error(`label create ${name} failed: ${r.stderr}`);
-    consola.success(`label ${name} ok`);
-  }
+  for (const change of await scaffold(ctx.config.repoPath)) consola.success(change);
+  const labels = `creating ${String(LABELS.length)} agent:* labels on ${ctx.config.repo}`;
+  // A disabled spinner is silent, so piped/CI runs need these two lines to keep
+  // the label phase visible the way the old per-label output did.
+  if (!cliSpinner.enabled) consola.start(labels);
+  await withSpinner(cliSpinner, labels, async () => {
+    for (const [name, color, desc] of LABELS) {
+      cliSpinner.update(`${labels} — ${name}`);
+      const r = await realExec([
+        'gh',
+        'label',
+        'create',
+        name,
+        '--repo',
+        ctx.config.repo,
+        '--color',
+        color,
+        '--description',
+        desc,
+        '--force',
+      ]);
+      if (r.code !== 0) throw new Error(`label create ${name} failed: ${r.stderr}`);
+    }
+  });
+  if (!cliSpinner.enabled) consola.success(`${String(LABELS.length)} agent:* labels ready`);
 }
 
 async function status(ctx: StageContext): Promise<void> {
@@ -94,15 +85,26 @@ async function status(ctx: StageContext): Promise<void> {
     'agent:in-review',
     'agent:failed',
   ];
-  for (const label of states) {
-    const issues = await ctx.github.listIssues(label);
-    for (const i of issues) {
-      const cost = await ctx.logger.totalCost(i.number);
-      // Codex reports no dollar cost, so zero means "unknown", not "free".
-      const spend = cost > 0 ? ` ($${cost.toFixed(2)} local spend)` : '';
-      consola.log(`${label.padEnd(16)} #${i.number} ${i.title}${spend}`);
-    }
-  }
+  // Six `gh` queries plus a cost read each: collect first under one frame, then
+  // print, so the rows never land mid-animation.
+  const rows = await withSpinner(
+    cliSpinner,
+    `reading ${ctx.config.repo} pipeline state`,
+    async () => {
+      const lines: string[] = [];
+      for (const label of states) {
+        cliSpinner.update(`reading ${ctx.config.repo} pipeline state — ${label}`);
+        for (const i of await ctx.github.listIssues(label)) {
+          const cost = await ctx.logger.totalCost(i.number);
+          // Codex reports no dollar cost, so zero means "unknown", not "free".
+          const spend = cost > 0 ? ` ($${cost.toFixed(2)} local spend)` : '';
+          lines.push(`${label.padEnd(16)} #${i.number} ${i.title}${spend}`);
+        }
+      }
+      return lines;
+    },
+  );
+  for (const row of rows) consola.log(row);
   consola.log(`\nworktrees: ${ctx.config.worktreeRoot}`);
   consola.info('stale agent:in-dev issues (crashed runs) must be relabeled manually.');
 }
@@ -172,8 +174,9 @@ async function main(): Promise<void> {
       execPath: process.execPath,
       platform: process.platform,
       arch: process.arch,
+      phase: cliPhase,
       // oxlint-disable-next-line no-console -- plain stdout, matching bun upgrade's output style
-      log: (m) => console.log(m),
+      log: (m) => cliSpinner.interject(() => console.log(m)),
     });
     return;
   }
@@ -196,12 +199,15 @@ async function main(): Promise<void> {
     case 'run': {
       const n = Number(arg);
       if (!Number.isInteger(n)) throw new Error('usage: cue run <issue-number>');
-      consola.start(`looking up issue #${n} on ${ctx.config.repo}`);
-      const issues = [
-        ...(await ctx.github.listIssues('agent:ready')),
-        ...(await ctx.github.listIssues('agent:approved')),
-        ...(await ctx.github.listIssues('agent:replan')),
-      ];
+      const issues = await withSpinner(
+        cliSpinner,
+        `looking up issue #${n} on ${ctx.config.repo}`,
+        async () => [
+          ...(await ctx.github.listIssues('agent:ready')),
+          ...(await ctx.github.listIssues('agent:approved')),
+          ...(await ctx.github.listIssues('agent:replan')),
+        ],
+      );
       const issue = issues.find((i) => i.number === n);
       if (!issue)
         throw new Error(
@@ -212,7 +218,9 @@ async function main(): Promise<void> {
       break;
     }
     case 'cleanup':
-      await runCleanup(ctx);
+      await withSpinner(cliSpinner, `reconciling ${ctx.config.repo} draft PRs`, () =>
+        runCleanup(ctx),
+      );
       break;
     case 'ui': {
       const uiArgs = process.argv.slice(3);
