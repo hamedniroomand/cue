@@ -16,12 +16,14 @@ export function nextAction(labels: string[]): Action {
   return "skip";
 }
 
-export async function runIssue(ctx: StageContext, issue: Issue): Promise<void> {
+export type Outcome = "done" | "failed" | "skip";
+
+export async function runIssue(ctx: StageContext, issue: Issue): Promise<Outcome> {
   const action = nextAction(issue.labels);
-  if (action === "skip") return;
+  if (action === "skip") return "skip";
   const emit = (kind: "start" | "done" | "error", message: string) =>
     ctx.onEvent({ ts: Date.now(), issue: issue.number, stage: action, kind, message });
-  emit("start", `#${issue.number} ${issue.title}`);
+  emit("start", issue.title);
   try {
     if (action === "triage") {
       await runTriage(ctx, issue);
@@ -31,7 +33,8 @@ export async function runIssue(ctx: StageContext, issue: Issue): Promise<void> {
       await runDev(ctx, issue);
       await runReview(ctx, issue);
     }
-    emit("done", `#${issue.number} ${action} finished`);
+    emit("done", `${action} finished`);
+    return "done";
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     emit("error", message);
@@ -40,15 +43,31 @@ export async function runIssue(ctx: StageContext, issue: Issue): Promise<void> {
       `⚠️ cue ${action} failed: ${message.slice(0, 1500)}\n\nSee \`.cue/runs/${issue.number}/\` on the runner machine for transcripts. Reset the label to retry.`,
     );
     await ctx.github.addLabel(issue.number, "agent:failed");
+    return "failed";
   }
 }
 
 export async function poll(ctx: StageContext): Promise<void> {
+  const emit = (kind: "start" | "progress" | "done", message: string) =>
+    ctx.onEvent({ ts: Date.now(), issue: 0, stage: "poll", kind, message });
+  emit("start", `scanning ${ctx.config.repo} for actionable issues`);
   await runCleanup(ctx);
   const ready = await ctx.github.listIssues("agent:ready");
   const approved = await ctx.github.listIssues("agent:approved");
   const replans = await ctx.github.listIssues("agent:replan");
-  for (const issue of [...ready, ...approved, ...replans]) {
-    await runIssue(ctx, issue);
+  const queue = [...ready, ...approved, ...replans];
+  if (queue.length === 0) {
+    emit("done", "nothing to do — no issues labeled agent:ready, agent:approved, or agent:replan");
+    return;
   }
+  emit(
+    "progress",
+    `${queue.length} actionable: ${ready.length} triage, ${approved.length} dev, ${replans.length} replan`,
+  );
+  let failed = 0;
+  for (const issue of queue) {
+    if ((await runIssue(ctx, issue)) === "failed") failed++;
+  }
+  const summary = `poll finished: ${queue.length} processed${failed ? `, ${failed} failed` : ""}`;
+  emit("done", summary);
 }

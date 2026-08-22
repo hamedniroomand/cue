@@ -9,11 +9,23 @@ export async function runCleanup(ctx: StageContext): Promise<void> {
     if (state === "MERGED") {
       await ctx.github.swapLabel(issue.number, "agent:in-review", "agent:done");
       await ctx.worktrees.remove(issue.number);
-      console.log(`#${issue.number} merged → agent:done, worktree cleaned`);
+      ctx.onEvent({
+        ts: Date.now(),
+        issue: issue.number,
+        stage: "cleanup",
+        kind: "done",
+        message: "merged → agent:done, worktree cleaned",
+      });
     } else if (state === "CLOSED") {
       await ctx.github.swapLabel(issue.number, "agent:in-review", "agent:failed");
       await ctx.worktrees.remove(issue.number);
-      console.log(`#${issue.number} PR closed without merge → agent:failed`);
+      ctx.onEvent({
+        ts: Date.now(),
+        issue: issue.number,
+        stage: "cleanup",
+        kind: "error",
+        message: "PR closed without merge → agent:failed",
+      });
     }
   }
 }

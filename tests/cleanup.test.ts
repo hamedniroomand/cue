@@ -50,6 +50,50 @@ describe("runCleanup", () => {
     expect(calls).toHaveLength(5);
   });
 
+  test("merged PR emits a cleanup done event", async () => {
+    const { ctx, events } = await makeCtx(
+      [
+        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
+        { match: ["gh", "pr", "view", "agent/issue-7"], result: { stdout: '{"state":"MERGED"}' } },
+        { match: ["gh", "issue", "edit", "7"] },
+        { match: ["git", "*", "*", "worktree", "remove"] },
+        { match: ["git", "*", "*", "branch", "-D"] },
+      ],
+      [],
+    );
+    await runCleanup(ctx);
+    expect(events).toEqual([
+      expect.objectContaining({
+        issue: 7,
+        stage: "cleanup",
+        kind: "done",
+        message: "merged → agent:done, worktree cleaned",
+      }),
+    ]);
+  });
+
+  test("closed PR emits a cleanup error event", async () => {
+    const { ctx, events } = await makeCtx(
+      [
+        { match: ["gh", "issue", "list"], result: { stdout: IN_REVIEW } },
+        { match: ["gh", "pr", "view", "agent/issue-7"], result: { stdout: '{"state":"CLOSED"}' } },
+        { match: ["gh", "issue", "edit", "7"] },
+        { match: ["git", "*", "*", "worktree", "remove"] },
+        { match: ["git", "*", "*", "branch", "-D"] },
+      ],
+      [],
+    );
+    await runCleanup(ctx);
+    expect(events).toEqual([
+      expect.objectContaining({
+        issue: 7,
+        stage: "cleanup",
+        kind: "error",
+        message: "PR closed without merge → agent:failed",
+      }),
+    ]);
+  });
+
   test("PR closed without merge: label → agent:failed", async () => {
     const { ctx, calls } = await makeCtx(
       [

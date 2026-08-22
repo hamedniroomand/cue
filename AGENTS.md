@@ -61,7 +61,7 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
 
 - **All subprocess execution goes through the `Exec` type from `src/exec.ts`.**
   Never call `Bun.spawn` anywhere else; it is what makes every module testable.
-- **Lean dependencies.** The CLI package is valibot-only at runtime. The dashboard is a
+- **Lean dependencies.** The CLI package's only runtime deps are valibot and consola. The dashboard is a
   separate package (`ui/package.json`) that owns react, react-router, tailwind and the
   shadcn stack — its deps never enter the CLI's. Do not add packages to either without
   being asked.

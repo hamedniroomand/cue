@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { consola } from "consola";
 import { ClaudeAdapter } from "./adapters/claude";
 import type { AgentAdapter } from "./adapters/types";
 import { resolveConfig } from "./config";
@@ -11,6 +12,7 @@ import { RunLogger } from "./log";
 import { runCleanup } from "./cleanup";
 import { nextAction, poll, runIssue } from "./pipeline";
 import { currentPlatform } from "./platform";
+import { printEvent } from "./reporter";
 import type { StageContext } from "./stages/context";
 import { WorktreeManager } from "./worktree";
 
@@ -42,10 +44,7 @@ async function makeContext(): Promise<StageContext> {
     worktrees: new WorktreeManager(realExec, config),
     // Project overrides win over the prompts packaged with cue itself.
     promptsDirs: [join(cwd, ".cue", "prompts"), join(import.meta.dir, "..", "prompts")],
-    onEvent: (e) => {
-      const tag = e.kind === "progress" ? "" : ` ${e.kind.toUpperCase()}`;
-      console.log(`[${e.stage}${e.issue ? ` #${e.issue}` : ""}]${tag} ${e.message}`);
-    },
+    onEvent: printEvent,
   };
 }
 
@@ -54,19 +53,20 @@ async function scaffold(cwd: string): Promise<void> {
   const configFile = Bun.file(join(cwd, ".cue", "config.json"));
   if (!(await configFile.exists())) {
     await Bun.write(configFile, `${JSON.stringify({ gate: { test: "bun test" } }, null, 2)}\n`);
-    console.log("created .cue/config.json — adjust the gate to this project's test command");
+    consola.success("created .cue/config.json — adjust the gate to this project's test command");
   }
   const gitignorePath = join(cwd, ".gitignore");
   const gitignoreFile = Bun.file(gitignorePath);
   const current = (await gitignoreFile.exists()) ? await gitignoreFile.text() : "";
   if (!current.includes(".cue/runs/")) {
     await Bun.write(gitignorePath, `${current.replace(/\n?$/, "\n")}.cue/runs/\n`);
-    console.log("added .cue/runs/ to .gitignore");
+    consola.success("added .cue/runs/ to .gitignore");
   }
 }
 
 async function init(ctx: StageContext): Promise<void> {
   await scaffold(ctx.config.repoPath);
+  consola.start(`creating agent:* labels on ${ctx.config.repo}`);
   for (const [name, color, desc] of LABELS) {
     const r = await realExec([
       "gh",
@@ -82,7 +82,7 @@ async function init(ctx: StageContext): Promise<void> {
       "--force",
     ]);
     if (r.code !== 0) throw new Error(`label create ${name} failed: ${r.stderr}`);
-    console.log(`label ${name} ok`);
+    consola.success(`label ${name} ok`);
   }
 }
 
@@ -99,11 +99,11 @@ async function status(ctx: StageContext): Promise<void> {
     const issues = await ctx.github.listIssues(label);
     for (const i of issues) {
       const cost = await ctx.logger.totalCost(i.number);
-      console.log(`${label.padEnd(16)} #${i.number} ${i.title} ($${cost.toFixed(2)} local spend)`);
+      consola.log(`${label.padEnd(16)} #${i.number} ${i.title} ($${cost.toFixed(2)} local spend)`);
     }
   }
-  console.log(`\nworktrees: ${ctx.config.worktreeRoot}`);
-  console.log("note: stale agent:in-dev issues (crashed runs) must be relabeled manually.");
+  consola.log(`\nworktrees: ${ctx.config.worktreeRoot}`);
+  consola.info("stale agent:in-dev issues (crashed runs) must be relabeled manually.");
 }
 
 const HELP = `cue — drive headless coding agents through a GitHub-issue pipeline
@@ -139,7 +139,7 @@ async function openBrowser(url: string): Promise<void> {
   try {
     await realExec(cmd);
   } catch {
-    console.log("(could not open a browser automatically — use the URL above)");
+    consola.warn("could not open a browser automatically — use the URL above");
   }
 }
 
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
   }
   const known = ["init", "poll", "run", "cleanup", "status", "ui"];
   if (!command || !known.includes(command)) {
-    if (command) console.error(`unknown command: ${command}\n`);
+    if (command) consola.error(`unknown command: ${command}\n`);
     console.log(HELP);
     process.exitCode = 1;
     return;
@@ -171,6 +171,7 @@ async function main(): Promise<void> {
     case "run": {
       const n = Number(arg);
       if (!Number.isInteger(n)) throw new Error("usage: cue run <issue-number>");
+      consola.start(`looking up issue #${n} on ${ctx.config.repo}`);
       const issues = [
         ...(await ctx.github.listIssues("agent:ready")),
         ...(await ctx.github.listIssues("agent:approved")),
@@ -181,7 +182,7 @@ async function main(): Promise<void> {
         throw new Error(
           `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, or agent:replan)`,
         );
-      console.log(`running ${nextAction(issue.labels)} for #${n}`);
+      consola.info(`running ${nextAction(issue.labels)} for #${n}`);
       await runIssue(ctx, issue);
       break;
     }
@@ -195,7 +196,7 @@ async function main(): Promise<void> {
       if (!Number.isInteger(port) || port <= 0) throw new Error("usage: cue ui [port] [--no-open]");
       const { startServer } = await import("./server");
       const { url } = startServer(ctx, port);
-      console.log(`cue ui for ${ctx.config.repo}: ${url}`);
+      consola.info(`cue ui for ${ctx.config.repo}: ${url}`);
       if (!uiArgs.includes("--no-open")) await openBrowser(url);
       break;
     }
@@ -206,6 +207,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(err instanceof Error ? err.message : err);
+  consola.error(err instanceof Error ? err.message : err);
   process.exit(1);
 });

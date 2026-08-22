@@ -124,7 +124,7 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
     }
   };
 
-  function launch(name: string, task: () => Promise<void>): Response {
+  function launch(name: string, task: () => Promise<unknown>): Response {
     if (busy) return Response.json({ error: `busy: ${busy}` }, { status: 409 });
     busy = name;
     task()
