@@ -76,15 +76,22 @@ export function splitIssues(
 ): { active: IssueRow[] | null; done: IssueRow[] | null } {
   if (!state) return { active: null, done: null };
 
-  const board: IssueRow[] = state.columns.flatMap((c) =>
-    c.issues.map((i) => ({
-      number: i.number,
-      title: i.title,
-      cost: i.cost,
-      tokens: i.tokens,
-      label: shortLabel(c.label),
-    })),
-  );
+  // An issue can transiently carry two agent:* labels (a failed dev run used
+  // to keep its in-dev claim) and would render one row per column. Dedupe by
+  // number; the later column wins, since columns are ordered by progress.
+  const byNumber = new Map<number, IssueRow>();
+  for (const c of state.columns) {
+    for (const i of c.issues) {
+      byNumber.set(i.number, {
+        number: i.number,
+        title: i.title,
+        cost: i.cost,
+        tokens: i.tokens,
+        label: shortLabel(c.label),
+      });
+    }
+  }
+  const board = [...byNumber.values()];
   const active = board.toSorted((a, b) => a.number - b.number);
   if (!index) return { active, done: null };
 

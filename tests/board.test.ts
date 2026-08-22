@@ -39,6 +39,27 @@ const index = (...issues: number[]): RunIndexEntry[] =>
   }));
 
 describe('splitIssues', () => {
+  // A failed dev run used to leave both agent:in-dev and agent:failed on the
+  // issue, and every multi-labeled issue rendered one Active row per column.
+  test('an issue sitting in two columns yields one row, labeled by the later column', () => {
+    const doubled: DashboardState = {
+      ...state(),
+      columns: [
+        {
+          label: 'agent:in-dev',
+          issues: [{ number: 12, title: 'CORS', labels: [], cost: 1, tokens: 100 }],
+        },
+        {
+          label: 'agent:failed',
+          issues: [{ number: 12, title: 'CORS', labels: [], cost: 1, tokens: 100 }],
+        },
+      ],
+    };
+    const { active } = splitIssues(doubled, index());
+    expect(active).toHaveLength(1);
+    expect(active?.[0]).toMatchObject({ number: 12, label: 'failed' });
+  });
+
   test('classifies board issues as active and index-only issues as done', () => {
     const { active, done } = splitIssues(state(2, 1), index(1, 2, 3));
     expect(active?.map((i) => i.number)).toEqual([1, 2]);
