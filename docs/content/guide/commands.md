@@ -10,16 +10,33 @@ cue --version
 ## init
 
 ```bash
-cue init
+cue init          # asks three questions, then sets everything up
+cue init --yes    # skip the questions, keep current/default values
 ```
 
 Creates the `agent:*` labels on the GitHub repo and scaffolds `.cue/` in the current directory:
 
-- `.cue/config.json` — written only if missing, default `{ "gate": { "test": "bun test" } }`
+- `.cue/config.json` — with a [`$schema`](/guide/config#editor-autocompletion) line for editor autocompletion
 - `.cue/prompts/` — empty directory for optional prompt overrides
 - `.cue/runs/` added to `.gitignore` if it is not already listed
 
-Safe to re-run: existing config is left alone; labels that already exist are skipped.
+### The questions
+
+In a terminal, `init` asks for the three settings Cue cannot guess:
+
+| Question | Pre-filled with |
+| --- | --- |
+| Which agent CLI drives the stages? | your current `adapter`, else `codex` |
+| Test command for the gate | your current `gate.test`, else `bun test` |
+| Lint command (blank for none) | your current `gate.lint`, else nothing |
+
+Everything else keeps its default and is edited in the file, where the schema autocompletes it. Answers are pre-filled and editable, so pressing Enter through the whole thing leaves `config.json` byte-identical — `init` doubles as a reconfigure command without risking a tuned setup. Ctrl+C aborts before anything is written.
+
+Switching adapter drops any `models` you had set, because model names are adapter-specific; Cue says so when it happens, and the new adapter's defaults apply.
+
+**Non-interactive runs never prompt.** When stdin or stdout is not a TTY — CI, a pipe, `cue init | tee` — or when you pass `--yes`, `init` skips the questions entirely and behaves as it always has.
+
+Safe to re-run: labels that already exist are refreshed in place, and an existing config is only rewritten if your answers actually changed something.
 
 ## poll
 

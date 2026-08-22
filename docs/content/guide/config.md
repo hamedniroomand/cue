@@ -22,7 +22,7 @@ Cue publishes a JSON Schema for `config.json`. `cue init` writes it in as the fi
 }
 ```
 
-Already have a `.cue/config.json`? Re-run `cue init` — it adds the `$schema` key in place and leaves every other field untouched. Or paste the line yourself.
+Already have a `.cue/config.json`? Re-run [`cue init`](/guide/commands#init) — it adds the `$schema` key in place. Note that the default `init` also walks you through the adapter and gate commands, pre-filled with your current values; `cue init --yes` skips the questions and only tops up `$schema`. Or paste the line in yourself.
 
 The schema is deliberately a little stricter than the parser: it rejects unknown keys, so a misspelled field shows up as a squiggle in the editor instead of being silently ignored at runtime.
 
