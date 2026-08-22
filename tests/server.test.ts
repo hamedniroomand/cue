@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
 import { mkdtemp } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,14 +18,27 @@ beforeAll(async () => {
 });
 
 /** Boot the dashboard server on an ephemeral port. */
+/** OS-assigned free port. Bun.serve({ port: 0 }) is broken on Windows and
+ *  GitHub's windows runners reserve large port blocks (reported as EADDRINUSE
+ *  by Bun even when the real error is EACCES — oven-sh/bun#7187), so random
+ *  fixed ports are unreliable: node:net's listen(0) is the path that works. */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createServer();
+    srv.once('error', reject);
+    srv.listen(0, '127.0.0.1', () => {
+      const { port } = srv.address() as { port: number };
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
 async function serve() {
   const { ctx } = await makeCtx([], []);
-  // Bun.serve({ port: 0 }) fails to bind on Windows, so an ephemeral port
-  // request cannot be used here: pick random high ports and retry collisions.
+  // Retry the rare close-to-rebind race on the OS-assigned port.
   for (let attempt = 0; ; attempt++) {
-    const port = 20_000 + Math.floor(Math.random() * 40_000);
     try {
-      const { url, stop } = startServer(ctx, port);
+      const { url, stop } = startServer(ctx, await freePort());
       return { ctx, url, stop };
     } catch (err) {
       if (attempt >= 9) throw err;
