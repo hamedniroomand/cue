@@ -91,7 +91,13 @@
       "type": "integer",
       "minimum": 1,
       "default": 90,
-      "description": "How long an agent:in-dev claim is treated as live before another poll may pick the issue up again."
+      "description": "How long an agent:in-dev claim is treated as live before cleanup resets a stale one to agent:approved."
+    },
+    "webhookUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL POSTed a JSON notification at the two human-gated moments: a plan awaits approval, a draft PR awaits merge. The payload carries `text` (Slack-compatible) and `content` (Discord-compatible). Best-effort: a down webhook never fails a stage.",
+      "examples": ["https://hooks.slack.com/services/T000/B000/XXXX"]
     }
   },
   "examples": [

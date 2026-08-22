@@ -98,6 +98,31 @@ describe('GitHub', () => {
     );
   });
 
+  test('labelAddedAt returns the newest labeled-event timestamp for the label', async () => {
+    // The jq filter reduces the timeline to created_at lines, one per labeling.
+    const { exec, calls } = makeFakeExec([
+      {
+        match: ['gh', 'api', 'repos/acme/widgets/issues/7/timeline'],
+        result: { stdout: '2026-08-01T10:00:00Z\n2026-08-02T10:00:00Z\n' },
+      },
+    ]);
+    const at = await new GitHub(exec, 'acme/widgets').labelAddedAt(7, 'agent:in-dev');
+    expect(at).toBe(Date.parse('2026-08-02T10:00:00Z'));
+    expect(calls[0]).toContain('--paginate');
+    expect(calls[0]!.join(' ')).toContain('agent:in-dev');
+  });
+
+  test('labelAddedAt is tolerant: null on gh failure, empty timeline, garbage', async () => {
+    for (const result of [
+      { code: 1, stderr: 'api unavailable' },
+      { stdout: '' },
+      { stdout: 'not a date\n' },
+    ]) {
+      const { exec } = makeFakeExec([{ match: ['gh', 'api'], result }]);
+      expect(await new GitHub(exec, 'acme/widgets').labelAddedAt(7, 'agent:in-dev')).toBeNull();
+    }
+  });
+
   test('createDraftPR returns the PR URL', async () => {
     const { exec, calls } = makeFakeExec([
       {

@@ -105,8 +105,18 @@ async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): P
   await ctx.worktrees.push(issue.number);
 }
 
+// Low findings are notes for the human merging the PR, not grounds for another
+// costly fix+gate+re-review cycle — only medium/high block.
+function hasBlockingFindings(verdict: Verdict): boolean {
+  return verdict.findings.some((f) => f.severity !== 'low');
+}
+
 function verdictComment(verdict: Verdict): string {
-  const header = verdict.approve ? '✅ cue review: approve' : '⚠️ cue review: changes still needed';
+  const header = verdict.approve
+    ? '✅ cue review: approve'
+    : hasBlockingFindings(verdict)
+      ? '⚠️ cue review: changes still needed'
+      : '✅ cue review: no blocking findings — low-severity notes left for the human';
   const findings = verdict.findings
     .map((f) => `- **${f.severity}** \`${f.file}${f.line ? `:${f.line}` : ''}\` — ${f.note}`)
     .join('\n');
@@ -116,7 +126,11 @@ function verdictComment(verdict: Verdict): string {
 export async function runReview(ctx: StageContext, issue: Issue): Promise<Verdict> {
   const plan = (await ctx.github.findComment(issue.number, PLAN_MARKER)) ?? '(no plan found)';
   let verdict = await reviewOnce(ctx, issue, plan);
-  for (let i = 0; i < ctx.config.reviewFixIterations && !verdict.approve; i++) {
+  for (
+    let i = 0;
+    i < ctx.config.reviewFixIterations && !verdict.approve && hasBlockingFindings(verdict);
+    i++
+  ) {
     await fixFindings(ctx, issue, verdict);
     verdict = await reviewOnce(ctx, issue, plan);
   }

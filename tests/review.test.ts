@@ -15,6 +15,17 @@ const REJECT = JSON.stringify({
   approve: false,
   findings: [{ file: 'src/a.ts', line: 3, severity: 'high', note: 'off by one' }],
 });
+const REJECT_LOW = JSON.stringify({
+  approve: false,
+  findings: [{ file: 'src/a.ts', line: 3, severity: 'low', note: 'prefer const here' }],
+});
+const REJECT_MEDIUM = JSON.stringify({
+  approve: false,
+  findings: [
+    { file: 'src/a.ts', line: 3, severity: 'low', note: 'prefer const here' },
+    { file: 'src/b.ts', line: 9, severity: 'medium', note: 'unhandled null' },
+  ],
+});
 
 describe('parseVerdict', () => {
   test('parses a verdict wrapped in prose', () => {
@@ -43,6 +54,43 @@ describe('runReview', () => {
     expect(verdict.approve).toBe(true);
     expect(runs[0]!.access).toBe('read-only');
     expect(calls.at(-1)!.join(' ')).toContain('approve');
+  });
+
+  test('low-only rejection skips the fix loop and leaves the notes to the human', async () => {
+    const { ctx, calls, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['git', '-C', wt(7), 'diff'], result: { stdout: '+ change' } },
+        { match: ['gh', 'pr', 'comment', 'agent/issue-7'] },
+      ],
+      [REJECT_LOW],
+    );
+    const verdict = await runReview(ctx, ISSUE);
+    expect(verdict.approve).toBe(false);
+    expect(runs).toHaveLength(1);
+    const comment = calls.at(-1)!.join(' ');
+    expect(comment).toContain('no blocking findings');
+    expect(comment).toContain('prefer const here');
+  });
+
+  test('a medium finding still triggers the fix loop', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['git', '-C', wt(7), 'diff'], result: { stdout: '+ v1' } },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'] },
+        { match: ['git', '-C', wt(7), 'diff'], result: { stdout: '+ v2' } },
+        { match: ['gh', 'pr', 'comment', 'agent/issue-7'] },
+      ],
+      [REJECT_MEDIUM, 'handled the null', APPROVE],
+    );
+    const verdict = await runReview(ctx, ISSUE);
+    expect(verdict.approve).toBe(true);
+    expect(runs).toHaveLength(3);
+    expect(runs[1]!.prompt).toContain('unhandled null');
   });
 
   test('reject → fix → gate → re-review → approve', async () => {

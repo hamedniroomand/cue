@@ -19,6 +19,10 @@ It is the same pipeline as the CLI. GitHub labels and `.cue/runs/` stay the shar
 
 You can trigger `process` and `run` from the dashboard; they execute the same TypeScript as the CLI.
 
+Issues in the `agent:planned` column carry **Approve** and **Replan** buttons — the same human gate, without leaving the board. Approve swaps the label to `agent:approved` and starts the dev run immediately (if a run is already in progress, the approval sticks and the next `process` picks it up). Replan expands an inline feedback box; the feedback is posted as an issue comment (where the replan stage reads it) before the label swaps to `agent:replan`.
+
+Set [`webhookUrl`](/guide/config#fields) to also get a POST notification the moment a plan awaits approval or a draft PR awaits merge — useful when nobody is watching the board.
+
 ## Runs
 
 A transcript explorer over `.cue/runs/`, split into:

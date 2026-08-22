@@ -3,6 +3,7 @@ import type { CueConfig } from '@/config';
 import type { Exec } from '@/exec';
 import type { GitHub } from '@/github';
 import type { RunLogger } from '@/log';
+import type { Notify } from '@/notify';
 import type { Platform } from '@/platform';
 import type { WorktreeManager } from '@/worktree';
 
@@ -24,4 +25,6 @@ export interface StageContext {
   platform: Platform;
   worktrees: WorktreeManager;
   promptsDirs: string[];
+  /** Best-effort webhook for the human-gated moments (plan ready, PR opened). */
+  notify: Notify;
 }

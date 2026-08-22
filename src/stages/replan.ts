@@ -56,4 +56,12 @@ export async function runReplan(ctx: StageContext, issue: Issue): Promise<void> 
     throw new Error('replan output missing required sections');
   await ctx.github.comment(issue.number, `${PLAN_MARKER}\n${res.text}`);
   await ctx.github.addLabel(issue.number, 'agent:planned');
+  await ctx.notify({
+    event: 'planned',
+    issue: issue.number,
+    title: issue.title,
+    repo: ctx.config.repo,
+    url: `https://github.com/${ctx.config.repo}/issues/${issue.number}`,
+    text: `📋 cue: revised plan ready for #${issue.number} "${issue.title}" — awaiting approval (agent:approved)`,
+  });
 }

@@ -13,6 +13,7 @@ import {
   XAxis,
 } from "recharts";
 
+import { PlannedActions } from "~/components/planned-actions";
 import { SectionHeading, Shell } from "~/components/shell";
 import { BoardSkeleton, ChartSkeleton, StatSkeleton } from "~/components/skeletons";
 import { Stat } from "~/components/stat";
@@ -75,7 +76,7 @@ const CHART_CONFIG: Record<Metric, ChartConfig> = {
 };
 
 export default function Home() {
-  const { state, events, live } = useCue();
+  const { state, events, live, refresh } = useCue();
   const index = useRunIndex();
   const runs = useAllRuns(state, index);
 
@@ -418,21 +419,25 @@ export default function Home() {
                         </div>
                         <div className="flex flex-col gap-2">
                           {column.issues.map((issue) => (
-                            <Link
-                              key={issue.number}
-                              to={`/runs/${issue.number}`}
-                              className="lift flex flex-col gap-1.5 rounded-lg bg-secondary p-2.5 ring-1 ring-border transition-colors hover:bg-accent"
-                            >
-                              <span className="font-mono text-label-md text-primary">
-                                #{issue.number}
-                              </span>
-                              <span className="line-clamp-2 text-xs leading-snug">
-                                {issue.title}
-                              </span>
-                              <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                                {formatUsage(issue.cost, issue.tokens)}
-                              </span>
-                            </Link>
+                            <div key={issue.number} className="flex flex-col gap-1.5">
+                              <Link
+                                to={`/runs/${issue.number}`}
+                                className="lift flex flex-col gap-1.5 rounded-lg bg-secondary p-2.5 ring-1 ring-border transition-colors hover:bg-accent"
+                              >
+                                <span className="font-mono text-label-md text-primary">
+                                  #{issue.number}
+                                </span>
+                                <span className="line-clamp-2 text-xs leading-snug">
+                                  {issue.title}
+                                </span>
+                                <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                                  {formatUsage(issue.cost, issue.tokens)}
+                                </span>
+                              </Link>
+                              {column.label === "agent:planned" && (
+                                <PlannedActions issue={issue.number} onDone={refresh} />
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>

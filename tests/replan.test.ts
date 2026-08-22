@@ -32,7 +32,7 @@ function commentsPayload() {
 
 describe('runReplan', () => {
   test('revises using previous plan + human feedback, excluding cue noise', async () => {
-    const { ctx, calls, runs } = await makeCtx(
+    const { ctx, calls, runs, notifications } = await makeCtx(
       [
         { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:replan'] },
         { match: ['gh', 'issue', 'view', '7'], result: commentsPayload() },
@@ -50,6 +50,7 @@ describe('runReplan', () => {
     expect(run.webSearch).toBe(true);
     expect(run.model).toBe('haiku');
     expect(calls[2]!.join(' ')).toContain('<!-- cue:plan -->');
+    expect(notifications).toEqual([expect.objectContaining({ event: 'planned', issue: 7 })]);
   });
 
   test('throws when there is no previous plan to revise', async () => {

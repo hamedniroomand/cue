@@ -124,6 +124,31 @@ export class GitHub {
     return hit?.body ?? null;
   }
 
+  /**
+   * When the label was last added to the issue, as epoch ms. Read from the
+   * timeline API so the claim's age is visible to every machine, not just the
+   * one that made it. Tolerant by design: cleanup probes claims it may not be
+   * able to explain, and null means "cannot tell", never "stale".
+   */
+  async labelAddedAt(n: number, label: string): Promise<number | null> {
+    const r = await this.exec([
+      'gh',
+      'api',
+      `repos/${this.repo}/issues/${n}/timeline`,
+      '--paginate',
+      '--jq',
+      `.[] | select(.event == "labeled" and .label.name == "${label}") | .created_at`,
+    ]);
+    if (r.code !== 0) return null;
+    const last = r.stdout
+      .trim()
+      .split('\n')
+      .findLast((line) => line.length > 0);
+    if (!last) return null;
+    const ts = Date.parse(last);
+    return Number.isNaN(ts) ? null : ts;
+  }
+
   async createDraftPR(o: {
     branch: string;
     base: string;
