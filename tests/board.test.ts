@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 
+import { BOARD_LABELS } from '@/server';
+
 // The dashboard's issue classifier lives in the ui package but is pure TS with
 // no ui-only imports, so the root suite covers it directly.
 // oxlint-disable-next-line import/no-relative-parent-imports -- ui/ is outside the @/ alias root on purpose
-import { splitIssues } from '../ui/app/lib/board';
+import { BOARD_LABELS as UI_BOARD_LABELS, runIssueSet, splitIssues } from '../ui/app/lib/board';
 // oxlint-disable-next-line import/no-relative-parent-imports -- see above
 import type { DashboardState, RunIndexEntry } from '../ui/app/lib/board';
 
@@ -15,13 +17,26 @@ const state = (...numbers: number[]): DashboardState => ({
   columns: [
     {
       label: 'agent:ready',
-      issues: numbers.map((n) => ({ number: n, title: `Issue ${n}`, labels: [], cost: 1 })),
+      issues: numbers.map((n) => ({
+        number: n,
+        title: `Issue ${n}`,
+        labels: [],
+        cost: 1,
+        tokens: n * 1000,
+      })),
     },
   ],
 });
 
 const index = (...issues: number[]): RunIndexEntry[] =>
-  issues.map((issue) => ({ issue, runs: 1, costUsd: 2, lastTs: issue, title: `Issue ${issue}` }));
+  issues.map((issue) => ({
+    issue,
+    runs: 1,
+    costUsd: 2,
+    tokens: issue * 100,
+    lastTs: issue,
+    title: `Issue ${issue}`,
+  }));
 
 describe('splitIssues', () => {
   test('classifies board issues as active and index-only issues as done', () => {
@@ -60,5 +75,42 @@ describe('splitIssues', () => {
     const { active, done } = splitIssues(state(5, 3, 4), index(1, 2, 3, 4, 5));
     expect(active?.map((i) => i.number)).toEqual([3, 4, 5]);
     expect(done?.map((i) => i.number)).toEqual([2, 1]);
+  });
+
+  // Active rows take tokens from /api/state (the server rolls them up with the
+  // cost); Done rows only exist in the index, so they take them from there.
+  test('carries tokens onto both active and done issues', () => {
+    const { active, done } = splitIssues(state(1), index(1, 2));
+    expect(active?.[0]).toMatchObject({ number: 1, cost: 1, tokens: 1000 });
+    expect(done?.[0]).toMatchObject({ number: 2, cost: 2, tokens: 200 });
+  });
+});
+
+describe('runIssueSet', () => {
+  test('reports the issue set as unknown while neither source has landed', () => {
+    expect(runIssueSet(null, null)).toBeNull();
+  });
+
+  test('unions the board and the run index, ascending and deduped', () => {
+    expect(runIssueSet(state(3, 1), index(1, 2))).toEqual([1, 2, 3]);
+  });
+
+  // The regression this guards: an empty union must resolve to [] so the
+  // dashboard can tell "no runs recorded" from "still loading" and stop
+  // rendering skeletons.
+  test('resolves to an empty array once both sources land with nothing', () => {
+    expect(runIssueSet(state(), index())).toEqual([]);
+  });
+
+  test('uses the run index alone while the board state is still loading', () => {
+    expect(runIssueSet(null, index(4))).toEqual([4]);
+  });
+});
+
+describe('BOARD_LABELS', () => {
+  // The board skeleton renders these columns before /api/state lands, so the
+  // ui copy must stay identical to the server's — label names are exact.
+  test('mirrors the server board columns exactly', () => {
+    expect(UI_BOARD_LABELS).toEqual(BOARD_LABELS);
   });
 });

@@ -3,7 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { startServer } from '@/server';
+import { BOARD_LABELS, buildState, startServer } from '@/server';
 
 import { makeCtx } from './triage.test';
 
@@ -135,6 +135,53 @@ describe.skipIf(bunWindowsListenBroken)('dashboard server', () => {
     } finally {
       stop();
     }
+  });
+
+  // The board used to re-sweep the runs directory once per issue for cost, and
+  // never reported tokens at all — so a claude issue showed dollars only.
+  test('buildState rolls cost AND tokens onto board issues from one index sweep', async () => {
+    const { ctx } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', 'acme/widgets', '--label', 'agent:ready'],
+          result: {
+            stdout: JSON.stringify([
+              { number: 4, title: 'Contact Us page', body: '', labels: [{ name: 'agent:ready' }] },
+              { number: 5, title: 'Never run here', body: '', labels: [{ name: 'agent:ready' }] },
+            ]),
+          },
+        },
+        // BOARD_LABELS drives one `gh issue list` per column; the rest are empty.
+        ...Array.from({ length: BOARD_LABELS.length - 1 }, () => ({
+          match: ['gh', 'issue', 'list'],
+          result: { stdout: '[]' },
+        })),
+      ],
+      [],
+    );
+    await ctx.logger.log(4, 'triage', {
+      prompt: 'Issue #4: Contact Us page',
+      result: [
+        {
+          type: 'result',
+          usage: {
+            input_tokens: 73,
+            cache_read_input_tokens: 283110,
+            cache_creation_input_tokens: 15283,
+            output_tokens: 3074,
+          },
+        },
+      ],
+      costUsd: 0.074,
+      durationMs: 90,
+      outcome: 'ok',
+    });
+
+    const state = await buildState(ctx, null);
+    const ready = state.columns.find((c) => c.label === 'agent:ready')!.issues;
+    expect(ready.find((i) => i.number === 4)).toMatchObject({ cost: 0.074, tokens: 301540 });
+    // An issue with nothing recorded on this machine reports zeros, not undefined.
+    expect(ready.find((i) => i.number === 5)).toMatchObject({ cost: 0, tokens: 0 });
   });
 
   test('GET /api/runs indexes issues from disk, including ones off the board', async () => {

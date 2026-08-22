@@ -10,6 +10,7 @@
  */
 
 import type { DashboardState, RunIndexEntry } from "./board";
+import { formatTokens, type TokenUsage } from "./transcript";
 
 export * from "./board";
 export * from "./transcript";
@@ -26,6 +27,7 @@ export interface RunSummary {
   stage: string;
   ts: number;
   costUsd?: number;
+  usage?: TokenUsage;
   durationMs: number;
   outcome: "ok" | "failed";
   error?: string;
@@ -46,6 +48,19 @@ export function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
   return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+}
+
+/**
+ * Cost and tokens are different facts, not alternatives: claude reports both,
+ * codex and antigravity only tokens. Showing whichever exists — and both when
+ * both do — is what keeps claude runs from hiding their token counts behind a
+ * dollar figure.
+ */
+export function formatUsage(costUsd: number | undefined, tokens: number | undefined): string {
+  const parts: string[] = [];
+  if (costUsd) parts.push(formatUsd(costUsd));
+  if (tokens) parts.push(`${formatTokens(tokens)} tok`);
+  return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
 /* ---------------------------------------------------------------- fetching */

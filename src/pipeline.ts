@@ -52,9 +52,14 @@ export async function poll(ctx: StageContext): Promise<void> {
     ctx.onEvent({ ts: Date.now(), issue: 0, stage: 'poll', kind, message });
   emit('start', `scanning ${ctx.config.repo} for actionable issues`);
   await runCleanup(ctx);
-  const ready = await ctx.github.listIssues('agent:ready');
-  const approved = await ctx.github.listIssues('agent:approved');
-  const replans = await ctx.github.listIssues('agent:replan');
+  const actionable = await ctx.github.listIssuesByLabel([
+    'agent:ready',
+    'agent:approved',
+    'agent:replan',
+  ]);
+  const ready = actionable.get('agent:ready') ?? [];
+  const approved = actionable.get('agent:approved') ?? [];
+  const replans = actionable.get('agent:replan') ?? [];
   const queue = [...ready, ...approved, ...replans];
   if (queue.length === 0) {
     emit('done', 'nothing to do — no issues labeled agent:ready, agent:approved, or agent:replan');

@@ -7,6 +7,7 @@ import {
   FileTextIcon,
   GaugeIcon,
   ShieldOffIcon,
+  SparklesIcon,
   TerminalIcon,
   WrenchIcon,
   XCircleIcon,
@@ -33,6 +34,9 @@ import {
   fetchRun,
   fetchRuns,
   formatDuration,
+  formatTokenBreakdown,
+  formatTokens,
+  formatUsage,
   formatUsd,
   normalizeEvents,
   poll,
@@ -120,13 +124,13 @@ export default function Runs() {
                     <TabsTrigger value="active">
                       Active
                       <Badge variant="secondary" className="tabular-nums">
-                        {active?.length ?? "–"}
+                        {active === null ? <Skeleton className="h-2 w-2" /> : active.length}
                       </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="done">
                       Done
                       <Badge variant="secondary" className="tabular-nums">
-                        {done?.length ?? "–"}
+                        {done === null ? <Skeleton className="h-2 w-2" /> : done.length}
                       </Badge>
                     </TabsTrigger>
                   </TabsList>
@@ -203,7 +207,7 @@ export default function Runs() {
                               </Badge>
                               <span className="grow" />
                               <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                                {r.costUsd != null ? formatUsd(r.costUsd) : "—"}
+                                {formatUsage(r.costUsd, r.usage?.total)}
                               </span>
                             </span>
                             <span className="font-mono text-[10px] text-muted-foreground">
@@ -297,7 +301,9 @@ function IssueList({
         >
           <span className="font-mono text-label-md text-primary">#{i.number}</span>
           <span className="min-w-0 flex-1 truncate text-xs">{i.title}</span>
-          <span className="font-mono text-[10px] tabular-nums">{formatUsd(i.cost)}</span>
+          <span className="font-mono text-[10px] tabular-nums">
+            {formatUsage(i.cost, i.tokens)}
+          </span>
           <ChevronRightIcon className="size-3 shrink-0" />
         </Link>
       ))}
@@ -333,11 +339,17 @@ function RunView({ detail }: { detail: RunDetail }) {
           <CardDescription>{detail.error ?? "Recorded adapter invocation"}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <Metric
               icon={GaugeIcon}
               label="cost"
               value={detail.costUsd != null ? formatUsd(detail.costUsd) : "—"}
+            />
+            <Metric
+              icon={SparklesIcon}
+              label="tokens"
+              value={stats.usage ? formatTokens(stats.usage.total) : "—"}
+              hint={stats.usage ? formatTokenBreakdown(stats.usage) : undefined}
             />
             <Metric icon={GaugeIcon} label="duration" value={formatDuration(detail.durationMs)} />
             <Metric
@@ -441,22 +453,25 @@ function Metric({
   icon: Icon,
   label,
   value,
+  hint,
   accent,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
+  hint?: string;
   accent?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1" title={hint}>
       <span className="flex items-center gap-1.5 font-mono text-label-md text-muted-foreground uppercase">
-        <Icon className="size-3" />
+        <Icon className="size-3 shrink-0" />
         {label}
       </span>
       <span className={cn("text-lg font-medium tabular-nums", accent && "text-brand-accent")}>
         {value}
       </span>
+      {hint && <span className="truncate font-mono text-[10px] text-muted-foreground">{hint}</span>}
     </div>
   );
 }

@@ -48,7 +48,7 @@ async function serveClient(pathname: string): Promise<Response> {
   return new Response(NOT_BUILT, { status: 503, headers: { 'Content-Type': 'text/plain' } });
 }
 
-const BOARD_LABELS = [
+export const BOARD_LABELS = [
   'agent:ready',
   'agent:planned',
   'agent:approved',
@@ -65,6 +65,8 @@ export interface BoardIssue {
   title: string;
   labels: string[];
   cost: number;
+  /** Total tokens across every recorded run. 0 when nothing ran here yet. */
+  tokens: number;
 }
 
 export interface DashboardState {
@@ -76,20 +78,24 @@ export interface DashboardState {
 }
 
 export async function buildState(ctx: StageContext, busy: string | null): Promise<DashboardState> {
-  const columns = [];
-  for (const label of BOARD_LABELS) {
-    const issues = await ctx.github.listIssues(label);
-    const board: BoardIssue[] = [];
-    for (const i of issues) {
-      board.push({
-        number: i.number,
-        title: i.title,
-        labels: i.labels,
-        cost: await ctx.logger.totalCost(i.number),
-      });
-    }
-    columns.push({ label, issues: board });
-  }
+  // One rollup sweep for the whole board — an issue with no runs on this
+  // machine simply misses the lookup and reports zeros — and the label
+  // queries fetched in parallel chunks; both keep /api/state fast.
+  const [index, byLabel] = await Promise.all([
+    ctx.logger.index(),
+    ctx.github.listIssuesByLabel(BOARD_LABELS),
+  ]);
+  const totals = new Map(index.map((e) => [e.issue, e]));
+  const columns = BOARD_LABELS.map((label) => ({
+    label,
+    issues: (byLabel.get(label) ?? []).map((i): BoardIssue => ({
+      number: i.number,
+      title: i.title,
+      labels: i.labels,
+      cost: totals.get(i.number)?.costUsd ?? 0,
+      tokens: totals.get(i.number)?.tokens ?? 0,
+    })),
+  }));
   return {
     repo: ctx.config.repo,
     worktreeRoot: ctx.config.worktreeRoot,

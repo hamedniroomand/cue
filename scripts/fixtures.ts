@@ -6,6 +6,8 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { extractUsage, type TokenUsage } from '@/adapters/usage';
+
 const RUNS_DIR = process.env.CUE_RUNS_DIR ?? '.runs';
 const OUT = 'ui/app/fixtures/data.json';
 
@@ -23,6 +25,7 @@ interface Summary {
   stage: string;
   ts: number;
   costUsd?: number;
+  usage?: TokenUsage;
   durationMs: number;
   outcome: string;
   error?: string;
@@ -53,6 +56,7 @@ for (const issue of issueDirs.toSorted()) {
       stage: m[1],
       ts: Number(m[2]),
       costUsd: entry.costUsd,
+      ...(extractUsage(entry.result) ? { usage: extractUsage(entry.result) } : {}),
       durationMs: entry.durationMs,
       outcome: entry.outcome,
       ...(entry.error ? { error: entry.error } : {}),
@@ -70,6 +74,8 @@ for (const issue of issueDirs.toSorted()) {
 }
 
 const cost = (issue: string) => (runs[issue] ?? []).reduce((t, r) => t + (r.costUsd ?? 0), 0);
+const tokens = (issue: string) =>
+  (runs[issue] ?? []).reduce((t, r) => t + (r.usage?.total ?? 0), 0);
 
 const state = {
   repo: process.env.CUE_FIXTURE_REPO ?? 'cue/pilot',
@@ -85,6 +91,7 @@ const state = {
         title: titles[n] ?? `Issue #${n}`,
         labels: [label],
         cost: cost(n),
+        tokens: tokens(n),
       })),
   })),
 };
@@ -94,6 +101,7 @@ const index = Object.entries(runs)
     issue: Number(n),
     runs: rs.length,
     costUsd: cost(n),
+    tokens: tokens(n),
     lastTs: Math.max(...rs.map((r) => r.ts)),
     ...(titles[n] ? { title: titles[n] } : {}),
   }))

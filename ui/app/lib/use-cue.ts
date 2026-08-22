@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CueEvent, DashboardState, RunIndexEntry, RunSummary } from "./cue";
-import { fetchRunIndex, fetchRuns, fetchState } from "./cue";
+import { fetchRunIndex, fetchRuns, fetchState, runIssueSet } from "./cue";
 
 const MAX_LOG_LINES = 400;
 
@@ -55,19 +55,19 @@ export function useRunIndex() {
 /**
  * Every recorded run, newest first. Sourced from the disk index unioned with the
  * board, so completed (agent:done) work still counts toward the totals.
+ *
+ * `null` until the runs have landed. Returning [] while loading would render
+ * every derived total as a truthful-looking zero, which is what the skeletons
+ * exist to prevent — so the empty board must resolve to [], never stay null.
+ * Hence `seen` starts as null: "" is a legitimate key (no issues at all).
  */
 export function useAllRuns(state: DashboardState | null, index: RunIndexEntry[] | null) {
-  const [runs, setRuns] = useState<Array<RunSummary & { issue: number }>>([]);
-  const seen = useRef("");
+  const [runs, setRuns] = useState<Array<RunSummary & { issue: number }> | null>(null);
+  const seen = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!state && !index) return;
-    const issues = [
-      ...new Set([
-        ...(index ?? []).map((e) => e.issue),
-        ...(state?.columns ?? []).flatMap((c) => c.issues.map((i) => i.number)),
-      ]),
-    ].toSorted((a, b) => a - b);
+    const issues = runIssueSet(state, index);
+    if (!issues) return;
     const key = issues.join(",");
     if (key === seen.current) return;
     seen.current = key;

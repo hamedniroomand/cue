@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { RunLogger } from '@/log';
 
 describe('RunLogger', () => {
-  test('writes one JSON file per invocation and sums costs', async () => {
+  test('writes one JSON file per invocation, and index sums their costs', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'cue-runs-'));
     const logger = new RunLogger(dir);
     const p1 = await logger.log(42, 'triage', {
@@ -27,8 +27,50 @@ describe('RunLogger', () => {
     expect(p1).toContain(join(dir, '42', 'triage-'));
     const written = await Bun.file(p1).json();
     expect(written.costUsd).toBe(0.03);
-    expect(await logger.totalCost(42)).toBeCloseTo(1.23);
-    expect(await logger.totalCost(999)).toBe(0);
+    const [entry] = await logger.index();
+    expect(entry!.costUsd).toBeCloseTo(1.23);
+    expect(await new RunLogger(join(dir, 'nope')).index()).toEqual([]);
+  });
+
+  test('derives token usage from the recorded result, and sums it in the index', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cue-runs-'));
+    const logger = new RunLogger(dir);
+    await logger.log(42, 'triage', {
+      prompt: 'Issue #42: Ship it',
+      result: [
+        {
+          event: 'result',
+          result: {
+            usage: { input_tokens: 1000, output_tokens: 200, cache_read_tokens: 500 },
+          },
+        },
+      ],
+      durationMs: 900,
+      outcome: 'ok',
+    });
+    // A run whose adapter recorded usage up front: the stored value wins and no
+    // derivation from `result` is attempted.
+    await logger.log(42, 'dev', {
+      prompt: 'p2',
+      result: null,
+      usage: { input: 400, cachedInput: 0, cacheWrite: 0, output: 100, reasoning: 0, total: 500 },
+      durationMs: 5000,
+      outcome: 'ok',
+    });
+
+    const list = await logger.list(42);
+    expect(list.find((r) => r.stage === 'triage')!.usage?.total).toBe(1700);
+    expect(list.find((r) => r.stage === 'dev')!.usage?.total).toBe(500);
+
+    const [entry] = await logger.index();
+    expect(entry).toMatchObject({ issue: 42, runs: 2, tokens: 2200, title: 'Ship it' });
+  });
+
+  test('index reports zero tokens for runs that recorded no usage', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cue-runs-'));
+    const logger = new RunLogger(dir);
+    await logger.log(7, 'dev', { prompt: 'p', result: null, durationMs: 10, outcome: 'ok' });
+    expect((await logger.index())[0]).toMatchObject({ issue: 7, tokens: 0 });
   });
 
   test('list returns per-run summaries without prompt or result payloads', async () => {

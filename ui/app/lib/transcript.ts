@@ -1,10 +1,18 @@
 /**
  * Pure transcript normalization for recorded runs — no ui-only imports, so
  * the root test suite covers it (tests/transcript.test.ts). The tool-input
- * summarizer is shared with the adapters' progress lines to keep both
- * surfaces rendering the same run the same way.
+ * summarizer and the token extractor are both shared with src/, so a run
+ * renders the same here as it does in the CLI and the run index.
  */
 import { summarizeToolInput } from "../../../src/adapters/summarize";
+import { extractUsage, type TokenUsage } from "../../../src/adapters/usage";
+
+export {
+  extractUsage,
+  formatTokenBreakdown,
+  formatTokens,
+  type TokenUsage,
+} from "../../../src/adapters/usage";
 
 /** One line of a recorded agent transcript (claude, codex, or antigravity). */
 export interface StreamEvent {
@@ -21,7 +29,14 @@ export interface StreamEvent {
         total_cost_usd?: number;
         cost_usd?: number;
         num_turns?: number;
-        usage?: { cost_usd?: number; total_tokens?: number };
+        usage?: {
+          cost_usd?: number;
+          total_tokens?: number;
+          input_tokens?: number;
+          output_tokens?: number;
+          thinking_tokens?: number;
+          cache_read_tokens?: number;
+        };
       };
   init?: { model?: string; tools?: string[] };
   step_update?: {
@@ -38,12 +53,30 @@ export interface StreamEvent {
   is_error?: boolean;
   tool_name?: string;
   response?: string;
+  /** claude's terminal result event, and codex's per-turn `turn.completed`. */
   usage?: {
     input_tokens?: number;
     output_tokens?: number;
     total_tokens?: number;
     cost_usd?: number;
+    /** claude — disjoint from input_tokens. */
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+    output_tokens_details?: { thinking_tokens?: number };
+    /** codex — subsets of input_tokens / output_tokens respectively. */
+    cached_input_tokens?: number;
+    reasoning_output_tokens?: number;
   };
+  modelUsage?: Record<
+    string,
+    {
+      inputTokens?: number;
+      outputTokens?: number;
+      cacheReadInputTokens?: number;
+      cacheCreationInputTokens?: number;
+      costUSD?: number;
+    }
+  >;
   item?: {
     type?: string;
     text?: string;
@@ -237,6 +270,7 @@ export interface RunStats {
   tools: number;
   denied: number;
   turns?: number;
+  usage?: TokenUsage;
 }
 
 export function statsFor(events: StreamEvent[]): RunStats {
@@ -249,5 +283,6 @@ export function statsFor(events: StreamEvent[]): RunStats {
     tools: rows.filter((r) => r.kind === "tool").length,
     denied: rows.filter((r) => r.kind === "denied").length,
     turns: (result?.kind === "result" ? result.turns : undefined) ?? (codexTurns || undefined),
+    usage: extractUsage(events),
   };
 }

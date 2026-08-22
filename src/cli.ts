@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { consola } from 'consola';
 
 import { ADAPTERS } from '@/adapters/registry';
+import { formatTokens } from '@/adapters/usage';
 import { runCleanup } from '@/cleanup';
 import { resolveConfig } from '@/config';
 import { clackAsk, promptConfig, shouldPrompt } from '@/configure';
@@ -109,20 +110,29 @@ async function status(ctx: StageContext): Promise<void> {
     'agent:in-review',
     'agent:failed',
   ];
-  // Six `gh` queries plus a cost read each: collect first under one frame, then
-  // print, so the rows never land mid-animation.
+  // Six `gh` queries (parallel, chunked) plus one rollup sweep: collect first
+  // under one frame, then print, so the rows never land mid-animation.
   const rows = await withSpinner(
     cliSpinner,
     `reading ${ctx.config.repo} pipeline state`,
     async () => {
+      const [index, byLabel] = await Promise.all([
+        ctx.logger.index(),
+        ctx.github.listIssuesByLabel(states),
+      ]);
+      const totals = new Map(index.map((e) => [e.issue, e]));
       const lines: string[] = [];
       for (const label of states) {
-        cliSpinner.update(`reading ${ctx.config.repo} pipeline state — ${label}`);
-        for (const i of await ctx.github.listIssues(label)) {
-          const cost = await ctx.logger.totalCost(i.number);
-          // Codex reports no dollar cost, so zero means "unknown", not "free".
-          const spend = cost > 0 ? ` ($${cost.toFixed(2)} local spend)` : '';
-          lines.push(`${label.padEnd(16)} #${i.number} ${i.title}${spend}`);
+        for (const i of byLabel.get(label) ?? []) {
+          const t = totals.get(i.number);
+          // Codex and antigravity report no dollar cost, so a missing spend
+          // means "unknown", not "free" — tokens are the comparable figure.
+          const parts = [
+            t?.costUsd ? `$${t.costUsd.toFixed(2)}` : '',
+            t?.tokens ? `${formatTokens(t.tokens)} tokens` : '',
+          ].filter(Boolean);
+          const usage = parts.length > 0 ? ` (${parts.join(', ')} local)` : '';
+          lines.push(`${label.padEnd(16)} #${i.number} ${i.title}${usage}`);
         }
       }
       return lines;

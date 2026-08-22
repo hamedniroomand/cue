@@ -40,6 +40,7 @@ src/
 │   ├── base.ts         # JsonlAdapter: shared run loop (env scrub, exec, JSONL parse, progress)
 │   ├── registry.ts     # ADAPTERS: name → { make, defaultModels }; the one list of adapters
 │   ├── summarize.ts    # shared tool-input summarizer (also imported by ui/app/lib/transcript.ts)
+│   ├── usage.ts        # THE token extractor: per-adapter usage → one disjoint TokenUsage
 │   ├── antigravity.ts  # agy -p --output-format stream-json --dangerously-skip-permissions
 │   ├── claude.ts       # claude -p --output-format stream-json --verbose; maps access → --allowedTools
 │   └── codex.ts        # codex exec --json; sandbox read-only / workspace-write; --search for webSearch
@@ -178,6 +179,17 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   union both. `index()` recovers issue titles from the recorded prompts, matching both
   `Issue #<n>: <title>` (triage/replan) and `Issue: <title>` (dev), so archived and even
   deleted issues stay browsable with no `gh` call.
+- **Token accounting lives in exactly one place: `src/adapters/usage.ts`.** Every
+  adapter reports usage differently and their `total_tokens` do not agree — agy's
+  excludes cache reads, claude reports no total, codex nests `cached_input_tokens`
+  inside `input_tokens`. `extractUsage` normalizes all three into a `TokenUsage`
+  whose parts are DISJOINT (`input + cachedInput + cacheWrite + output === total`),
+  and always computes `total` itself rather than trusting the provider. `src/log.ts`
+  and `ui/app/lib/transcript.ts` both import it — never fork a second extractor, or
+  the run index and the transcript view will disagree about the same run.
+- **`RunLogger.index()` is the only per-issue rollup.** `cue status` and
+  `buildState` each call it once and look issues up in a Map; there is deliberately
+  no `totalCost`/`totalTokens` to re-sweep the directory per issue.
 - **`RunEntry.result` is polymorphic.** Older logs store the single `result` event as an
   object; newer ones store the whole event array. Anything reading a transcript must go
   through `normalizeEvents` (`ui/app/lib/transcript.ts`, re-exported by cue.ts and
