@@ -41,10 +41,10 @@ try {
 
   $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
   if (($UserPath -split ";") -notcontains $BinDir) {
+    [Environment]::SetEnvironmentVariable("Path", "$BinDir;$UserPath", "User")
+    $env:Path = "$BinDir;$env:Path"
     Write-Host ""
-    Write-Host "note: $BinDir is not on your PATH. Add it with:"
-    Write-Host "  [Environment]::SetEnvironmentVariable('Path', `"$BinDir;`" + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')"
-    Write-Host "then open a new terminal."
+    Write-Host "added $BinDir to your user PATH - open a new terminal for it to take effect."
   }
 
   Write-Host ""

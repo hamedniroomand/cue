@@ -49,7 +49,7 @@ Verify with:
 cue --version
 ```
 
-If the install directory is not on your `PATH`, the installer prints the line to add.
+If the install directory is not on your `PATH`: the Windows installer adds it to your user `PATH` for you (open a new terminal afterwards); the macOS/Linux installer prints the line to add to your shell profile.
 
 ### Windows notes
 
