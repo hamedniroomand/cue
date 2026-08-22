@@ -29,7 +29,7 @@ Most AI coding tools run as interactive chat sessions inside your terminal or ID
 You need these on the machine that will run Cue:
 
 - [`gh`](https://cli.github.com) CLI, authenticated (`gh auth login`) with a token that can read/write issues, contents, and pull requests on the target repos
-- [`codex`](https://developers.openai.com/codex) CLI, authenticated
+- the CLI for the agent that will drive the stages, authenticated: [`codex`](https://developers.openai.com/codex) (the default), [`claude`](https://claude.com/claude-code), or `agy` (Antigravity) — `cue init` asks which one
 
 The release binaries do **not** require Bun or Node. You only need [Bun](https://bun.com) ≥ 1.1 if you [clone this repo to develop Cue itself](/develop/setup).
 
@@ -99,7 +99,7 @@ my-project/
     └── runs/          # transcripts + costs per issue (gitignored)
 ```
 
-`config.json` starts as `{ "gate": { "test": "bun test" } }`. Change `gate.test` to this project's real test command. See [Configuration](/guide/config) for the rest of the defaults.
+In a terminal, `init` asks three questions — which agent CLI to use, the test command for the gate, and an optional lint command — each pre-filled with a sensible default (`codex`, `bun test`, none). Pass `--yes` (or run non-interactively) to skip the questions and keep the defaults; you can always edit `.cue/config.json` later, or re-run `cue init` to reconfigure. See [Commands → init](/guide/commands#init) for the questions and [Configuration](/guide/config) for every field.
 
 ## First issue
 

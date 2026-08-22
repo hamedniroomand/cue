@@ -36,7 +36,7 @@ Label an issue `agent:ready` and run `cue process`. Full walkthrough: [Getting s
 
 - [Getting started](https://hamedniroomand.github.io/cue/guide/getting-started) — prerequisites, installation, and first issue
 - [Pipeline and labels](https://hamedniroomand.github.io/cue/guide/pipeline) — the state machine and human/Cue collaboration loop
-- [Commands](https://hamedniroomand.github.io/cue/guide/commands) — `init`, `process`, `run`, `cleanup`, `status`, `ui`
+- [Commands](https://hamedniroomand.github.io/cue/guide/commands) — `init`, `process`, `run`, `cleanup`, `status`, `ui`, `upgrade`
 - [Configuration](https://hamedniroomand.github.io/cue/guide/config) — `.cue/config.json` schema and adapters
 - [Dashboard](https://hamedniroomand.github.io/cue/guide/dashboard) — local web UI for transcripts, costs, and issue tracking
 - [Contributing](https://hamedniroomand.github.io/cue/develop/setup) — setup and architecture for developing Cue

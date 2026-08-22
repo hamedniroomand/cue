@@ -41,7 +41,13 @@ src/
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos
 ├── gates.ts            # deterministic test/lint runner (sh -c in the worktree)
 ├── exec.ts             # THE ONLY place Bun.spawn is called
+├── platform.ts         # POSIX/Windows personality: gate shell, agent env allowlist
 ├── config.ts           # valibot schema + resolveConfig
+├── scaffold.ts         # creates/tops up the target's .cue/ (config, prompts, gitignore)
+├── configure.ts        # cue init wizard: @clack/prompts behind an injectable Ask seam
+├── spinner.ts          # single-slot ora frame; disabled when stdout is not a TTY
+├── upgrade.ts          # cue upgrade: checksum-verified in-place binary update
+├── embedded.ts         # prompt embedding for compiled binaries (with { type: "file" })
 └── log.ts              # transcripts + cost under <target>/.cue/runs/<issue>/
 prompts/                # packaged default role prompts
 ui/                     # dashboard SPA, built to ui/build/client
@@ -53,11 +59,11 @@ tests/                  # one file per module + integration.test.ts
 These are load-bearing. Tests encode most of them.
 
 - **All subprocess execution goes through `Exec` in `src/exec.ts`.** Never call `Bun.spawn` anywhere else — that is what makes every module testable.
-- **Lean dependencies.** The CLI runtime is valibot-only. The dashboard is a separate package (`ui/package.json`); its deps never enter the CLI.
+- **Lean dependencies.** The CLI's only runtime deps are valibot, consola, ora, and @clack/prompts. The dashboard is a separate package (`ui/package.json`); its deps never enter the CLI. Do not add packages to either without discussion.
 - **Label names are exact:** `agent:ready`, `agent:planned`, `agent:approved`, `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:done`, `agent:failed`, `agent:stop`.
 - **Plan-comment marker is exactly `<!-- cue:plan -->`** (`PLAN_MARKER` in `stages/triage.ts`). Dev and replan find plans by the newest comment containing it.
 - **Branch naming:** `agent/issue-<number>`.
-- **The GitHub token must never reach agent subprocesses.** `ClaudeAdapter`, `CodexAdapter`, and `AntigravityAdapter` build scrubbed envs from an allowlist. Tests assert `GH_TOKEN` is absent.
+- **The GitHub token must never reach agent subprocesses.** The shared adapter base (`JsonlAdapter.run`) scrubs the env down to an OS allowlist plus the adapter's own API keys — never another provider's credentials. Every adapter test asserts `GH_TOKEN` is absent.
 - **Agents never run git/gh side effects.** The runner owns commit, push, PR creation, and labels. Cue never merges and never touches the base branch.
 - **Humans gate two moments:** plan approval and PR merge. Do not automate either.
 - **Issue bodies and comments are untrusted input.** Every prompt states this.
@@ -84,7 +90,7 @@ Push a `v*` tag. `.github/workflows/release.yml` runs `scripts/build-binaries.sh
 3. Compiles per-target binaries into `dist/`
 4. Restores the committed empty manifest stub
 
-Release assets are `dist/cue-*` plus `checksums.txt`. `install.sh` at the repo root is the checksum-verified installer.
+Release assets are `dist/cue-*` plus `checksums.txt`. `install.sh` and `install.ps1` at the repo root are the checksum-verified installers.
 
 Prompts embed via `with { type: "file" }` imports in `src/embedded.ts`. New disk assets (prompts, UI output) must join this embedding path or compiled installs break. Never commit a generated UI manifest.
 

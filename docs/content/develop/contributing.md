@@ -53,7 +53,7 @@ bun run ui:check      # tsc
 
 The dashboard uses react-router in **library** mode (`createBrowserRouter` in `app/main.tsx`) on plain Vite with the React Compiler on. Do not reintroduce `@react-router/dev`.
 
-`RunEntry.result` is polymorphic: older logs store a single `result` event as an object; newer ones store the whole event array. Anything reading a transcript must go through `normalizeEvents` in `ui/app/lib/cue.ts`.
+`RunEntry.result` is polymorphic: older logs store a single `result` event as an object; newer ones store the whole event array. Anything reading a transcript must go through `normalizeEvents` in `ui/app/lib/transcript.ts` (re-exported by `cue.ts` and covered by the root test suite).
 
 ## Docs
 
