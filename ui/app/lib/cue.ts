@@ -110,3 +110,17 @@ export async function poll(): Promise<void> {
 export async function runIssue(issue: number): Promise<void> {
   await fetch(`/api/run/${issue}`, { method: "POST" });
 }
+
+/** One-click plan approval: agent:planned → agent:approved, then run. */
+export async function approveIssue(issue: number): Promise<void> {
+  await fetch(`/api/approve/${issue}`, { method: "POST" });
+}
+
+/** Request a revised plan: post the feedback comment, agent:planned → agent:replan, then run. */
+export async function replanIssue(issue: number, feedback: string): Promise<void> {
+  await fetch(`/api/replan/${issue}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ feedback }),
+  });
+}

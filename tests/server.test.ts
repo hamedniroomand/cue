@@ -137,6 +137,144 @@ describe.skipIf(bunWindowsListenBroken)('dashboard server', () => {
     }
   });
 
+  test('POST /api/approve/:issue swaps agent:planned → agent:approved and starts the run', async () => {
+    const PLANNED = JSON.stringify([
+      { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:planned' }] },
+    ]);
+    const { ctx } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:planned'],
+          result: { stdout: PLANNED },
+        },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:planned',
+            '--add-label',
+            'agent:approved',
+          ],
+        },
+      ],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/approve/7`, { method: 'POST' });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ approved: true, started: true });
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/approve/:issue 404s when the issue is not awaiting approval', async () => {
+    const { ctx } = await makeCtx(
+      [{ match: ['gh', 'issue', 'list'], result: { stdout: '[]' } }],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/approve/7`, { method: 'POST' });
+      expect(res.status).toBe(404);
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/replan/:issue posts the feedback, swaps to agent:replan, starts the run', async () => {
+    const PLANNED = JSON.stringify([
+      { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:planned' }] },
+    ]);
+    const { ctx, calls } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:planned'],
+          result: { stdout: PLANNED },
+        },
+        { match: ['gh', 'issue', 'comment', '7'] },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:planned',
+            '--add-label',
+            'agent:replan',
+          ],
+        },
+      ],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/replan/7`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback: 'avoid heavy frameworks please' }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ replanRequested: true, started: true });
+      expect(
+        calls.some(
+          (c) => c.includes('comment') && c.join(' ').includes('avoid heavy frameworks please'),
+        ),
+      ).toBe(true);
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/replan/:issue without feedback skips the comment', async () => {
+    const PLANNED = JSON.stringify([
+      { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:planned' }] },
+    ]);
+    const { ctx, calls } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:planned'],
+          result: { stdout: PLANNED },
+        },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:planned',
+            '--add-label',
+            'agent:replan',
+          ],
+        },
+      ],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/replan/7`, { method: 'POST' });
+      expect(res.status).toBe(200);
+      // The call after the planned-list must be the label swap, not a comment.
+      // (The launched run may append calls later; only the handler's own
+      // sequence is scripted, and a comment would have failed the replay.)
+      expect(calls[1]).toEqual(expect.arrayContaining(['--add-label', 'agent:replan']));
+    } finally {
+      stop();
+    }
+  });
+
   // The board used to re-sweep the runs directory once per issue for cost, and
   // never reported tokens at all — so a claude issue showed dollars only.
   test('buildState rolls cost AND tokens onto board issues from one index sweep', async () => {

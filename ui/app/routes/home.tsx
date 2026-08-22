@@ -36,11 +36,13 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
+  approveIssue,
   formatDuration,
   formatTokens,
   formatUsage,
   formatUsd,
   poll,
+  replanIssue,
   shortLabel,
   STAGES,
 } from "~/lib/cue";
@@ -75,7 +77,7 @@ const CHART_CONFIG: Record<Metric, ChartConfig> = {
 };
 
 export default function Home() {
-  const { state, events, live } = useCue();
+  const { state, events, live, refresh } = useCue();
   const index = useRunIndex();
   const runs = useAllRuns(state, index);
 
@@ -418,21 +420,25 @@ export default function Home() {
                         </div>
                         <div className="flex flex-col gap-2">
                           {column.issues.map((issue) => (
-                            <Link
-                              key={issue.number}
-                              to={`/runs/${issue.number}`}
-                              className="lift flex flex-col gap-1.5 rounded-lg bg-secondary p-2.5 ring-1 ring-border transition-colors hover:bg-accent"
-                            >
-                              <span className="font-mono text-label-md text-primary">
-                                #{issue.number}
-                              </span>
-                              <span className="line-clamp-2 text-xs leading-snug">
-                                {issue.title}
-                              </span>
-                              <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                                {formatUsage(issue.cost, issue.tokens)}
-                              </span>
-                            </Link>
+                            <div key={issue.number} className="flex flex-col gap-1.5">
+                              <Link
+                                to={`/runs/${issue.number}`}
+                                className="lift flex flex-col gap-1.5 rounded-lg bg-secondary p-2.5 ring-1 ring-border transition-colors hover:bg-accent"
+                              >
+                                <span className="font-mono text-label-md text-primary">
+                                  #{issue.number}
+                                </span>
+                                <span className="line-clamp-2 text-xs leading-snug">
+                                  {issue.title}
+                                </span>
+                                <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                                  {formatUsage(issue.cost, issue.tokens)}
+                                </span>
+                              </Link>
+                              {column.label === "agent:planned" && (
+                                <PlannedActions issue={issue.number} onDone={refresh} />
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -480,6 +486,73 @@ export default function Home() {
         </section>
       </div>
     </Shell>
+  );
+}
+
+/**
+ * One-click gate for agent:planned issues — the human still approves, without
+ * leaving the board. Replan expands an inline feedback box; the comment lands
+ * on the issue before the replan stage reads it.
+ */
+function PlannedActions({ issue, onDone }: { issue: number; onDone: () => void | Promise<void> }) {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function send(action: () => Promise<void>) {
+    setSending(true);
+    try {
+      await action();
+    } finally {
+      setSending(false);
+      setFeedbackOpen(false);
+      setFeedback("");
+      void onDone();
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex gap-1.5">
+        <Button
+          size="sm"
+          className="h-6 flex-1 text-[10px]"
+          disabled={sending}
+          onClick={() => void send(() => approveIssue(issue))}
+        >
+          Approve
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-6 flex-1 text-[10px]"
+          disabled={sending}
+          onClick={() => setFeedbackOpen((open) => !open)}
+        >
+          Replan
+        </Button>
+      </div>
+      {feedbackOpen && (
+        <div className="flex flex-col gap-1.5">
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="What should the revised plan do differently?"
+            rows={3}
+            className="w-full resize-none rounded-md bg-secondary p-2 text-xs ring-1 ring-border focus:ring-ring focus:outline-none"
+          />
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-6 text-[10px]"
+            disabled={sending}
+            onClick={() => void send(() => replanIssue(issue, feedback))}
+          >
+            Request revision
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -178,6 +178,54 @@ export function startServer(
         return Response.json(detail);
       },
       '/api/poll': { POST: () => launch('poll', () => poll(ctx)) },
+      // One-click plan approval: the human still gates, without leaving the
+      // dashboard. Swap first — even when the runner is busy the approval
+      // sticks and the next poll picks the issue up.
+      '/api/approve/:issue': {
+        POST: async (req: Bun.BunRequest<'/api/approve/:issue'>) => {
+          const n = Number(req.params.issue);
+          const issue = (await ctx.github.listIssues('agent:planned')).find((i) => i.number === n);
+          if (!issue) {
+            return Response.json(
+              { error: `issue #${n} is not awaiting plan approval` },
+              { status: 404 },
+            );
+          }
+          await ctx.github.swapLabel(n, 'agent:planned', 'agent:approved');
+          const approved: Issue = {
+            ...issue,
+            labels: [...issue.labels.filter((l) => l !== 'agent:planned'), 'agent:approved'],
+          };
+          if (busy) return Response.json({ approved: true, started: false });
+          launch(`run #${n}`, () => runIssue(ctx, approved));
+          return Response.json({ approved: true, started: true });
+        },
+      },
+      // Request a revised plan: post the human's feedback (the replan stage
+      // reads comments after the plan marker), then relabel and run.
+      '/api/replan/:issue': {
+        POST: async (req: Bun.BunRequest<'/api/replan/:issue'>) => {
+          const n = Number(req.params.issue);
+          const issue = (await ctx.github.listIssues('agent:planned')).find((i) => i.number === n);
+          if (!issue) {
+            return Response.json(
+              { error: `issue #${n} is not awaiting plan approval` },
+              { status: 404 },
+            );
+          }
+          const body = (await req.json().catch(() => ({}))) as { feedback?: string };
+          const feedback = body.feedback?.trim();
+          if (feedback) await ctx.github.comment(n, feedback);
+          await ctx.github.swapLabel(n, 'agent:planned', 'agent:replan');
+          const replan: Issue = {
+            ...issue,
+            labels: [...issue.labels.filter((l) => l !== 'agent:planned'), 'agent:replan'],
+          };
+          if (busy) return Response.json({ replanRequested: true, started: false });
+          launch(`run #${n}`, () => runIssue(ctx, replan));
+          return Response.json({ replanRequested: true, started: true });
+        },
+      },
       '/api/run/:issue': {
         POST: async (req: Bun.BunRequest<'/api/run/:issue'>) => {
           const n = Number(req.params.issue);
