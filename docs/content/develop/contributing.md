@@ -57,7 +57,7 @@ The dashboard uses react-router in **library** mode (`createBrowserRouter` in `a
 
 ## Docs
 
-User and contributor docs are this VitePress site (`docs/content/`). The root README stays short and points here.
+User and contributor docs are this VitePress site (`docs/content/`). The root README stays short and points here. Diagrams use fenced `mermaid` blocks (`vitepress-plugin-mermaid`).
 
 ```bash
 bun run docs:dev

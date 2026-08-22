@@ -2,24 +2,23 @@
 
 Cue is a state machine over GitHub issue labels. You move issues into `agent:ready`, `agent:approved`, or `agent:replan`. Cue does the rest, then waits for you to merge.
 
-```
-human labels agent:ready
-        ↓
-   cue poll  →  triage posts a plan  →  agent:planned
-        ↓
-human reviews the plan
-   ↙            ↘
-agent:replan     agent:approved
-   ↓                  ↓
-replan posts     cue poll  →  worktree + implement
-a revision              ↓
-                  test / lint gate
-                        ↓
-                  draft PR + review loop  →  agent:in-review
-                        ↓
-                  human merges the PR
-                        ↓
-                  cleanup  →  agent:done
+```mermaid
+flowchart TD
+  ready["human labels agent:ready"] --> poll1["cue poll"]
+  poll1 --> triage["triage posts a plan"]
+  triage --> planned["agent:planned"]
+  planned --> human["human reviews the plan"]
+  human -->|"revise"| replan["agent:replan"]
+  human -->|"approve"| approved["agent:approved"]
+  replan --> pollR["cue poll revises the plan"]
+  pollR --> planned
+  approved --> poll2["cue poll"]
+  poll2 --> dev["worktree + implement"]
+  dev --> gate["test / lint gate"]
+  gate --> review["draft PR + review loop"]
+  review --> inReview["agent:in-review"]
+  inReview --> merge["human merges the PR"]
+  merge --> done["cleanup → agent:done"]
 ```
 
 `poll` always starts by reconciling merged and closed PRs ([cleanup](/guide/commands#cleanup)), so a merge on GitHub is enough — you do not have to remember a separate "finish" command.
@@ -39,6 +38,24 @@ Multiple projects run independently — separate repos, separate labels, separat
 ## Label state machine
 
 Label names are exact. They appear in code, tests, prompts, and on real repos — change all or none.
+
+```mermaid
+stateDiagram-v2
+  [*] --> ready: human
+  ready --> planned: triage
+  planned --> approved: human
+  planned --> replan: human
+  replan --> planned: replan
+  approved --> inDev: dev
+  inDev --> inReview: review
+  inReview --> done: human merges
+  inReview --> failed: PR closed
+  ready --> failed: stage error
+  replan --> failed: stage error
+  approved --> failed: stage error
+  inDev --> failed: stage error
+  [*] --> stop: human
+```
 
 | Label | Meaning | Who sets it | Next actor |
 | --- | --- | --- | --- |

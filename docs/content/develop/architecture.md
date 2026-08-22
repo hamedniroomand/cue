@@ -2,8 +2,14 @@
 
 Cue is a deterministic Bun + TypeScript runner. Headless coding agents sit **inside** pipeline stages. Routing, gating, retries, and label transitions are **plain code** — never ask the model something a script can decide (for example, whether tests passed).
 
-```
-Triage → human approves plan → Dev → Test gate → Review loop → Draft PR → human merges
+```mermaid
+flowchart LR
+  triage[Triage] --> plan[human approves plan]
+  plan --> dev[Dev]
+  dev --> gate[Test gate]
+  gate --> review[Review loop]
+  review --> pr[Draft PR]
+  pr --> merge[human merges]
 ```
 
 GitHub is the state store: `agent:*` labels are the state machine, issue comments carry the plan, draft PRs are the output.
