@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { AntigravityAdapter } from '@/adapters/antigravity';
+import { AdapterError } from '@/adapters/base';
 import type { AgentRunOptions } from '@/adapters/types';
 import { POSIX, WINDOWS } from '@/platform';
 
@@ -155,6 +156,18 @@ describe('AntigravityAdapter', () => {
       }) + '\n';
     const { exec } = makeFakeExec([{ match: ['agy', '-p'], result: { stdout: errStream } }]);
     await expect(new AntigravityAdapter(exec).run(OPTS)).rejects.toThrow('model quota exceeded');
+  });
+
+  test('an extraction failure carries the parsed transcript on the error', async () => {
+    const stream =
+      JSON.stringify({ event: 'step_update', step_update: { text_delta: 'working…' } }) +
+      '\n' +
+      JSON.stringify({ event: 'result', result: { status: 'ERROR', error: 'bad tool call' } }) +
+      '\n';
+    const { exec } = makeFakeExec([{ match: ['agy', '-p'], result: { stdout: stream } }]);
+    const err = await new AntigravityAdapter(exec).run(OPTS).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AdapterError);
+    expect((err as AdapterError).events).toHaveLength(2);
   });
 
   test('throws when a top-level result event reports an error', async () => {

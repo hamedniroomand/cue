@@ -1,6 +1,7 @@
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import type { StageContext } from '@/stages/context';
+import { loggedRun } from '@/stages/run';
 import { PLAN_MARKER } from '@/stages/triage';
 
 const REPLAN_TIMEOUT_MS = 20 * 60_000;
@@ -27,8 +28,7 @@ export async function runReplan(ctx: StageContext, issue: Issue): Promise<void> 
     previous_plan: previousPlan,
     feedback,
   });
-  const start = Date.now();
-  const res = await ctx.adapter.run({
+  const res = await loggedRun(ctx, issue.number, 'replan', {
     prompt,
     cwd: ctx.config.repoPath,
     model: ctx.config.models.triage,
@@ -44,13 +44,6 @@ export async function runReplan(ctx: StageContext, issue: Issue): Promise<void> 
         kind: 'progress',
         message: m,
       }),
-  });
-  await ctx.logger.log(issue.number, 'replan', {
-    prompt,
-    result: res.raw,
-    costUsd: res.costUsd,
-    durationMs: Date.now() - start,
-    outcome: 'ok',
   });
   if (!res.text.includes('## Acceptance criteria'))
     throw new Error('replan output missing required sections');

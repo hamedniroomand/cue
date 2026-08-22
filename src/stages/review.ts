@@ -4,6 +4,7 @@ import { runGate } from '@/gates';
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import type { StageContext } from '@/stages/context';
+import { loggedRun } from '@/stages/run';
 import { PLAN_MARKER } from '@/stages/triage';
 
 const VerdictSchema = v.object({
@@ -37,8 +38,7 @@ async function reviewOnce(ctx: StageContext, issue: Issue, plan: string): Promis
   const template = await loadPrompt(ctx.promptsDirs, 'review');
   let prompt = renderPrompt(template, { plan, diff });
   for (let attempt = 0; attempt < 2; attempt++) {
-    const start = Date.now();
-    const res = await ctx.adapter.run({
+    const res = await loggedRun(ctx, issue.number, 'review', {
       prompt,
       cwd: ctx.worktrees.path(issue.number),
       model: ctx.config.models.review,
@@ -54,13 +54,6 @@ async function reviewOnce(ctx: StageContext, issue: Issue, plan: string): Promis
           message: m,
         }),
     });
-    await ctx.logger.log(issue.number, 'review', {
-      prompt,
-      result: res.raw,
-      costUsd: res.costUsd,
-      durationMs: Date.now() - start,
-      outcome: 'ok',
-    });
     const verdict = parseVerdict(res.text);
     if (verdict) return verdict;
     prompt = `${prompt}\n\nRespond with only the JSON object.`;
@@ -74,8 +67,7 @@ async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): P
     failure_output: `Code review rejected the change. Findings:\n${JSON.stringify(verdict.findings, null, 2)}`,
   });
   const cwd = ctx.worktrees.path(issue.number);
-  const start = Date.now();
-  const res = await ctx.adapter.run({
+  await loggedRun(ctx, issue.number, 'review-fix', {
     prompt,
     cwd,
     model: ctx.config.models.dev,
@@ -91,13 +83,6 @@ async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): P
         kind: 'progress',
         message: m,
       }),
-  });
-  await ctx.logger.log(issue.number, 'review-fix', {
-    prompt,
-    result: res.raw,
-    costUsd: res.costUsd,
-    durationMs: Date.now() - start,
-    outcome: 'ok',
   });
   const gate = await runGate(ctx.exec, cwd, ctx.config.gate, ctx.platform);
   if (!gate.ok) throw new Error(`gate failed after review fix:\n${gate.output}`);

@@ -2,6 +2,7 @@ import { runGate } from '@/gates';
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import type { StageContext } from '@/stages/context';
+import { loggedRun } from '@/stages/run';
 import { PLAN_MARKER } from '@/stages/triage';
 
 const DEV_TIMEOUT_MS = 60 * 60_000;
@@ -14,8 +15,7 @@ async function runFix(
 ): Promise<void> {
   const template = await loadPrompt(ctx.promptsDirs, 'fix');
   const prompt = renderPrompt(template, { failure_output: failureOutput });
-  const start = Date.now();
-  const res = await ctx.adapter.run({
+  await loggedRun(ctx, issue, 'fix', {
     prompt,
     cwd,
     model: ctx.config.models.dev,
@@ -25,13 +25,6 @@ async function runFix(
     timeoutMs: DEV_TIMEOUT_MS,
     onProgress: (m) =>
       ctx.onEvent({ ts: Date.now(), issue, stage: 'fix', kind: 'progress', message: m }),
-  });
-  await ctx.logger.log(issue, 'fix', {
-    prompt,
-    result: res.raw,
-    costUsd: res.costUsd,
-    durationMs: Date.now() - start,
-    outcome: 'ok',
   });
 }
 
@@ -43,8 +36,7 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
   const wt = await ctx.worktrees.create(issue.number);
   const template = await loadPrompt(ctx.promptsDirs, 'dev');
   const prompt = renderPrompt(template, { issue_title: issue.title, issue_body: issue.body, plan });
-  const start = Date.now();
-  const res = await ctx.adapter.run({
+  await loggedRun(ctx, issue.number, 'dev', {
     prompt,
     cwd: wt.path,
     model: ctx.config.models.dev,
@@ -60,13 +52,6 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
         kind: 'progress',
         message: m,
       }),
-  });
-  await ctx.logger.log(issue.number, 'dev', {
-    prompt,
-    result: res.raw,
-    costUsd: res.costUsd,
-    durationMs: Date.now() - start,
-    outcome: 'ok',
   });
 
   let gate = await runGate(ctx.exec, wt.path, ctx.config.gate, ctx.platform);

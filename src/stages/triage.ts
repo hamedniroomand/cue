@@ -1,6 +1,7 @@
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import type { StageContext } from '@/stages/context';
+import { loggedRun } from '@/stages/run';
 
 export const PLAN_MARKER = '<!-- cue:plan -->';
 const TRIAGE_TIMEOUT_MS = 15 * 60_000;
@@ -13,8 +14,7 @@ export async function runTriage(ctx: StageContext, issue: Issue): Promise<void> 
     issue_title: issue.title,
     issue_body: issue.body,
   });
-  const start = Date.now();
-  const res = await ctx.adapter.run({
+  const res = await loggedRun(ctx, issue.number, 'triage', {
     prompt,
     cwd: ctx.config.repoPath,
     model: ctx.config.models.triage,
@@ -29,13 +29,6 @@ export async function runTriage(ctx: StageContext, issue: Issue): Promise<void> 
         kind: 'progress',
         message: m,
       }),
-  });
-  await ctx.logger.log(issue.number, 'triage', {
-    prompt,
-    result: res.raw,
-    costUsd: res.costUsd,
-    durationMs: Date.now() - start,
-    outcome: 'ok',
   });
   if (!res.text.includes('## Acceptance criteria'))
     throw new Error('triage output missing required sections');

@@ -2,6 +2,21 @@ import type { AgentAdapter, AgentResult, AgentRunOptions } from '@/adapters/type
 import type { Exec } from '@/exec';
 import { currentPlatform, scrubbedEnv, type Platform } from '@/platform';
 
+/**
+ * An adapter failure that still carries whatever transcript was parsed before
+ * the run died — so a crashed stage can be logged with its partial event
+ * stream instead of losing everything but the error message.
+ */
+export class AdapterError extends Error {
+  constructor(
+    message: string,
+    readonly events: unknown[] = [],
+  ) {
+    super(message);
+    this.name = 'AdapterError';
+  }
+}
+
 /** Parse a JSONL stdout stream, ignoring non-JSON noise between events. */
 export function parseJsonLines<T>(stdout: string): T[] {
   const events: T[] = [];
@@ -64,12 +79,18 @@ export abstract class JsonlAdapter<TEvent> implements AgentAdapter {
       timeoutMs: opts.timeoutMs,
       onLine,
     });
+    const events = parseJsonLines<TEvent>(r.stdout);
     if (r.code !== 0) {
       // A timeout kill often leaves stderr empty; the stdout tail is the next
       // best clue to what the agent was doing.
       const detail = r.stderr.slice(0, 500) || r.stdout.slice(-500);
-      throw new Error(`${this.bin} exited ${r.code}: ${detail}`);
+      throw new AdapterError(`${this.bin} exited ${r.code}: ${detail}`, events);
     }
-    return this.extract(parseJsonLines<TEvent>(r.stdout), opts);
+    try {
+      return this.extract(events, opts);
+    } catch (err) {
+      if (err instanceof AdapterError) throw err;
+      throw new AdapterError(err instanceof Error ? err.message : String(err), events);
+    }
   }
 }

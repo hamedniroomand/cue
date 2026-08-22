@@ -3,6 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { AdapterError } from '@/adapters/base';
 import type { Issue } from '@/github';
 import { GitHub } from '@/github';
 import { RunLogger } from '@/log';
@@ -92,6 +93,20 @@ describe('runTriage', () => {
         url: 'https://github.com/acme/widgets/issues/7',
       }),
     ]);
+  });
+
+  test('a crashed adapter run is still recorded with its partial transcript', async () => {
+    const { ctx } = await makeCtx([{ match: ['gh', 'issue', 'edit', '7'] }], []);
+    ctx.adapter = {
+      run: () => Promise.reject(new AdapterError('agy error: boom', [{ event: 'step_update' }])),
+    };
+    await expect(runTriage(ctx, ISSUE)).rejects.toThrow('agy error: boom');
+    const runs = await ctx.logger.list(7);
+    expect(runs).toEqual([
+      expect.objectContaining({ stage: 'triage', outcome: 'failed', error: 'agy error: boom' }),
+    ]);
+    const detail = await ctx.logger.read(7, `triage-${runs[0]!.ts}`);
+    expect(detail?.result).toEqual([{ event: 'step_update' }]);
   });
 
   test('throws when the plan is missing required sections', async () => {
