@@ -14,6 +14,7 @@ export default withMermaid({
     lastUpdated: true,
     cleanUrls: true,
     head: [
+      ["link", { rel: "icon", type: "image/svg+xml", href: "/cue/logo.svg" }],
       ["link", { rel: "canonical", href: docs }],
       ["meta", { name: "og:title", content: "Cue" }],
       [
@@ -24,8 +25,10 @@ export default withMermaid({
             "A globally-installed CLI that runs coding agents through a fixed GitHub-issue pipeline.",
         },
       ],
+      ["meta", { name: "og:image", content: `${docs}/logo.svg` }],
     ],
     themeConfig: {
+      logo: "/logo.svg",
       nav: [
         { text: "Guide", link: "/guide/getting-started" },
         { text: "Develop", link: "/develop/setup" },

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="cue-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#181e29"/>
+      <stop offset="100%" stop-color="#0b0f17"/>
+    </linearGradient>
+
+    <!-- Border Gradient -->
+    <linearGradient id="cue-border" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.3"/>
+    </linearGradient>
+
+    <!-- Primary Brand Gradient (Orange to Coral) -->
+    <linearGradient id="cue-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7E47"/>
+      <stop offset="100%" stop-color="#ED5B2D"/>
+    </linearGradient>
+
+    <!-- Accent Gradient (Lighter Amber to Orange) -->
+    <linearGradient id="cue-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFA868"/>
+      <stop offset="100%" stop-color="#FF6B35"/>
+    </linearGradient>
+
+    <!-- Glow Effect -->
+    <filter id="cue-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feFlood flood-color="#ED7B46" flood-opacity="0.32" result="color"/>
+      <feComposite in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Container Squircle -->
+  <rect width="256" height="256" rx="60" fill="url(#cue-bg)"/>
+  <rect width="254" height="254" x="1" y="1" rx="59" fill="none" stroke="url(#cue-border)" stroke-width="1.5"/>
+
+  <!-- Logo Graphics with Glow -->
+  <g filter="url(#cue-glow)">
+    <!-- "C" Arc (Outer Loop) -->
+    <path d="M 166 74 A 64 64 0 1 0 166 182"
+          fill="none"
+          stroke="url(#cue-primary)"
+          stroke-width="20"
+          stroke-linecap="round"/>
+
+    <!-- Inner First Chevron `>` (Prompt / Cue) -->
+    <path d="M 118 98 L 148 128 L 118 158"
+          fill="none"
+          stroke="url(#cue-accent)"
+          stroke-width="17"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Forward Second Chevron `>` (Agent Pipeline Momentum) -->
+    <path d="M 156 98 L 186 128 L 156 158"
+          fill="none"
+          stroke="url(#cue-primary)"
+          stroke-width="17"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+  </g>
+</svg>
