@@ -1,0 +1,3 @@
+# Normalize line endings: LF in the repo and on checkout everywhere,
+# so oxfmt --check and sh-authored files behave identically on Windows.
+* text=auto eol=lf
