@@ -17,7 +17,7 @@ It is the same pipeline as the CLI. GitHub labels and `.cue/runs/` stay the shar
 - The `agent:*` label board (active issues only — `agent:done` is omitted on purpose)
 - A live log streamed over SSE while stages run
 
-You can trigger `poll` and `run` from the dashboard; they execute the same TypeScript as the CLI.
+You can trigger `process` and `run` from the dashboard; they execute the same TypeScript as the CLI.
 
 ## Runs
 

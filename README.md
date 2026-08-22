@@ -20,12 +20,12 @@ Needs the `gh` and `codex` CLIs, both authenticated. Claude Code (`"adapter": "c
 cue init
 ```
 
-Label an issue `agent:ready` and run `cue poll`. Full walkthrough: [Getting started](https://hamedniroomand.github.io/cue/guide/getting-started).
+Label an issue `agent:ready` and run `cue process`. Full walkthrough: [Getting started](https://hamedniroomand.github.io/cue/guide/getting-started).
 
 ## Learn more
 
 - [Pipeline and labels](https://hamedniroomand.github.io/cue/guide/pipeline) — the human / Cue loop
-- [Commands](https://hamedniroomand.github.io/cue/guide/commands) — `init`, `poll`, `run`, `cleanup`, `status`, `ui`
+- [Commands](https://hamedniroomand.github.io/cue/guide/commands) — `init`, `process`, `run`, `cleanup`, `status`, `ui`
 - [Configuration](https://hamedniroomand.github.io/cue/guide/config) — `.cue/config.json`
 - [Clone and develop](https://hamedniroomand.github.io/cue/develop/setup) — contributing to Cue itself
 

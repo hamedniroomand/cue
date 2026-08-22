@@ -4,15 +4,15 @@ Cue is a state machine over GitHub issue labels. You move issues into `agent:rea
 
 ```mermaid
 flowchart TD
-  ready["human labels agent:ready"] --> poll1["cue poll"]
+  ready["human labels agent:ready"] --> poll1["cue process"]
   poll1 --> triage["triage posts a plan"]
   triage --> planned["agent:planned"]
   planned --> human["human reviews the plan"]
   human -->|"revise"| replan["agent:replan"]
   human -->|"approve"| approved["agent:approved"]
-  replan --> pollR["cue poll revises the plan"]
+  replan --> pollR["cue process revises the plan"]
   pollR --> planned
-  approved --> poll2["cue poll"]
+  approved --> poll2["cue process"]
   poll2 --> dev["worktree + implement"]
   dev --> gate["test / lint gate"]
   gate --> review["draft PR + review loop"]
@@ -21,16 +21,16 @@ flowchart TD
   merge --> done["cleanup → agent:done"]
 ```
 
-`poll` always starts by reconciling merged and closed PRs ([cleanup](/guide/commands#cleanup)), so a merge on GitHub is enough — you do not have to remember a separate "finish" command.
+`process` always starts by reconciling merged and closed PRs ([cleanup](/guide/commands#cleanup)), so a merge on GitHub is enough — you do not have to remember a separate "finish" command. `poll` remains an alias for compatibility.
 
 ## The human / Cue loop
 
 | Step | Who | Action |
 | --- | --- | --- |
 | 1 | human | Label an issue `agent:ready` |
-| 2 | you | `cue poll` — triage posts a plan comment, label becomes `agent:planned` |
+| 2 | you | `cue process` — triage posts a plan comment, label becomes `agent:planned` |
 | 3 | human | Review the plan comment; if good, swap the label to `agent:approved` |
-| 4 | you | `cue poll` — dev implements in a git worktree, tests gate the result, a draft PR opens, the review agent comments its verdict, label becomes `agent:in-review` |
+| 4 | you | `cue process` — dev implements in a git worktree, tests gate the result, a draft PR opens, the review agent comments its verdict, label becomes `agent:in-review` |
 | 5 | human | Review and merge the draft PR |
 
 Multiple projects run independently — separate repos, separate labels, separate worktrees. Always run commands from inside the target repo.
@@ -75,7 +75,7 @@ A crashed run leaves an issue stuck in `agent:in-dev`. Reset the label by hand t
 
 Two ways, from lightest to heaviest:
 
-1. **Ask the agent to revise (recommended).** Reply to the issue with normal comments ("find a simpler approach", "don't add a framework"), then apply the `agent:replan` label. The next `poll` re-runs triage with the previous plan and your feedback in context — it may also search the web for alternatives — and posts a revised plan (with a `## Revision notes` section). Repeat as many rounds as you like, then apply `agent:approved`.
+1. **Ask the agent to revise (recommended).** Reply to the issue with normal comments ("find a simpler approach", "don't add a framework"), then apply the `agent:replan` label. The next `process` re-runs triage with the previous plan and your feedback in context — it may also search the web for alternatives — and posts a revised plan (with a `## Revision notes` section). Repeat as many rounds as you like, then apply `agent:approved`.
 2. **Edit the plan yourself.** Edit the plan comment directly, or post a new comment containing the `<!-- cue:plan -->` marker. The newest marker comment wins.
 
 Plain reply comments are only read during a replan. The dev agent sees just the final plan.
@@ -87,7 +87,7 @@ Plain reply comments are only read during a replan. The dev agent sees just the 
 - **Dev** creates `~/.cue/worktrees/<owner>-<repo>/issue-<n>` on branch `agent/issue-<n>`, implements the plan, then the runner commits, pushes, and opens a **draft** PR. The agent never runs `git` / `gh` side effects.
 - **Gate** is deterministic: the runner executes `gate.test` (and optional `gate.lint`) inside the worktree. Pass/fail is not a model decision. One repair attempt if tests fail.
 - **Review** posts a JSON verdict on the PR and can loop a bounded number of fix iterations (`reviewFixIterations`).
-- **Cleanup** runs at the start of every `poll`: merged PR → `agent:done`; closed unmerged PR → `agent:failed`; worktree and local branch removed either way.
+- **Cleanup** runs at the start of every `process`: merged PR → `agent:done`; closed unmerged PR → `agent:failed`; worktree and local branch removed either way.
 
 ## Safety model
 
