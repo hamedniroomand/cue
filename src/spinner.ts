@@ -29,7 +29,8 @@ export interface SpinnerOptions {
 }
 
 export function createSpinner(options: SpinnerOptions = {}): Spinner {
-  const enabled = options.enabled ?? process.stdout.isTTY;
+  // oxlint-disable-next-line no-unnecessary-boolean-literal-compare -- node types isTTY as boolean, but it is undefined (not false) on a pipe
+  const enabled = options.enabled ?? process.stdout.isTTY === true;
   const make = options.make ?? ((text: string) => ora(text));
   // Created on first start(), so importing this module costs nothing and a
   // disabled spinner never touches the terminal at all.
