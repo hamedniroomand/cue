@@ -10,6 +10,7 @@ import { GitHub } from "./github";
 import { RunLogger } from "./log";
 import { runCleanup } from "./cleanup";
 import { nextAction, poll, runIssue } from "./pipeline";
+import { currentPlatform } from "./platform";
 import type { StageContext } from "./stages/context";
 import { WorktreeManager } from "./worktree";
 
@@ -28,14 +29,16 @@ const LABELS: Array<[name: string, color: string, desc: string]> = [
 async function makeContext(): Promise<StageContext> {
   const cwd = process.cwd();
   const config = await resolveConfig(realExec, cwd);
+  const platform = currentPlatform();
   if (config.adapter === "codex") throw new Error("codex adapter not implemented yet");
-  const adapter: AgentAdapter = new ClaudeAdapter(realExec);
+  const adapter: AgentAdapter = new ClaudeAdapter(realExec, platform);
   return {
     config,
     github: new GitHub(realExec, config.repo),
     adapter,
     logger: new RunLogger(join(cwd, ".cue", "runs")),
     exec: realExec,
+    platform,
     worktrees: new WorktreeManager(realExec, config),
     // Project overrides win over the prompts packaged with cue itself.
     promptsDirs: [join(cwd, ".cue", "prompts"), join(import.meta.dir, "..", "prompts")],

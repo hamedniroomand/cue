@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ClaudeAdapter } from "../src/adapters/claude";
+import { POSIX, WINDOWS } from "../src/platform";
 import { makeFakeExec } from "./helpers/fakeExec";
 
 const STREAM =
@@ -77,18 +78,41 @@ describe("ClaudeAdapter", () => {
     await expect(new ClaudeAdapter(exec).run(OPTS)).rejects.toThrow("invalid api key");
   });
 
-  test("scrubs the environment down to the allowlist", async () => {
-    process.env.GH_TOKEN = "secret-token";
-    process.env.HOME = process.env.HOME ?? "/tmp";
+  function envSpy() {
     let seenEnv: Record<string, string> | undefined;
     const exec = async (_cmd: string[], opts?: { env?: Record<string, string> }) => {
       seenEnv = opts?.env;
       return { code: 0, stdout: STREAM, stderr: "" };
     };
-    await new ClaudeAdapter(exec).run(OPTS);
-    expect(seenEnv).toBeDefined();
-    expect(seenEnv!.GH_TOKEN).toBeUndefined();
-    expect(seenEnv!.HOME).toBeDefined();
+    return { exec, env: () => seenEnv };
+  }
+
+  test("scrubs the environment down to the posix allowlist", async () => {
+    process.env.GH_TOKEN = "secret-token";
+    process.env.HOME = process.env.HOME ?? "/tmp";
+    const { exec, env } = envSpy();
+    await new ClaudeAdapter(exec, POSIX).run(OPTS);
+    expect(env()).toBeDefined();
+    expect(env()!.GH_TOKEN).toBeUndefined();
+    expect(env()!.HOME).toBeDefined();
     delete process.env.GH_TOKEN;
+  });
+
+  test("scrubs the environment down to the windows allowlist", async () => {
+    process.env.GH_TOKEN = "secret-token";
+    process.env.USERPROFILE = "C:\\Users\\dev";
+    process.env.SYSTEMROOT = "C:\\Windows";
+    const { exec, env } = envSpy();
+    await new ClaudeAdapter(exec, WINDOWS).run(OPTS);
+    expect(env()).toBeDefined();
+    expect(env()!.GH_TOKEN).toBeUndefined();
+    expect(env()!.USERPROFILE).toBe("C:\\Users\\dev");
+    expect(env()!.SYSTEMROOT).toBe("C:\\Windows");
+    // posix-only vars must not leak through the windows personality
+    expect(env()!.HOME).toBeUndefined();
+    expect(env()!.SHELL).toBeUndefined();
+    delete process.env.GH_TOKEN;
+    delete process.env.USERPROFILE;
+    delete process.env.SYSTEMROOT;
   });
 });

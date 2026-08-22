@@ -76,10 +76,10 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
     outcome: "ok",
   });
 
-  let gate = await runGate(ctx.exec, wt.path, ctx.config.gate);
+  let gate = await runGate(ctx.exec, wt.path, ctx.config.gate, ctx.platform);
   if (!gate.ok) {
     await runFix(ctx, wt.path, issue.number, gate.output);
-    gate = await runGate(ctx.exec, wt.path, ctx.config.gate);
+    gate = await runGate(ctx.exec, wt.path, ctx.config.gate, ctx.platform);
     if (!gate.ok) throw new Error(`gate failed after repair:\n${gate.output}`);
   }
 

@@ -3,6 +3,7 @@ import type { CueConfig } from "../config";
 import type { Exec } from "../exec";
 import type { GitHub } from "../github";
 import type { RunLogger } from "../log";
+import type { Platform } from "../platform";
 import type { WorktreeManager } from "../worktree";
 
 export interface CueEvent {
@@ -20,6 +21,7 @@ export interface StageContext {
   adapter: AgentAdapter;
   logger: RunLogger;
   exec: Exec;
+  platform: Platform;
   worktrees: WorktreeManager;
   promptsDirs: string[];
 }

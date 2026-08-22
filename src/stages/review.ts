@@ -98,7 +98,7 @@ async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): P
     durationMs: Date.now() - start,
     outcome: "ok",
   });
-  const gate = await runGate(ctx.exec, cwd, ctx.config.gate);
+  const gate = await runGate(ctx.exec, cwd, ctx.config.gate, ctx.platform);
   if (!gate.ok) throw new Error(`gate failed after review fix:\n${gate.output}`);
   await ctx.worktrees.commitAll(issue.number, "fix: address review findings");
   await ctx.worktrees.push(issue.number);

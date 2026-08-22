@@ -1,7 +1,6 @@
 import type { Exec } from "../exec";
+import { currentPlatform, type Platform } from "../platform";
 import type { AgentAdapter, AgentResult, AgentRunOptions } from "./types";
-
-const ENV_ALLOWLIST = ["PATH", "HOME", "SHELL", "TERM", "USER", "TMPDIR", "ANTHROPIC_API_KEY"];
 
 interface StreamEvent {
   type?: string;
@@ -55,11 +54,14 @@ function parseEvents(stdout: string): StreamEvent[] {
 }
 
 export class ClaudeAdapter implements AgentAdapter {
-  constructor(private exec: Exec) {}
+  constructor(
+    private exec: Exec,
+    private platform: Platform = currentPlatform(),
+  ) {}
 
   async run(opts: AgentRunOptions): Promise<AgentResult> {
     const env: Record<string, string> = {};
-    for (const key of ENV_ALLOWLIST) {
+    for (const key of this.platform.agentEnvAllowlist) {
       const value = process.env[key];
       if (value) env[key] = value;
     }

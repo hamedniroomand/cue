@@ -1,4 +1,5 @@
 import type { Exec } from "./exec";
+import type { Platform } from "./platform";
 
 export interface GateResult {
   ok: boolean;
@@ -11,10 +12,11 @@ export async function runGate(
   exec: Exec,
   cwd: string,
   gate: { test: string; lint?: string },
+  platform: Platform,
 ): Promise<GateResult> {
   const commands = [gate.test, ...(gate.lint ? [gate.lint] : [])];
   for (const command of commands) {
-    const r = await exec(["sh", "-c", command], { cwd, timeoutMs: GATE_TIMEOUT_MS });
+    const r = await exec(platform.shell(command), { cwd, timeoutMs: GATE_TIMEOUT_MS });
     if (r.code !== 0) {
       return { ok: false, output: `$ ${command}\n${r.stdout}\n${r.stderr}`.slice(-8000) };
     }

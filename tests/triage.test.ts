@@ -6,6 +6,7 @@ import type { Issue } from "../src/github";
 import { GitHub } from "../src/github";
 import { RunLogger } from "../src/log";
 import { WorktreeManager } from "../src/worktree";
+import { POSIX } from "../src/platform";
 import { PLAN_MARKER, runTriage } from "../src/stages/triage";
 import type { CueEvent, StageContext } from "../src/stages/context";
 import { makeFakeAdapter } from "./helpers/fakeAdapter";
@@ -44,6 +45,7 @@ export async function makeCtx(
     adapter,
     logger: new RunLogger(runsDir),
     exec,
+    platform: POSIX,
     worktrees: new WorktreeManager(exec, config),
     promptsDirs: ["prompts"],
     onEvent: (e) => events.push(e),
