@@ -28,7 +28,7 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import type { RunDetail, RunSummary, TranscriptRow } from "~/lib/cue";
+import type { IssueRow, RunDetail, RunSummary, TranscriptRow } from "~/lib/cue";
 import {
   fetchRun,
   fetchRuns,
@@ -36,7 +36,7 @@ import {
   formatUsd,
   normalizeEvents,
   poll,
-  shortLabel,
+  splitIssues,
   statsFor,
   toRows,
 } from "~/lib/cue";
@@ -53,31 +53,10 @@ export default function Runs() {
 
   /**
    * Active = still on the label board. Done = has runs recorded on disk but has
-   * left the board (agent:done, or closed). The board alone hides completed work.
+   * left the board (agent:done, or closed). Either list is null until both
+   * sources have landed — see splitIssues.
    */
-  const { active, done } = useMemo(() => {
-    const board = (state?.columns ?? []).flatMap((c) =>
-      c.issues.map((i) => ({
-        number: i.number,
-        title: i.title,
-        cost: i.cost,
-        label: shortLabel(c.label),
-      })),
-    );
-    const onBoard = new Set(board.map((i) => i.number));
-    const archived = (index ?? [])
-      .filter((e) => !onBoard.has(e.issue))
-      .map((e) => ({
-        number: e.issue,
-        title: e.title ?? `Issue #${e.issue}`,
-        cost: e.costUsd,
-        label: "done",
-      }));
-    return {
-      active: board.toSorted((a, b) => a.number - b.number),
-      done: archived.toSorted((a, b) => b.number - a.number),
-    };
-  }, [state, index]);
+  const { active, done } = useMemo(() => splitIssues(state, index), [state, index]);
 
   const [runs, setRuns] = useState<RunSummary[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -107,7 +86,7 @@ export default function Runs() {
   // Land on whichever tab actually holds the issue being viewed.
   const [tab, setTab] = useState("active");
   useEffect(() => {
-    if (issue != null && done.some((i) => i.number === issue)) setTab("done");
+    if (issue != null && done?.some((i) => i.number === issue)) setTab("done");
   }, [issue, done]);
 
   return (
@@ -141,13 +120,13 @@ export default function Runs() {
                     <TabsTrigger value="active">
                       Active
                       <Badge variant="secondary" className="tabular-nums">
-                        {active.length}
+                        {active?.length ?? "–"}
                       </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="done">
                       Done
                       <Badge variant="secondary" className="tabular-nums">
-                        {done.length}
+                        {done?.length ?? "–"}
                       </Badge>
                     </TabsTrigger>
                   </TabsList>
@@ -162,11 +141,7 @@ export default function Runs() {
                     <IssueList
                       issues={done}
                       selected={issue}
-                      empty={
-                        index === null
-                          ? "Loading recorded runs…"
-                          : "No completed runs recorded on this machine."
-                      }
+                      empty="No completed runs recorded on this machine."
                     />
                   </TabsContent>
                 </Tabs>
@@ -285,22 +260,25 @@ export default function Runs() {
   );
 }
 
-interface IssueRow {
-  number: number;
-  title: string;
-  cost: number;
-  label: string;
-}
-
 function IssueList({
   issues,
   selected,
   empty,
 }: {
-  issues: IssueRow[];
+  issues: IssueRow[] | null;
   selected: number | null;
   empty: string;
 }) {
+  // null = the board state or run index has not landed yet. Rendering "empty"
+  // here is what made completed issues masquerade as done, then jump to active.
+  if (issues === null) {
+    return (
+      <div className="flex flex-col gap-1">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+    );
+  }
   if (issues.length === 0) {
     return <p className="px-1 py-2 text-xs text-muted-foreground">{empty}</p>;
   }
