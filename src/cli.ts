@@ -12,6 +12,7 @@ import { VERSION } from '@/embedded';
 import { realExec } from '@/exec';
 import { GitHub } from '@/github';
 import { RunLogger } from '@/log';
+import { makeWebhookNotifier } from '@/notify';
 import { nextAction, poll, runIssue } from '@/pipeline';
 import { currentPlatform } from '@/platform';
 import { printEvent } from '@/reporter';
@@ -47,6 +48,7 @@ async function makeContext(): Promise<StageContext> {
     // Project overrides win over the prompts packaged with cue itself.
     promptsDirs: [join(cwd, '.cue', 'prompts'), join(import.meta.dir, '..', 'prompts')],
     onEvent: printEvent,
+    notify: makeWebhookNotifier(config.webhookUrl),
   };
 }
 
@@ -140,7 +142,9 @@ async function status(ctx: StageContext): Promise<void> {
   );
   for (const row of rows) consola.log(row);
   consola.log(`\nworktrees: ${ctx.config.worktreeRoot}`);
-  consola.info('stale agent:in-dev issues (crashed runs) must be relabeled manually.');
+  consola.info(
+    'stale agent:in-dev claims (crashed runs) are reset to agent:approved by `cue process` after staleClaimMinutes.',
+  );
 }
 
 const HELP = `cue — drive headless coding agents through a GitHub-issue pipeline

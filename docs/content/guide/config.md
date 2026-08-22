@@ -40,7 +40,8 @@ The schema is deliberately a little stricter than the parser: it rejects unknown
 | `devBashAllowlist` | unset | Per-command shell scoping, e.g. `"bun *"`, `"git status"`. **Enforced by Claude only.** Codex and Antigravity cannot scope individual commands: their write stages get a full shell inside the sandbox (`workspace-write` / `accept-edits`), so this field does not restrict them. |
 | `worktreeRoot` | `~/.cue/worktrees/<owner>-<repo>` | Deliberately **outside** the target repo |
 | `baseBranch` | `"main"` | Branch draft PRs target |
-| `staleClaimMinutes` | `90` | How long an `agent:in-dev` claim is considered live |
+| `staleClaimMinutes` | `90` | How long an `agent:in-dev` claim is considered live; `cue process` resets older ones to `agent:approved` |
+| `webhookUrl` | unset | POSTed a JSON notification when a plan awaits approval or a draft PR awaits merge. Payload carries `text` (Slack-compatible) and `content` (Discord-compatible) plus structured fields. Best-effort: a down webhook never fails a stage |
 
 Example:
 

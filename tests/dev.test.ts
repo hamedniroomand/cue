@@ -20,7 +20,7 @@ function planViewResult() {
 
 describe('runDev', () => {
   test('happy path: claim, implement, gate, commit, push, draft PR, in-review', async () => {
-    const { ctx, calls, runs } = await makeCtx(
+    const { ctx, calls, runs, notifications } = await makeCtx(
       [
         {
           match: [
@@ -72,6 +72,15 @@ describe('runDev', () => {
     expect(run.bashAllowlist).toBeUndefined(); // default: shell unrestricted
     expect(run.prompt).toContain('## Approach');
     expect(calls.some((c) => c.includes('--draft'))).toBe(true);
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        event: 'pr-opened',
+        issue: 7,
+        title: 'Fix login',
+        repo: 'acme/widgets',
+        url: 'https://github.com/acme/widgets/pull/9',
+      }),
+    ]);
   });
 
   test('forwards the configured devBashAllowlist to the adapter', async () => {

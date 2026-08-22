@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import type { Issue } from '@/github';
 import { GitHub } from '@/github';
 import { RunLogger } from '@/log';
+import type { Notification } from '@/notify';
 import { POSIX } from '@/platform';
 import type { CueEvent, StageContext } from '@/stages/context';
 import { PLAN_MARKER, runTriage } from '@/stages/triage';
@@ -24,10 +25,12 @@ export async function makeCtx(
   calls: string[][];
   runs: ReturnType<typeof makeFakeAdapter>['runs'];
   events: CueEvent[];
+  notifications: Notification[];
 }> {
   const { exec, calls } = makeFakeExec(ghCalls);
   const { adapter, runs } = makeFakeAdapter(adapterResponses);
   const events: CueEvent[] = [];
+  const notifications: Notification[] = [];
   const runsDir = await mkdtemp(join(tmpdir(), 'cue-test-'));
   const config = {
     repo: 'acme/widgets',
@@ -51,8 +54,11 @@ export async function makeCtx(
     worktrees: new WorktreeManager(exec, config),
     promptsDirs: ['prompts'],
     onEvent: (e) => events.push(e),
+    notify: async (n) => {
+      notifications.push(n);
+    },
   };
-  return { ctx, calls, runs, events };
+  return { ctx, calls, runs, events, notifications };
 }
 
 const GOOD_PLAN =
@@ -60,7 +66,7 @@ const GOOD_PLAN =
 
 describe('runTriage', () => {
   test('claims, plans read-only, comments with marker, labels planned', async () => {
-    const { ctx, calls, runs } = await makeCtx(
+    const { ctx, calls, runs, notifications } = await makeCtx(
       [
         { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:ready'] },
         { match: ['gh', 'issue', 'comment', '7'] },
@@ -77,6 +83,15 @@ describe('runTriage', () => {
     expect(run.prompt).toContain('Fix login');
     const commentCall = calls[1]!;
     expect(commentCall.join(' ')).toContain(PLAN_MARKER);
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        event: 'planned',
+        issue: 7,
+        title: 'Fix login',
+        repo: 'acme/widgets',
+        url: 'https://github.com/acme/widgets/issues/7',
+      }),
+    ]);
   });
 
   test('throws when the plan is missing required sections', async () => {

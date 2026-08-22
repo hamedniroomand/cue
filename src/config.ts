@@ -47,6 +47,9 @@ export const ConfigSchema = v.object({
   worktreeRoot: v.optional(v.pipe(v.string(), v.minLength(1))),
   baseBranch: v.optional(v.string(), 'main'),
   staleClaimMinutes: v.optional(positiveInt, 90),
+  // POSTed a JSON notification when a plan awaits approval or a draft PR
+  // awaits merge. Slack- and Discord-compatible payload; best-effort only.
+  webhookUrl: v.optional(v.pipe(v.string(), v.url())),
 });
 
 type FileConfig = v.InferOutput<typeof ConfigSchema>;
