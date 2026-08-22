@@ -80,21 +80,43 @@ Two ways, from lightest to heaviest:
 
 Plain reply comments are only read during a replan. The dev agent sees just the final plan.
 
-## What each stage does
+## What each stage does & why
 
-- **Triage** is read-only. It reads the issue (untrusted input) and posts a plan comment marked `<!-- cue:plan -->`.
-- **Replan** is triage plus your comments and the previous plan.
-- **Dev** creates `~/.cue/worktrees/<owner>-<repo>/issue-<n>` on branch `agent/issue-<n>`, implements the plan, then the runner commits, pushes, and opens a **draft** PR. The agent never runs `git` / `gh` side effects.
-- **Gate** is deterministic: the runner executes `gate.test` (and optional `gate.lint`) inside the worktree. Pass/fail is not a model decision. One repair attempt if tests fail.
-- **Review** posts a JSON verdict on the PR and can loop a bounded number of fix iterations (`reviewFixIterations`).
-- **Cleanup** runs at the start of every `process`: merged PR → `agent:done`; closed unmerged PR → `agent:failed`; worktree and local branch removed either way.
+Each stage in Cue is designed around a single principle: **use LLMs inside the nodes, plain deterministic code between the nodes.**
 
-## Safety model
+### 1. Triage (Read-Only Planning)
+- **What it does**: Reads the issue description, explores the codebase in read-only mode, and posts a comprehensive implementation plan comment marked with `<!-- cue:plan -->`. The issue is labeled `agent:planned`.
+- **Why**: Coding agents often fail or choose suboptimal architectures when they immediately start writing code. Forcing an explicit planning step ensures architectural clarity and lets humans review the approach before a single file is edited.
 
-- Cue only acts on issues a maintainer explicitly labeled. Issue bodies and comments are untrusted input; the prompts say so.
-- Humans gate the two irreversible moments: plan approval and PR merge. Cue never merges, never force-pushes, never touches the base branch.
-- Agent subprocesses run with a scrubbed environment — the GitHub token is never exported to them. Only the runner's own `gh` calls use it.
-- Triage and review agents get read-only tools. The dev agent's blast radius is its git worktree; the runner owns commit, push, and PR.
-- The worktree boundary is enforced by prompt, not an OS sandbox. For hard enforcement, set [`devBashAllowlist`](/guide/config) in `.cue/config.json`.
-- Caps everywhere: per-stage max turns and wall-clock timeouts, one repair attempt at the test gate, `reviewFixIterations` on the review loop, `agent:stop` to freeze an issue.
-- Every invocation's prompt, transcript, duration, and cost land in `.cue/runs/<issue>/<stage>-<timestamp>.json` in the target repo (gitignored).
+### 2. Replan (Iterative Feedback)
+- **What it does**: When you comment on an issue and swap the label to `agent:replan`, Cue runs the agent with your feedback, previous plans, and optionally web search to revise the plan.
+- **Why**: Allows natural conversation and critique directly in GitHub comments until you are satisfied with the proposed changes.
+
+### 3. Dev (Worktree Implementation)
+- **What it does**: Creates an isolated git worktree at `~/.cue/worktrees/<owner>-<repo>/issue-<n>` on a fresh branch `agent/issue-<n>`, and executes the implementation stage.
+- **Why**: Agents work in an isolated directory so your current working tree and IDE are completely undisturbed. The agent has write access only inside the worktree; the runner itself manages commits, pushes, and draft PR creation.
+
+### 4. Gate (Deterministic Test & Lint Verification)
+- **What it does**: The runner deterministically executes `gate.test` (and optional `gate.lint`) inside the worktree via the system shell.
+- **Why**: Pass/fail is never left to LLM self-evaluation. If tests fail, Cue provides the actual compiler/test output back to the agent for one targeted repair attempt. If tests still fail, the stage fails cleanly.
+
+### 5. Review (Automated Verdict & Bounded Fix Loop)
+- **What it does**: A fresh reviewer agent inspects the final git diff and posts a structured JSON verdict on the draft PR. If issues are flagged, Cue enters a bounded fix loop (`reviewFixIterations`). Once approved, the issue moves to `agent:in-review`.
+- **Why**: Automated dual-pass review catches regressions, leftover debug statements, and missing edge cases before human review.
+
+### 6. Cleanup (Reconciliation & Workspace Hygiene)
+- **What it does**: At the start of every `process` run (or via `cue cleanup`), Cue checks PR statuses:
+  - **Merged PR** → marks the issue `agent:done` and removes the local worktree and branch.
+  - **Closed unmerged PR** → marks the issue `agent:failed` and cleans up the worktree.
+- **Why**: Maintainers only need to click "Merge" on GitHub. Cue automatically cleans up disk resources on the next run.
+
+## Safety and Security Model
+
+- **Explicit Opt-in**: Cue only touches issues a repository maintainer has explicitly labeled with `agent:*`.
+- **Prompt Injection Defense**: Issue bodies, titles, and comments are treated as untrusted input. Prompts explicitly enforce isolation boundaries.
+- **Two Irreversible Human Gates**:
+  1. **Plan Approval**: `agent:planned` → `agent:approved`.
+  2. **PR Merge**: Cue creates only **draft PRs**. Cue never merges to the base branch and never force-pushes.
+- **Scrubbed Environment**: Agent subprocesses receive an allowlisted, scrubbed environment. The `GH_TOKEN` is never passed to agent subprocesses; only Cue's own internal runner uses it.
+- **Bounded Resource Caps**: Every stage has max-turn caps (Claude), per-stage timeouts, and a bounded review loop (`reviewFixIterations`). If an issue needs to be halted, applying `agent:stop` acts as an immediate kill switch.
+- **Local Audit Logs**: Full transcripts, prompts, token counts, and costs are persisted to `.cue/runs/<issue>/` and viewable via the local dashboard (`cue ui`).

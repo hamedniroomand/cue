@@ -1,12 +1,28 @@
 # Getting started
 
-Cue (pronounced *kyoo*, like “cue the lights”) is a globally-installed CLI (like `claude` or `gh`). Point it at a GitHub repo, label an issue `agent:ready`, and it drives a coding agent through a fixed pipeline:
+Cue (pronounced *kyoo*, like “cue the lights”) is a CLI tool that drives headless coding agents through a structured, safe GitHub-issue pipeline:
 
-**Triage → you approve the plan → Dev → Test gate → Review loop → Draft PR → you merge.**
+```
+Triage → you approve the plan → Dev → Test gate → Review loop → Draft PR → you merge
+```
 
-Each stage is one fresh headless `codex exec` invocation with a role prompt. Everything between stages — routing, gating, retries, label transitions — is plain TypeScript. GitHub itself holds the state, so a run can resume on another machine and the whole thread is the audit log.
+## What is Cue?
 
-One Cue install drives any number of projects. All project-specific state lives in the target repo under `.cue/`.
+Most AI coding tools run as interactive chat sessions inside your terminal or IDE. While useful for exploratory work, interactive agents require constant babysitting: you have to watch every token stream, monitor file changes, and manually catch hallucinations or wrong architectural decisions.
+
+**Cue takes a different approach:** it turns headless coding agents (OpenAI Codex, Claude Code, Google Antigravity) into an **asynchronous PR factory** using GitHub as the state store.
+
+### Key Value & Philosophy
+
+1. **Asynchronous workflow**: Label an issue `agent:ready` and move on with other tasks. No terminal waiting.
+2. **Human gates where it matters**:
+   - **Plan Approval**: An agent drafts a detailed plan in the issue comments (`agent:planned`). You review and approve it (`agent:approved`) or request changes before any code is modified.
+   - **PR Merge**: Cue only opens **draft** pull requests. Cue never merges to `main` and never force-pushes.
+3. **Deterministic Quality Gates**: The runner executes your actual test suite (`bun test`, `npm test`, `pytest`, `cargo test`) in the background. Pass/fail is a deterministic script result, not an LLM self-assessment.
+4. **Zero Git Blast Radius**: Implementation runs in dedicated git worktrees outside your repository root. The agent subprocess is never given your GitHub token (`GH_TOKEN`).
+5. **No Cloud Backend or SaaS**: All state is held in GitHub labels, issue comments, and local `.cue/runs/` logs. You can resume runs from any machine.
+
+---
 
 ## Prerequisites
 
