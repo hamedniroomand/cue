@@ -179,13 +179,49 @@ function codexRows(key: string, ev: StreamEvent): TranscriptRow[] {
   return [];
 }
 
-/** Flatten a raw transcript into renderable rows, dropping empty noise. */
+/**
+ * Flatten a raw transcript into renderable rows, dropping empty noise.
+ *
+ * Streamed text arrives in fragments — agy emits raw `text_delta` chunks that
+ * split mid-word, claude and codex emit complete blocks — and each row is
+ * rendered as markdown, so a fragment on its own breaks fences and lists
+ * mid-stream. Consecutive same-kind fragments therefore coalesce into one
+ * row: raw deltas join verbatim, complete blocks join as paragraphs.
+ */
 export function toRows(events: StreamEvent[]): TranscriptRow[] {
   const rows: TranscriptRow[] = [];
+
+  /** Append a complete text/thinking block, merging into a same-kind run. */
+  const pushBlock = (row: TranscriptRow & { kind: "text" | "thinking" }) => {
+    const prev = rows.at(-1);
+    if (
+      prev &&
+      prev.kind === row.kind &&
+      (prev.kind !== "text" || row.kind !== "text" || prev.role === row.role)
+    ) {
+      prev.text = `${prev.text}\n\n${row.text}`;
+      return;
+    }
+    rows.push(row);
+  };
+
+  /** Append a raw streamed delta verbatim — whitespace is joining material. */
+  const pushDelta = (key: string, raw: string) => {
+    const prev = rows.at(-1);
+    if (prev?.kind === "text") {
+      if (raw) prev.text += raw;
+      return;
+    }
+    if (raw.trim()) rows.push({ key, kind: "text", role: "assistant", text: raw.trimStart() });
+  };
+
   events.forEach((ev, i) => {
     const key = String(i);
     if (ev.item && (ev.type === "item.started" || ev.type === "item.completed")) {
-      rows.push(...codexRows(key, ev));
+      for (const row of codexRows(key, ev)) {
+        if (row.kind === "text" || row.kind === "thinking") pushBlock(row);
+        else rows.push(row);
+      }
       return;
     }
     if (ev.event === "init") {
@@ -202,13 +238,10 @@ export function toRows(events: StreamEvent[]): TranscriptRow[] {
           name: toolName,
           detail: summarizeToolInput(su.tool_info?.parameters ?? su.tool_input, 240),
         });
-      } else if (su.text_delta?.trim() || su.message?.trim()) {
-        rows.push({
-          key,
-          kind: "text",
-          role: "assistant",
-          text: (su.text_delta ?? su.message ?? "").trim(),
-        });
+      } else if (su.text_delta !== undefined) {
+        pushDelta(key, su.text_delta);
+      } else if (su.message?.trim()) {
+        pushBlock({ key, kind: "text", role: "assistant", text: su.message.trim() });
       }
       return;
     }
@@ -252,9 +285,9 @@ export function toRows(events: StreamEvent[]): TranscriptRow[] {
           failed: block.is_error === true,
         });
       else if (block.type === "thinking" && block.thinking?.trim())
-        rows.push({ key: bk, kind: "thinking", text: block.thinking.trim() });
+        pushBlock({ key: bk, kind: "thinking", text: block.thinking.trim() });
       else if (block.type === "text" && block.text?.trim())
-        rows.push({
+        pushBlock({
           key: bk,
           kind: "text",
           role: ev.message?.role ?? ev.type ?? "assistant",
