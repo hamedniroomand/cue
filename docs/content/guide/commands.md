@@ -78,3 +78,23 @@ cue ui --no-open
 ```
 
 Serves the [local dashboard](/guide/dashboard) for the current repo. Localhost only, no authentication.
+
+## upgrade
+
+Updates a release-installed `cue` to the latest GitHub release, in place — the
+downloaded binary is SHA-256-verified against the release's `checksums.txt`
+before it replaces the running one.
+
+```bash
+cue upgrade
+```
+
+```
+Cue v0.4.0 is out! You're on v0.3.0
+[3.12s] Upgraded.
+Welcome to Cue v0.4.0!
+```
+
+Works from any directory (no target repo needed). Source checkouts are not
+upgradable this way — use `git pull` there instead. On Windows the previous
+binary is left beside the new one as `cue.exe.old`.

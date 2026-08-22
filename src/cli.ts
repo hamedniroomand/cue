@@ -118,6 +118,7 @@ Commands:
   run <n>      run the next pipeline stage for issue #n
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
   status       issues per pipeline state, local spend, worktree root
+  upgrade      update cue to the latest GitHub release (release installs only)
   ui [port]    web dashboard on http://127.0.0.1:<port> (default 4224); opens your
                browser automatically — pass --no-open to skip
 
@@ -157,7 +158,27 @@ async function main(): Promise<void> {
     console.log(VERSION);
     return;
   }
-  const known = ['init', 'poll', 'run', 'cleanup', 'status', 'ui'];
+  if (command === 'upgrade') {
+    // Only a compiled release binary can replace itself; a source checkout
+    // (bun run src/cli.ts) would point execPath at bun, not cue.
+    const compiled = import.meta.dir.includes('$bunfs') || import.meta.dir.includes('~BUN');
+    if (!compiled) {
+      throw new Error(
+        'cue upgrade only works for release installs — use git pull on a source checkout',
+      );
+    }
+    const { runUpgrade } = await import('@/upgrade');
+    await runUpgrade({
+      currentVersion: VERSION,
+      execPath: process.execPath,
+      platform: process.platform,
+      arch: process.arch,
+      // oxlint-disable-next-line no-console -- plain stdout, matching bun upgrade's output style
+      log: (m) => console.log(m),
+    });
+    return;
+  }
+  const known = ['init', 'poll', 'run', 'cleanup', 'status', 'ui', 'upgrade'];
   if (!command || !known.includes(command)) {
     if (command) consola.error(`unknown command: ${command}\n`);
     // oxlint-disable-next-line no-console -- plain stdout so --help pipes cleanly
