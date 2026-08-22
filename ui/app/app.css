@@ -188,6 +188,26 @@
 }
 
 @layer components {
+  /* rangi inlines light-dark() colors, which resolve via color-scheme — the
+     app's theme is class-based, so the scheme is scoped here to bridge the
+     two. Long string values wrap instead of forcing a horizontal scroll. */
+  .json-view {
+    color-scheme: light;
+  }
+  .dark .json-view {
+    color-scheme: dark;
+  }
+  .json-view pre {
+    padding: 0.625rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   /* Scoped typography for transcript/prompt markdown — deliberately small
      instead of pulling in @tailwindcss/typography. Wide content (pre, table)
      scrolls inside its own container so the page never scrolls horizontally. */

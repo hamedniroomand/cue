@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { JsonView } from "~/components/json-view";
 import { Markdown } from "~/components/markdown";
 import { PlannedActions } from "~/components/planned-actions";
 import { SectionLabel, Shell } from "~/components/shell";
@@ -467,9 +468,9 @@ function RunView({ detail }: { detail: RunDetail }) {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[34rem]">
-                <pre className="pr-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                  {JSON.stringify(detail.result, null, 2)}
-                </pre>
+                <div className="pr-3">
+                  <JsonView value={detail.result} />
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
