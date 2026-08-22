@@ -13,7 +13,7 @@ label table: `docs/content/` (VitePress) and https://hamedniroomand.github.io/cu
 bun test               # full suite — runs entirely on fakes: no network, no gh, no claude
 bun run lint           # oxlint (config: .oxlintrc.json)
 bun run format         # oxfmt — always format after editing; format:check verifies
-bun run check          # lint + format:check + tsc --noEmit + tests, all in one
+bun run check          # lint (type-aware via oxlint-tsgolint) + format:check + tests, all in one
 bun run cue <init|poll|run <n>|cleanup|status|ui [port]>   # the CLI (globally: `cue`, run from inside a target repo)
 ```
 
