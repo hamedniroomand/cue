@@ -26,18 +26,26 @@
     "check": "bun run lint && bun run format:check && bun test",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "prepare": "husky"
   },
   "dependencies": {
     "valibot": "^1.4.2"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "mermaid": "^11.17.0",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
     "oxlint-tsgolint": "^7.0.2001",
     "vitepress": "^2.0.0-alpha.19",
     "vitepress-plugin-mermaid": "^2.0.17"
+  },
+  "lint-staged": {
+    "*": [
+      "oxlint --fix"
+    ]
   }
 }
