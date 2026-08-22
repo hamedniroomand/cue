@@ -1,6 +1,6 @@
 # Clone and setup
 
-This page is for people changing Conductor itself. If you only want to run agents against your own repos, [install the release binary](/guide/getting-started#install-the-cli) and stop there.
+This page is for people changing Cue itself. If you only want to run agents against your own repos, [install the release binary](/guide/getting-started#install-the-cli) and stop there.
 
 ## Prerequisites
 
@@ -10,23 +10,23 @@ This page is for people changing Conductor itself. If you only want to run agent
 ## Clone
 
 ```bash
-git clone https://github.com/hamedniroomand/conductor.git
-cd conductor
+git clone https://github.com/hamedniroomand/cue.git
+cd cue
 bun install
 ```
 
-The CLI entrypoint is `src/cli.ts` (`bin: conductor` in `package.json`).
+The CLI entrypoint is `src/cli.ts` (`bin: cue` in `package.json`).
 
 ## Run from the checkout
 
 Without installing globally:
 
 ```bash
-bun run conductor --help
-bun run conductor status   # from inside a *target* repo — see below
+bun run cue --help
+bun run cue status   # from inside a *target* repo — see below
 ```
 
-To put `conductor` on your `PATH` from this checkout (needs Bun):
+To put `cue` on your `PATH` from this checkout (needs Bun):
 
 ```bash
 bun link
@@ -36,22 +36,22 @@ bun link
 
 ## Point it at a target repo
 
-Conductor always runs with **cwd = the target project**, not this checkout. Per-project state lives in that project's `.conductor/`.
+Cue always runs with **cwd = the target project**, not this checkout. Per-project state lives in that project's `.cue/`.
 
 ```bash
 cd /path/to/some-other-repo
-conductor init
-conductor status
+cue init
+cue status
 ```
 
 Two directories, two jobs:
 
 | Directory | What it is |
 | --- | --- |
-| This git clone | The conductor **product** — TypeScript, prompts, dashboard source |
-| The target repo | The **project** issues are about — `.conductor/config.json`, labels, worktrees, draft PRs |
+| This git clone | The Cue **product** — TypeScript, prompts, dashboard source |
+| The target repo | The **project** issues are about — `.cue/config.json`, labels, worktrees, draft PRs |
 
-Do not run `conductor poll` against the conductor repo unless you intend to let agents open PRs here.
+Do not run `cue poll` against this checkout unless you intend to let agents open PRs here.
 
 ## Verify the checkout
 

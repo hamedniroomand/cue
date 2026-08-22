@@ -6,7 +6,7 @@ import { RunLogger } from "../src/log";
 
 describe("RunLogger", () => {
   test("writes one JSON file per invocation and sums costs", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "conductor-runs-"));
+    const dir = await mkdtemp(join(tmpdir(), "cue-runs-"));
     const logger = new RunLogger(dir);
     const p1 = await logger.log(42, "triage", {
       prompt: "p",
@@ -31,7 +31,7 @@ describe("RunLogger", () => {
   });
 
   test("list returns per-run summaries without prompt or result payloads", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "conductor-runs-"));
+    const dir = await mkdtemp(join(tmpdir(), "cue-runs-"));
     const logger = new RunLogger(dir);
     await logger.log(7, "triage", {
       prompt: "big prompt",
@@ -58,7 +58,7 @@ describe("RunLogger", () => {
   });
 
   test("read returns the full entry for one run id", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "conductor-runs-"));
+    const dir = await mkdtemp(join(tmpdir(), "cue-runs-"));
     const logger = new RunLogger(dir);
     const path = await logger.log(5, "triage", {
       prompt: "the exact prompt",
@@ -77,7 +77,7 @@ describe("RunLogger", () => {
   });
 
   test("read returns null for unknown issues, unknown ids, and traversal attempts", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "conductor-runs-"));
+    const dir = await mkdtemp(join(tmpdir(), "cue-runs-"));
     const logger = new RunLogger(dir);
     await logger.log(5, "triage", {
       prompt: "p",
@@ -95,7 +95,7 @@ describe("RunLogger", () => {
   });
 
   test("index lists every issue with recorded runs, recovering titles from prompts", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "conductor-runs-"));
+    const dir = await mkdtemp(join(tmpdir(), "cue-runs-"));
     const logger = new RunLogger(dir);
     await logger.log(4, "triage", {
       prompt: "You are the triage agent.\n\nIssue #4: Configure Bun and linter\n\nbody",
@@ -144,7 +144,7 @@ describe("RunLogger", () => {
   });
 
   test("index returns an empty list when nothing has been recorded", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "conductor-runs-"));
+    const dir = await mkdtemp(join(tmpdir(), "cue-runs-"));
     expect(await new RunLogger(dir).index()).toEqual([]);
     expect(await new RunLogger(join(dir, "missing")).index()).toEqual([]);
   });

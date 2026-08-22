@@ -1,9 +1,9 @@
 {
-  "name": "conductor",
+  "name": "cue",
   "version": "0.2.0",
   "license": "MIT",
   "bin": {
-    "conductor": "./src/cli.ts"
+    "cue": "./src/cli.ts"
   },
   "files": [
     "src",
@@ -12,7 +12,7 @@
   ],
   "type": "module",
   "scripts": {
-    "conductor": "bun run src/cli.ts",
+    "cue": "bun run src/cli.ts",
     "test": "bun test",
     "ui:dev": "bun run --cwd ui dev",
     "ui:build": "bun run --cwd ui build",

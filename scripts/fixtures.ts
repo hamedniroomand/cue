@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Snapshot the local .conductor run logs into ui/app/fixtures/data.json so the
- * dashboard renders without a conductor process. Run: bun run fixtures
+ * Snapshot the local .cue run logs into ui/app/fixtures/data.json so the
+ * dashboard renders without a cue process. Run: bun run fixtures
  */
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-const RUNS_DIR = process.env.CONDUCTOR_RUNS_DIR ?? ".runs";
+const RUNS_DIR = process.env.CUE_RUNS_DIR ?? ".runs";
 const OUT = "ui/app/fixtures/data.json";
 
 const BOARD_LABELS = [
@@ -72,8 +72,8 @@ for (const issue of issueDirs.toSorted()) {
 const cost = (issue: string) => (runs[issue] ?? []).reduce((t, r) => t + (r.costUsd ?? 0), 0);
 
 const state = {
-  repo: process.env.CONDUCTOR_FIXTURE_REPO ?? "conductor/pilot",
-  worktreeRoot: "~/.conductor/worktrees/conductor-pilot",
+  repo: process.env.CUE_FIXTURE_REPO ?? "cue/pilot",
+  worktreeRoot: "~/.cue/worktrees/cue-pilot",
   models: { triage: "haiku", dev: "sonnet", review: "sonnet" },
   busy: null,
   columns: BOARD_LABELS.map((label) => ({

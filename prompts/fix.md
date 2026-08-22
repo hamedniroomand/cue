@@ -5,7 +5,7 @@ Rules:
 
 - Never run git commit, git push, or gh — the runner does that.
 - Do not weaken, skip, or delete tests to get green. Fix the actual problem.
-- Never read, search, or access anything outside this worktree (no conductor
+- Never read, search, or access anything outside this worktree (no cue
   installation, global node_modules, or home directory). If information you need is
   missing, say so in your final message instead of hunting the filesystem.
 

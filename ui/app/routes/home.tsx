@@ -32,8 +32,8 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { formatDuration, formatUsd, poll, shortLabel, STAGES } from "~/lib/conductor";
-import { useAllRuns, useConductor, useRunIndex } from "~/lib/use-conductor";
+import { formatDuration, formatUsd, poll, shortLabel, STAGES } from "~/lib/cue";
+import { useAllRuns, useCue, useRunIndex } from "~/lib/use-cue";
 import { cn } from "~/lib/utils";
 
 const STAGE_COLORS: Record<string, string> = {
@@ -51,7 +51,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function Home() {
-  const { state, events, live } = useConductor();
+  const { state, events, live } = useCue();
   const index = useRunIndex();
   const runs = useAllRuns(state, index);
 
@@ -101,7 +101,7 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "conductor-report.json";
+    a.download = "cue-report.json";
     a.click();
     URL.revokeObjectURL(url);
   }

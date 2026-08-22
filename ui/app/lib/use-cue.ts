@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { ConductorEvent, DashboardState, RunIndexEntry, RunSummary } from "./conductor";
-import { fetchRunIndex, fetchRuns, fetchState } from "./conductor";
+import type { CueEvent, DashboardState, RunIndexEntry, RunSummary } from "./cue";
+import { fetchRunIndex, fetchRuns, fetchState } from "./cue";
 
 const MAX_LOG_LINES = 400;
 
 /** Board state plus the live SSE event tail from /api/events. */
-export function useConductor() {
+export function useCue() {
   const [state, setState] = useState<DashboardState | null>(null);
-  const [events, setEvents] = useState<ConductorEvent[]>([]);
+  const [events, setEvents] = useState<CueEvent[]>([]);
   const [live, setLive] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -31,7 +31,7 @@ export function useConductor() {
     source.addEventListener("open", () => setLive(true));
     source.addEventListener("error", () => setLive(false));
     source.addEventListener("message", (msg) => {
-      const event = JSON.parse((msg as MessageEvent<string>).data) as ConductorEvent;
+      const event = JSON.parse((msg as MessageEvent<string>).data) as CueEvent;
       setEvents((prev) => [...prev.slice(-MAX_LOG_LINES + 1), event]);
       if (event.kind === "done" || event.kind === "error") void refresh();
     });

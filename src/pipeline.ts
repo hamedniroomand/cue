@@ -37,7 +37,7 @@ export async function runIssue(ctx: StageContext, issue: Issue): Promise<void> {
     emit("error", message);
     await ctx.github.comment(
       issue.number,
-      `⚠️ conductor ${action} failed: ${message.slice(0, 1500)}\n\nSee \`.conductor/runs/${issue.number}/\` on the runner machine for transcripts. Reset the label to retry.`,
+      `⚠️ cue ${action} failed: ${message.slice(0, 1500)}\n\nSee \`.cue/runs/${issue.number}/\` on the runner machine for transcripts. Reset the label to retry.`,
     );
     await ctx.github.addLabel(issue.number, "agent:failed");
   }

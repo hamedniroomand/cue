@@ -1,11 +1,11 @@
 import type { AgentAdapter } from "../adapters/types";
-import type { ConductorConfig } from "../config";
+import type { CueConfig } from "../config";
 import type { Exec } from "../exec";
 import type { GitHub } from "../github";
 import type { RunLogger } from "../log";
 import type { WorktreeManager } from "../worktree";
 
-export interface ConductorEvent {
+export interface CueEvent {
   ts: number;
   issue: number;
   stage: string;
@@ -14,8 +14,8 @@ export interface ConductorEvent {
 }
 
 export interface StageContext {
-  onEvent: (event: ConductorEvent) => void;
-  config: ConductorConfig;
+  onEvent: (event: CueEvent) => void;
+  config: CueConfig;
   github: GitHub;
   adapter: AgentAdapter;
   logger: RunLogger;

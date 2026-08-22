@@ -25,8 +25,7 @@ const ISSUE: Issue = {
   body: "It breaks",
   labels: ["agent:approved"],
 };
-const PLAN_COMMENT =
-  "<!-- conductor:plan -->\n## Approach\ndo it\n## Acceptance criteria\n- [ ] works";
+const PLAN_COMMENT = "<!-- cue:plan -->\n## Approach\ndo it\n## Acceptance criteria\n- [ ] works";
 
 function planViewResult() {
   return { stdout: JSON.stringify({ comments: [{ body: PLAN_COMMENT }] }) };

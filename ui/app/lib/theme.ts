@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export type Theme = "light" | "dark" | "system";
 
-export const THEME_KEY = "conductor-theme";
+export const THEME_KEY = "cue-theme";
 
 /**
  * The `dark` variant is class-based (`@custom-variant dark (&:is(.dark *))`), so

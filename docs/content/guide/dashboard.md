@@ -1,14 +1,14 @@
 # Dashboard
 
-`conductor ui` serves a local dashboard for the **current** repo. It is localhost only and has no authentication.
+`cue ui` serves a local dashboard for the **current** repo. It is localhost only and has no authentication.
 
 ```bash
-conductor ui          # http://127.0.0.1:4224
-conductor ui 5000
-conductor ui --no-open
+cue ui          # http://127.0.0.1:4224
+cue ui 5000
+cue ui --no-open
 ```
 
-It is the same pipeline as the CLI. GitHub labels and `.conductor/runs/` stay the shared state either way.
+It is the same pipeline as the CLI. GitHub labels and `.cue/runs/` stay the shared state either way.
 
 ## Overview
 
@@ -21,7 +21,7 @@ You can trigger `poll` and `run` from the dashboard; they execute the same TypeS
 
 ## Runs
 
-A transcript explorer over `.conductor/runs/`, split into:
+A transcript explorer over `.cue/runs/`, split into:
 
 - **Active** — issues still on the label board
 - **Done** — recorded runs whose issue has left the board (merged, closed, or `agent:done`)
@@ -42,8 +42,8 @@ The SPA lives in `ui/` (react-router in library mode, React Compiler, shadcn `ba
 
 ```bash
 bun run ui:build     # required after changing ui/app/
-bun run ui:dev       # Vite on :5173, proxies /api to a running conductor ui
-bun run fixtures     # snapshot local .conductor runs so the SPA renders without the API
+bun run ui:dev       # Vite on :5173, proxies /api to a running cue ui
+bun run fixtures     # snapshot local .cue runs so the SPA renders without the API
 ```
 
 Contributor notes: [Contributing](/develop/contributing#dashboard).

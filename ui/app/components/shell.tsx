@@ -6,7 +6,7 @@ import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import { Button } from "~/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import type { DashboardState } from "~/lib/conductor";
+import type { DashboardState } from "~/lib/cue";
 import { cn } from "~/lib/utils";
 
 const NAV = [
@@ -56,7 +56,7 @@ export function Shell({
               <ActivityIcon className="size-3.5" />
             </span>
             {/* Wordmark text is the first thing to go; the icon still identifies the app. */}
-            <span className="hidden text-sm font-semibold tracking-tight sm:inline">conductor</span>
+            <span className="hidden text-sm font-semibold tracking-tight sm:inline">Cue</span>
           </div>
 
           <nav className="flex shrink-0 items-center gap-1">

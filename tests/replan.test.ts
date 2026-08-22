@@ -18,18 +18,18 @@ function commentsPayload() {
     stdout: JSON.stringify({
       comments: [
         {
-          author: { login: "conductor-bot" },
-          body: "<!-- conductor:plan -->\nold plan: use express",
+          author: { login: "cue-bot" },
+          body: "<!-- cue:plan -->\nold plan: use express",
         },
         { author: { login: "hamed" }, body: "find a better solution, no heavy frameworks" },
-        { author: { login: "conductor-bot" }, body: "⚠️ conductor dev failed: whatever" },
+        { author: { login: "cue-bot" }, body: "⚠️ cue dev failed: whatever" },
       ],
     }),
   };
 }
 
 describe("runReplan", () => {
-  test("revises using previous plan + human feedback, excluding conductor noise", async () => {
+  test("revises using previous plan + human feedback, excluding cue noise", async () => {
     const { ctx, calls, runs } = await makeCtx(
       [
         { match: ["gh", "issue", "edit", "7", "--repo", "*", "--remove-label", "agent:replan"] },
@@ -46,7 +46,7 @@ describe("runReplan", () => {
     expect(run.prompt).not.toContain("dev failed");
     expect(run.allowedTools).toContain("WebSearch");
     expect(run.model).toBe("haiku");
-    expect(calls[2]!.join(" ")).toContain("<!-- conductor:plan -->");
+    expect(calls[2]!.join(" ")).toContain("<!-- cue:plan -->");
   });
 
   test("throws when there is no previous plan to revise", async () => {
@@ -68,7 +68,7 @@ describe("runReplan", () => {
           match: ["gh", "issue", "view", "7"],
           result: {
             stdout: JSON.stringify({
-              comments: [{ author: { login: "bot" }, body: "<!-- conductor:plan -->\nold" }],
+              comments: [{ author: { login: "bot" }, body: "<!-- cue:plan -->\nold" }],
             }),
           },
         },

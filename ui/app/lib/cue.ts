@@ -1,8 +1,8 @@
 /**
- * Client-side view of the conductor API (src/server.ts).
+ * Client-side view of the cue API (src/server.ts).
  *
  * Every fetch falls back to the bundled fixtures in app/fixtures so the
- * dashboard is reviewable without a conductor process running.
+ * dashboard is reviewable without a cue process running.
  */
 
 export interface BoardIssue {
@@ -20,7 +20,7 @@ export interface DashboardState {
   columns: Array<{ label: string; issues: BoardIssue[] }>;
 }
 
-export interface ConductorEvent {
+export interface CueEvent {
   ts: number;
   issue: number;
   stage: string;

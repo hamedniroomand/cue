@@ -9,9 +9,9 @@ import { makeCtx } from "./triage.test";
 // (CI runs `check` before `ui:build`). Point it at a fixture dir instead so
 // these tests never depend on a real dashboard build.
 beforeAll(async () => {
-  const dir = await mkdtemp(join(tmpdir(), "conductor-client-"));
-  await Bun.write(join(dir, "index.html"), "<!doctype html><title>conductor fixture</title>");
-  process.env.CONDUCTOR_CLIENT_DIR = dir;
+  const dir = await mkdtemp(join(tmpdir(), "cue-client-"));
+  await Bun.write(join(dir, "index.html"), "<!doctype html><title>cue fixture</title>");
+  process.env.CUE_CLIENT_DIR = dir;
 });
 
 /** Boot the dashboard server on an ephemeral port. */
@@ -41,7 +41,7 @@ describe("dashboard server", () => {
       const res = await fetch(`${url}/../package.json`);
       const body = await res.text();
       // Traversal is answered with the SPA shell, never the package manifest.
-      expect(body).not.toContain('"name": "conductor"');
+      expect(body).not.toContain('"name": "cue"');
       expect(body).not.toContain('"bin"');
     } finally {
       stop();

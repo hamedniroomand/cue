@@ -28,7 +28,7 @@ describe("runIssue failure handling", () => {
     const issue: Issue = { number: 7, title: "t", body: "b", labels: ["agent:ready"] };
     await runIssue(ctx, issue);
     const comment = calls[1]!.join(" ");
-    expect(comment).toContain("conductor triage failed");
+    expect(comment).toContain("cue triage failed");
     expect(comment).toContain("missing required sections");
   });
 

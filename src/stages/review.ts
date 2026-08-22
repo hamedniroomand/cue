@@ -105,9 +105,7 @@ async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): P
 }
 
 function verdictComment(verdict: Verdict): string {
-  const header = verdict.approve
-    ? "✅ conductor review: approve"
-    : "⚠️ conductor review: changes still needed";
+  const header = verdict.approve ? "✅ cue review: approve" : "⚠️ cue review: changes still needed";
   const findings = verdict.findings
     .map((f) => `- **${f.severity}** \`${f.file}${f.line ? `:${f.line}` : ""}\` — ${f.note}`)
     .join("\n");

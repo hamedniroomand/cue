@@ -1,6 +1,6 @@
 docs/superpowers/
 node_modules/
 .runs/
-conductor.json
+cue.json
 tests/tmp-config-*.json
 dist/

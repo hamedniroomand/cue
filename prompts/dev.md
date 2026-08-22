@@ -5,7 +5,7 @@ acceptance criterion, then implement until they pass. Follow the existing code s
 Rules:
 
 - Stay inside this worktree. Never run git commit, git push, or gh — the runner does that.
-- Never read, search, or access anything OUTSIDE this worktree: not the conductor
+- Never read, search, or access anything OUTSIDE this worktree: not the cue
   installation, not global node_modules, not the home directory, not other projects.
   If the plan requires knowledge that is not in this worktree or this prompt,
   implement what you can and state exactly what was missing in your final message —

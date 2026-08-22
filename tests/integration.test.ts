@@ -5,7 +5,7 @@ import { makeCtx } from "./triage.test";
 const PLAN =
   "## Problem\np\n## Approach\na\n## Files likely touched\n- f\n## Acceptance criteria\n- [ ] c\n## Risk\nlow";
 const PLAN_VIEW = {
-  stdout: JSON.stringify({ comments: [{ body: `<!-- conductor:plan -->\n${PLAN}` }] }),
+  stdout: JSON.stringify({ comments: [{ body: `<!-- cue:plan -->\n${PLAN}` }] }),
 };
 const APPROVE = JSON.stringify({ approve: true, findings: [] });
 

@@ -6,10 +6,10 @@ import { parseRepoFromRemote, resolveConfig } from "../src/config";
 import { makeFakeExec } from "./helpers/fakeExec";
 
 async function tmpRepo(config?: unknown): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "conductor-cfg-"));
+  const dir = await mkdtemp(join(tmpdir(), "cue-cfg-"));
   if (config !== undefined) {
-    await mkdir(`${dir}/.conductor`, { recursive: true });
-    await Bun.write(`${dir}/.conductor/config.json`, JSON.stringify(config));
+    await mkdir(`${dir}/.cue`, { recursive: true });
+    await Bun.write(`${dir}/.cue/config.json`, JSON.stringify(config));
   }
   return dir;
 }
@@ -41,7 +41,7 @@ describe("resolveConfig", () => {
     expect(cfg.gate).toEqual({ test: "bun test" });
     expect(cfg.reviewFixIterations).toBe(2);
     expect(cfg.baseBranch).toBe("main");
-    expect(cfg.worktreeRoot).toBe(join(homedir(), ".conductor", "worktrees", "acme-widgets"));
+    expect(cfg.worktreeRoot).toBe(join(homedir(), ".cue", "worktrees", "acme-widgets"));
     expect(cfg.devBashAllowlist).toBeUndefined(); // default: Bash unrestricted
   });
 

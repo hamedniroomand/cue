@@ -28,7 +28,7 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import type { RunDetail, RunSummary, TranscriptRow } from "~/lib/conductor";
+import type { RunDetail, RunSummary, TranscriptRow } from "~/lib/cue";
 import {
   fetchRun,
   fetchRuns,
@@ -39,15 +39,15 @@ import {
   shortLabel,
   statsFor,
   toRows,
-} from "~/lib/conductor";
-import { useConductor, useRunIndex } from "~/lib/use-conductor";
+} from "~/lib/cue";
+import { useCue, useRunIndex } from "~/lib/use-cue";
 import { cn } from "~/lib/utils";
 
 const runId = (r: RunSummary) => `${r.stage}-${r.ts}`;
 
 export default function Runs() {
   const params = useParams();
-  const { state } = useConductor();
+  const { state } = useCue();
   const index = useRunIndex();
   const issue = params.issue ? Number(params.issue) : null;
 
@@ -119,7 +119,7 @@ export default function Runs() {
           <p className="max-w-2xl text-body-md text-muted-foreground">
             Every adapter invocation is recorded under{" "}
             <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs">
-              .conductor/runs/&lt;issue&gt;/&lt;stage&gt;-&lt;ts&gt;.json
+              .cue/runs/&lt;issue&gt;/&lt;stage&gt;-&lt;ts&gt;.json
             </code>{" "}
             with the exact prompt sent, the full event stream, cost, and duration.
           </p>

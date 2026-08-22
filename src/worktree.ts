@@ -32,7 +32,7 @@ export class WorktreeManager {
       "commit",
       "--allow-empty",
       "-m",
-      "chore: initialize repository (conductor bootstrap)",
+      "chore: initialize repository (cue bootstrap)",
     ]);
     await this.git(this.cfg.repoPath, ["push", "-u", "origin", this.cfg.baseBranch]);
   }

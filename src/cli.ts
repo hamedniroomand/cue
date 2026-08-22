@@ -14,19 +14,15 @@ import type { StageContext } from "./stages/context";
 import { WorktreeManager } from "./worktree";
 
 const LABELS: Array<[name: string, color: string, desc: string]> = [
-  ["agent:ready", "0E8A16", "Conductor: pick this up for triage"],
-  ["agent:planned", "FBCA04", "Conductor: plan posted, awaiting human approval"],
-  ["agent:approved", "0052CC", "Conductor: plan approved, ready for dev"],
-  [
-    "agent:replan",
-    "F9D0C4",
-    "Conductor: human requested a revised plan (leave feedback as comments)",
-  ],
-  ["agent:in-dev", "5319E7", "Conductor: dev stage running"],
-  ["agent:in-review", "D93F0B", "Conductor: draft PR open, awaiting human merge"],
-  ["agent:done", "C5DEF5", "Conductor: PR merged, pipeline complete"],
-  ["agent:failed", "B60205", "Conductor: a stage failed, see issue comments"],
-  ["agent:stop", "000000", "Conductor: kill switch, never touch this issue"],
+  ["agent:ready", "0E8A16", "Cue: pick this up for triage"],
+  ["agent:planned", "FBCA04", "Cue: plan posted, awaiting human approval"],
+  ["agent:approved", "0052CC", "Cue: plan approved, ready for dev"],
+  ["agent:replan", "F9D0C4", "Cue: human requested a revised plan (leave feedback as comments)"],
+  ["agent:in-dev", "5319E7", "Cue: dev stage running"],
+  ["agent:in-review", "D93F0B", "Cue: draft PR open, awaiting human merge"],
+  ["agent:done", "C5DEF5", "Cue: PR merged, pipeline complete"],
+  ["agent:failed", "B60205", "Cue: a stage failed, see issue comments"],
+  ["agent:stop", "000000", "Cue: kill switch, never touch this issue"],
 ];
 
 async function makeContext(): Promise<StageContext> {
@@ -38,11 +34,11 @@ async function makeContext(): Promise<StageContext> {
     config,
     github: new GitHub(realExec, config.repo),
     adapter,
-    logger: new RunLogger(join(cwd, ".conductor", "runs")),
+    logger: new RunLogger(join(cwd, ".cue", "runs")),
     exec: realExec,
     worktrees: new WorktreeManager(realExec, config),
-    // Project overrides win over the prompts packaged with conductor itself.
-    promptsDirs: [join(cwd, ".conductor", "prompts"), join(import.meta.dir, "..", "prompts")],
+    // Project overrides win over the prompts packaged with cue itself.
+    promptsDirs: [join(cwd, ".cue", "prompts"), join(import.meta.dir, "..", "prompts")],
     onEvent: (e) => {
       const tag = e.kind === "progress" ? "" : ` ${e.kind.toUpperCase()}`;
       console.log(`[${e.stage}${e.issue ? ` #${e.issue}` : ""}]${tag} ${e.message}`);
@@ -51,18 +47,18 @@ async function makeContext(): Promise<StageContext> {
 }
 
 async function scaffold(cwd: string): Promise<void> {
-  await mkdir(join(cwd, ".conductor", "prompts"), { recursive: true });
-  const configFile = Bun.file(join(cwd, ".conductor", "config.json"));
+  await mkdir(join(cwd, ".cue", "prompts"), { recursive: true });
+  const configFile = Bun.file(join(cwd, ".cue", "config.json"));
   if (!(await configFile.exists())) {
     await Bun.write(configFile, `${JSON.stringify({ gate: { test: "bun test" } }, null, 2)}\n`);
-    console.log("created .conductor/config.json — adjust the gate to this project's test command");
+    console.log("created .cue/config.json — adjust the gate to this project's test command");
   }
   const gitignorePath = join(cwd, ".gitignore");
   const gitignoreFile = Bun.file(gitignorePath);
   const current = (await gitignoreFile.exists()) ? await gitignoreFile.text() : "";
-  if (!current.includes(".conductor/runs/")) {
-    await Bun.write(gitignorePath, `${current.replace(/\n?$/, "\n")}.conductor/runs/\n`);
-    console.log("added .conductor/runs/ to .gitignore");
+  if (!current.includes(".cue/runs/")) {
+    await Bun.write(gitignorePath, `${current.replace(/\n?$/, "\n")}.cue/runs/\n`);
+    console.log("added .cue/runs/ to .gitignore");
   }
 }
 
@@ -107,12 +103,12 @@ async function status(ctx: StageContext): Promise<void> {
   console.log("note: stale agent:in-dev issues (crashed runs) must be relabeled manually.");
 }
 
-const HELP = `conductor — drive headless coding agents through a GitHub-issue pipeline
+const HELP = `cue — drive headless coding agents through a GitHub-issue pipeline
 
-Usage: conductor <command> (run from inside a target repo)
+Usage: cue <command> (run from inside a target repo)
 
 Commands:
-  init         create the agent:* labels and scaffold .conductor/ in this repo
+  init         create the agent:* labels and scaffold .cue/ in this repo
   poll         reconcile finished PRs, then run every actionable issue
   run <n>      run the next pipeline stage for issue #n
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
@@ -122,13 +118,13 @@ Commands:
 
 Flags:
   -h, --help      show this help
-  -v, --version   print the conductor version
+  -v, --version   print the cue version
 
 Labels drive the pipeline: agent:ready → triage plans, a human approves
 (agent:approved) → dev implements + review verdicts + draft PR, a human merges.
 agent:replan requests a revised plan; agent:stop freezes an issue.
 Full state machine and configuration:
-https://hamedniroomand.github.io/conductor/`;
+https://hamedniroomand.github.io/cue/`;
 
 async function openBrowser(url: string): Promise<void> {
   const cmd =
@@ -171,7 +167,7 @@ async function main(): Promise<void> {
       break;
     case "run": {
       const n = Number(arg);
-      if (!Number.isInteger(n)) throw new Error("usage: conductor run <issue-number>");
+      if (!Number.isInteger(n)) throw new Error("usage: cue run <issue-number>");
       const issues = [
         ...(await ctx.github.listIssues("agent:ready")),
         ...(await ctx.github.listIssues("agent:approved")),
@@ -193,11 +189,10 @@ async function main(): Promise<void> {
       const uiArgs = process.argv.slice(3);
       const portArg = uiArgs.find((a) => !a.startsWith("--"));
       const port = portArg ? Number(portArg) : 4224;
-      if (!Number.isInteger(port) || port <= 0)
-        throw new Error("usage: conductor ui [port] [--no-open]");
+      if (!Number.isInteger(port) || port <= 0) throw new Error("usage: cue ui [port] [--no-open]");
       const { startServer } = await import("./server");
       const { url } = startServer(ctx, port);
-      console.log(`conductor ui for ${ctx.config.repo}: ${url}`);
+      console.log(`cue ui for ${ctx.config.repo}: ${url}`);
       if (!uiArgs.includes("--no-open")) await openBrowser(url);
       break;
     }

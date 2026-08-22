@@ -2,7 +2,7 @@ import type { Issue } from "../github";
 import { loadPrompt, renderPrompt } from "../prompt";
 import type { StageContext } from "./context";
 
-export const PLAN_MARKER = "<!-- conductor:plan -->";
+export const PLAN_MARKER = "<!-- cue:plan -->";
 const TRIAGE_TIMEOUT_MS = 15 * 60_000;
 
 export async function runTriage(ctx: StageContext, issue: Issue): Promise<void> {

@@ -5,7 +5,7 @@ import { makeCtx } from "./triage.test";
 
 const ISSUE: Issue = { number: 7, title: "Fix login", body: "b", labels: ["agent:in-review"] };
 const PLAN_VIEW = {
-  stdout: JSON.stringify({ comments: [{ body: "<!-- conductor:plan -->\nplan" }] }),
+  stdout: JSON.stringify({ comments: [{ body: "<!-- cue:plan -->\nplan" }] }),
 };
 const APPROVE = JSON.stringify({ approve: true, findings: [] });
 const REJECT = JSON.stringify({

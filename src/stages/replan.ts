@@ -14,7 +14,7 @@ export async function runReplan(ctx: StageContext, issue: Issue): Promise<void> 
   const feedback =
     comments
       .slice(planIdx + 1)
-      .filter((c) => !c.body.includes(PLAN_MARKER) && !c.body.includes("⚠️ conductor"))
+      .filter((c) => !c.body.includes(PLAN_MARKER) && !c.body.includes("⚠️ cue"))
       .map((c) => `@${c.author}: ${c.body}`)
       .join("\n\n") ||
     "(no explicit feedback was left — the human simply wants a better plan than the previous one)";

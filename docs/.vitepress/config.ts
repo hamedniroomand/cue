@@ -1,19 +1,19 @@
 import { defineConfig } from "vitepress";
 
-const repo = "https://github.com/hamedniroomand/conductor";
-const docs = "https://hamedniroomand.github.io/conductor";
+const repo = "https://github.com/hamedniroomand/cue";
+const docs = "https://hamedniroomand.github.io/cue";
 
 export default defineConfig({
   srcDir: "content",
-  base: "/conductor/",
-  title: "Conductor",
+  base: "/cue/",
+  title: "Cue",
   description:
     "Drive headless coding agents through a GitHub-issue pipeline: triage, human-approved plan, implement, test, review, draft PR.",
   lastUpdated: true,
   cleanUrls: true,
   head: [
     ["link", { rel: "canonical", href: docs }],
-    ["meta", { name: "og:title", content: "Conductor" }],
+    ["meta", { name: "og:title", content: "Cue" }],
     [
       "meta",
       {
@@ -58,7 +58,7 @@ export default defineConfig({
     outline: { level: [2, 3] },
     footer: {
       message: "Released under the MIT License.",
-      copyright: "Humans approve the plan and the merge. Conductor does the rest.",
+      copyright: "Humans approve the plan and the merge. Cue does the rest.",
     },
   },
 });

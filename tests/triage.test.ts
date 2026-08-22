@@ -7,7 +7,7 @@ import { GitHub } from "../src/github";
 import { RunLogger } from "../src/log";
 import { WorktreeManager } from "../src/worktree";
 import { PLAN_MARKER, runTriage } from "../src/stages/triage";
-import type { ConductorEvent, StageContext } from "../src/stages/context";
+import type { CueEvent, StageContext } from "../src/stages/context";
 import { makeFakeAdapter } from "./helpers/fakeAdapter";
 import { makeFakeExec, type ExpectedCall } from "./helpers/fakeExec";
 
@@ -20,12 +20,12 @@ export async function makeCtx(
   ctx: StageContext;
   calls: string[][];
   runs: ReturnType<typeof makeFakeAdapter>["runs"];
-  events: ConductorEvent[];
+  events: CueEvent[];
 }> {
   const { exec, calls } = makeFakeExec(ghCalls);
   const { adapter, runs } = makeFakeAdapter(adapterResponses);
-  const events: ConductorEvent[] = [];
-  const runsDir = await mkdtemp(join(tmpdir(), "conductor-test-"));
+  const events: CueEvent[] = [];
+  const runsDir = await mkdtemp(join(tmpdir(), "cue-test-"));
   const config = {
     repo: "acme/widgets",
     repoPath: "/repos/widgets",

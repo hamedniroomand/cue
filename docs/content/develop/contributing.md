@@ -4,7 +4,7 @@ The test suite is the contract. Write the failing test first, then the code. The
 
 ## Commands
 
-From the conductor checkout:
+From the Cue checkout:
 
 ```bash
 bun test                 # full suite
@@ -12,7 +12,7 @@ bun run lint             # oxlint (.oxlintrc.json)
 bun run format           # oxfmt — run after editing
 bun run format:check
 bun run check            # lint + format:check + tests
-bun run conductor <cmd>  # CLI against cwd (usually a target repo)
+bun run cue <cmd>  # CLI against cwd (usually a target repo)
 ```
 
 `tsconfig` has `noUncheckedIndexedAccess`, so indexed access needs a guard or a deliberate `!`. Tests use `bun test` (the code depends on Bun APIs) — do not migrate them to another framework.
@@ -53,7 +53,7 @@ bun run ui:check      # tsc
 
 The dashboard uses react-router in **library** mode (`createBrowserRouter` in `app/main.tsx`) on plain Vite with the React Compiler on. Do not reintroduce `@react-router/dev`.
 
-`RunEntry.result` is polymorphic: older logs store a single `result` event as an object; newer ones store the whole event array. Anything reading a transcript must go through `normalizeEvents` in `ui/app/lib/conductor.ts`.
+`RunEntry.result` is polymorphic: older logs store a single `result` event as an object; newer ones store the whole event array. Anything reading a transcript must go through `normalizeEvents` in `ui/app/lib/cue.ts`.
 
 ## Docs
 
@@ -68,7 +68,7 @@ bun run docs:build
 
 1. Land the change on `main`.
 2. Push a `v*` tag (for example `v0.3.0`).
-3. CI (`.github/workflows/release.yml`) builds binaries with `scripts/build-binaries.sh` and attaches `dist/conductor-*` plus `checksums.txt`.
-4. Users upgrade with the same `install.sh` one-liner, or `CONDUCTOR_VERSION=v0.3.0`.
+3. CI (`.github/workflows/release.yml`) builds binaries with `scripts/build-binaries.sh` and attaches `dist/cue-*` plus `checksums.txt`.
+4. Users upgrade with the same `install.sh` one-liner, or `CUE_VERSION=v0.3.0`.
 
 Do not commit `src/ui-manifest.g.ts` after a local binary build — the script restores the empty stub; leave it that way.

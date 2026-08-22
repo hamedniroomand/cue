@@ -1,11 +1,11 @@
-# Conductor — Agent Context
+# Cue — Agent Context
 
-Conductor is a deterministic Bun + TypeScript runner that drives headless coding
+Cue is a deterministic Bun + TypeScript runner that drives headless coding
 agents (Claude Code via `claude -p`) through a GitHub-issue pipeline:
 **Triage → human approves plan → Dev → Test gate → Review loop → Draft PR → human merges.**
 GitHub is the state store: `agent:*` labels are the state machine, issue comments
 carry handoffs (the plan), draft PRs are the output. User-facing flow and
-label table: `docs/content/` (VitePress) and https://hamedniroomand.github.io/conductor/
+label table: `docs/content/` (VitePress) and https://hamedniroomand.github.io/cue/
 
 ## Commands
 
@@ -14,7 +14,7 @@ bun test               # full suite — runs entirely on fakes: no network, no g
 bun run lint           # oxlint (config: .oxlintrc.json)
 bun run format         # oxfmt — always format after editing; format:check verifies
 bun run check          # lint + format:check + tsc --noEmit + tests, all in one
-bun run conductor <init|poll|run <n>|cleanup|status|ui [port]>   # the CLI (globally: `conductor`, run from inside a target repo)
+bun run cue <init|poll|run <n>|cleanup|status|ui [port]>   # the CLI (globally: `cue`, run from inside a target repo)
 ```
 
 Always run `bun run check` before claiming any change works. tsconfig has
@@ -38,19 +38,19 @@ src/
 ├── adapters/
 │   ├── types.ts        # AgentAdapter / AgentRunOptions / AgentResult
 │   └── claude.ts       # claude -p --output-format stream-json --verbose; env-scrubbed
-├── server.ts           # `conductor ui`: Bun.serve — state/runs API, SSE events, poll/run triggers, serves ui/build/client
+├── server.ts           # `cue ui`: Bun.serve — state/runs API, SSE events, poll/run triggers, serves ui/build/client
 ├── github.ts           # typed wrapper over the `gh` CLI
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos (--allow-empty)
 ├── gates.ts            # deterministic test/lint runner (sh -c in the worktree)
 ├── exec.ts             # THE ONLY place Bun.spawn is called; injectable Exec type
-├── config.ts           # valibot schema + resolveConfig: .conductor/config.json, repo auto-detect from origin
-└── log.ts              # per-invocation transcripts + cost under <target>/.conductor/runs/<issue>/
-prompts/                # packaged default role prompts; <target>/.conductor/prompts/ overrides per file
-scripts/fixtures.ts     # snapshots local .conductor runs into ui/app/fixtures/data.json
+├── config.ts           # valibot schema + resolveConfig: .cue/config.json, repo auto-detect from origin
+└── log.ts              # per-invocation transcripts + cost under <target>/.cue/runs/<issue>/
+prompts/                # packaged default role prompts; <target>/.cue/prompts/ overrides per file
+scripts/fixtures.ts     # snapshots local .cue runs into ui/app/fixtures/data.json
 ui/                     # dashboard: react-router (library mode) + React Compiler, shadcn `base-nova`
 ├── app/routes/home.tsx     # overview: spend summary, cost charts, label board, live log
 ├── app/routes/runs.tsx     # run explorer: per-run prompt / transcript / raw tabs
-├── app/lib/conductor.ts    # API client + transcript normalizer (see the polymorphic-result gotcha)
+├── app/lib/cue.ts    # API client + transcript normalizer (see the polymorphic-result gotcha)
 └── app/fixtures/           # committed run snapshot, used when /api is unreachable
 tests/                  # one test file per module + integration.test.ts
 tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAdapter
@@ -68,7 +68,7 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
   `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:done`, `agent:failed`,
   `agent:stop`. They appear in code, tests, prompts, README, and on real repos —
   change all or none.
-- **The plan-comment marker is exactly `<!-- conductor:plan -->`** (`PLAN_MARKER` in
+- **The plan-comment marker is exactly `<!-- cue:plan -->`** (`PLAN_MARKER` in
   `stages/triage.ts`, defined once). The dev/replan stages find plans by newest
   comment containing it.
 - **Branch naming:** `agent/issue-<number>` (WorktreeManager.branch).
@@ -79,7 +79,7 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
   and label transitions are deterministic TypeScript — never ask the model something
   a script can decide (e.g. whether tests passed).
 - **Agents never run git/gh side effects.** The runner owns commit, push, PR
-  creation, and labels; the prompts forbid the agent from doing so. Conductor never
+  creation, and labels; the prompts forbid the agent from doing so. Cue never
   merges and never touches the base branch.
 - **Humans gate two moments:** plan approval (`agent:planned → agent:approved`) and
   PR merge. Do not automate either.
@@ -99,7 +99,7 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
   immediately narrowed to a typed shape.
 - Errors: throw with actionable messages; `runIssue` is the single place that turns a
   stage error into an issue comment + `agent:failed`.
-- Every adapter invocation is logged via `RunLogger` to `.conductor/runs/<issue>/<stage>-*.json`
+- Every adapter invocation is logged via `RunLogger` to `.cue/runs/<issue>/<stage>-*.json`
   (gitignored) with prompt, full event transcript, cost, duration.
 - GitHub interactions are tolerant only where distributed state demands it
   (`prState`, `WorktreeManager.remove` — a worktree may live on another machine);
@@ -112,14 +112,14 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
 - `claude` CLI flag spellings (`--allowedTools`, `--max-turns`, `--output-format
 stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   update, check `claude --help` first.
-- Conductor runs **from inside the target repo** (cwd = repoPath); all per-project
-  state lives in the target's `.conductor/` directory. Every config field is optional
+- Cue runs **from inside the target repo** (cwd = repoPath); all per-project
+  state lives in the target's `.cue/` directory. Every config field is optional
   (`repo` auto-detects from the origin remote). Config changes must update the valibot
   schema in `config.ts` and the defaults table in `docs/content/guide/config.md`.
-- Worktrees default to `~/.conductor/worktrees/<owner>-<repo>/issue-<n>` — deliberately
+- Worktrees default to `~/.cue/worktrees/<owner>-<repo>/issue-<n>` — deliberately
   OUTSIDE the target repo so IDE indexing and repo-root tool globs never see them.
   Do not move them into the repo; `worktreeRoot` in config is the user's override.
-- The package is installed globally (`bin: conductor` → `src/cli.ts`, shebang + Bun).
+- The package is installed globally (`bin: cue` → `src/cli.ts`, shebang + Bun).
   Prompts resolve relative to the _package_ (`import.meta.dir`), never cwd.
 - **Release binaries embed all assets.** Prompts embed via `with { type: "file" }`
   imports in `src/embedded.ts`; the dashboard embeds via `src/ui-manifest.g.ts`,
@@ -128,10 +128,10 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   `dist/`, then restores the stub. Never commit a generated manifest. New disk assets
   (prompts, ui output) must join this embedding path or compiled installs break.
 - Releases: push a `v*` tag → `.github/workflows/release.yml` runs
-  `scripts/build-binaries.sh` and attaches `dist/conductor-*` + `checksums.txt`;
+  `scripts/build-binaries.sh` and attaches `dist/cue-*` + `checksums.txt`;
   `install.sh` at the repo root is the user-facing installer (checksum-verified).
 - A crashed run leaves `agent:in-dev` stuck; humans reset labels manually
-  (`conductor status` mentions this).
+  (`cue status` mentions this).
 - `ui/` uses **react-router in LIBRARY mode** (`createBrowserRouter` in
   `app/main.tsx`; routes registered there, NOT file-based) on plain Vite with
   `@vitejs/plugin-react({ compiler: true })` — the **React Compiler automatic
@@ -139,7 +139,7 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   `@react-router/dev` (the framework plugin owns the Vite pipeline and blocks the
   compiler). Built to `ui/build/client`, served statically by `src/server.ts` with an
   index.html fallback so client routes survive a refresh. `CLIENT_DIR` resolves
-  against `import.meta.dir`, not cwd, because conductor is installed globally. After
+  against `import.meta.dir`, not cwd, because cue is installed globally. After
   changing anything under `ui/app/`, run `bun run ui:build`.
 - `ui/` is excluded from the root `tsconfig.json`, oxlint and oxfmt configs, but has
   its OWN: `ui/.oxlintrc.json` (react plugin incl. the React Compiler rules;
@@ -166,13 +166,13 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   deleted issues stay browsable with no `gh` call.
 - **`RunEntry.result` is polymorphic.** Older logs store the single `result` event as an
   object; newer ones store the whole event array. Anything reading a transcript must go
-  through `normalizeEvents` (`ui/app/lib/conductor.ts`). Getting this wrong renders old
+  through `normalizeEvents` (`ui/app/lib/cue.ts`). Getting this wrong renders old
   runs blank while new ones look fine.
 - `RunLogger.read` matches the `<stage>-<ts>` id against a directory listing instead of
   joining it into a path — `/api/runs/:issue/:run` takes that id straight from the URL.
   Keep it that way; there is a traversal test.
-- Stages emit through `ctx.onEvent` (ConductorEvent in stages/context.ts) — never
-  console.log directly from a stage. The CLI prints events; `conductor ui` also
+- Stages emit through `ctx.onEvent` (CueEvent in stages/context.ts) — never
+  console.log directly from a stage. The CLI prints events; `cue ui` also
   broadcasts them over SSE.
 - Design docs live under `docs/superpowers/` which is **gitignored on purpose** —
   don't try to commit them or "fix" the .gitignore.

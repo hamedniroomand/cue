@@ -1,20 +1,17 @@
 import { join, resolve } from "node:path";
 import type { Issue } from "./github";
 import { poll, runIssue } from "./pipeline";
-import type { ConductorEvent, StageContext } from "./stages/context";
+import type { CueEvent, StageContext } from "./stages/context";
 import { UI_FILES } from "./ui-manifest.g";
 
 /** Built SPA output (ui/ is a react-router app in SPA mode). Resolved against
- *  the package, not cwd, because conductor is installed globally. Read lazily —
+ *  the package, not cwd, because cue is installed globally. Read lazily —
  *  and overridable via env — so tests can point it at a fixture directory. */
 function clientDir(): string {
-  return (
-    process.env.CONDUCTOR_CLIENT_DIR ?? resolve(import.meta.dir, "..", "ui", "build", "client")
-  );
+  return process.env.CUE_CLIENT_DIR ?? resolve(import.meta.dir, "..", "ui", "build", "client");
 }
 
-const NOT_BUILT =
-  "conductor dashboard is not built yet — run `bun run ui:build` in the conductor package.";
+const NOT_BUILT = "Cue dashboard is not built yet — run `bun run ui:build` in the Cue package.";
 
 /** Serve the SPA, falling back to index.html so client-side routes survive a
  *  refresh. Compiled binaries serve from the embedded UI_FILES manifest;
@@ -111,7 +108,7 @@ export function startServer(ctx: StageContext, port: number): { url: string; sto
   let busy: string | null = null;
 
   const printer = ctx.onEvent;
-  ctx.onEvent = (e: ConductorEvent) => {
+  ctx.onEvent = (e: CueEvent) => {
     printer(e);
     const chunk = encoder.encode(`data: ${JSON.stringify(e)}\n\n`);
     for (const client of clients) {

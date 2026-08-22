@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Conductor — Capital Overview</title>
+    <title>Cue — Capital Overview</title>
     <meta
       name="description"
       content="Agent pipeline spend, stage throughput, and run transcripts."
@@ -13,7 +13,7 @@
       // Mirrors resolveTheme() in ~/lib/theme.
       (() => {
         try {
-          var t = localStorage.getItem("conductor-theme") || "system";
+          var t = localStorage.getItem("cue-theme") || "system";
           var d =
             t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
           document.documentElement.classList.toggle("dark", d);

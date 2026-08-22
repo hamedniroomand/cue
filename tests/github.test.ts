@@ -55,7 +55,7 @@ describe("GitHub", () => {
   test("comments returns author logins and bodies in order", async () => {
     const payload = JSON.stringify({
       comments: [
-        { author: { login: "conductor-bot" }, body: "<!-- m -->plan" },
+        { author: { login: "cue-bot" }, body: "<!-- m -->plan" },
         { author: { login: "hamed" }, body: "please reconsider" },
         { body: "no author field" },
       ],
@@ -65,7 +65,7 @@ describe("GitHub", () => {
     ]);
     const comments = await new GitHub(exec, "acme/widgets").comments(7);
     expect(comments).toEqual([
-      { author: "conductor-bot", body: "<!-- m -->plan" },
+      { author: "cue-bot", body: "<!-- m -->plan" },
       { author: "hamed", body: "please reconsider" },
       { author: "unknown", body: "no author field" },
     ]);

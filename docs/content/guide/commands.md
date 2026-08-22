@@ -1,30 +1,30 @@
 # Commands
 
-Every command runs **from inside the target repo** (cwd is the project Conductor should act on). The repo is auto-detected from the `origin` remote unless you set `repo` in `.conductor/config.json`.
+Every command runs **from inside the target repo** (cwd is the project Cue should act on). The repo is auto-detected from the `origin` remote unless you set `repo` in `.cue/config.json`.
 
 ```bash
-conductor --help
-conductor --version
+cue --help
+cue --version
 ```
 
 ## init
 
 ```bash
-conductor init
+cue init
 ```
 
-Creates the `agent:*` labels on the GitHub repo and scaffolds `.conductor/` in the current directory:
+Creates the `agent:*` labels on the GitHub repo and scaffolds `.cue/` in the current directory:
 
-- `.conductor/config.json` — written only if missing, default `{ "gate": { "test": "bun test" } }`
-- `.conductor/prompts/` — empty directory for optional prompt overrides
-- `.conductor/runs/` added to `.gitignore` if it is not already listed
+- `.cue/config.json` — written only if missing, default `{ "gate": { "test": "bun test" } }`
+- `.cue/prompts/` — empty directory for optional prompt overrides
+- `.cue/runs/` added to `.gitignore` if it is not already listed
 
 Safe to re-run: existing config is left alone; labels that already exist are skipped.
 
 ## poll
 
 ```bash
-conductor poll
+cue poll
 ```
 
 The main loop. It:
@@ -38,7 +38,7 @@ Use this after you label work, after you approve a plan, and after you merge.
 ## run
 
 ```bash
-conductor run 42
+cue run 42
 ```
 
 Runs the next pipeline stage for a single issue. The issue must be in an actionable state: `agent:ready`, `agent:approved`, or `agent:replan`.
@@ -48,10 +48,10 @@ Useful when you want to drive one issue without scanning the whole board.
 ## cleanup
 
 ```bash
-conductor cleanup
+cue cleanup
 ```
 
-Reconciles merged and closed PRs for conductor-managed issues:
+Reconciles merged and closed PRs for Cue-managed issues:
 
 - merged → `agent:done`
 - closed unmerged → `agent:failed`
@@ -62,19 +62,19 @@ Also runs at the start of every `poll`. Call it on its own if you merged on GitH
 ## status
 
 ```bash
-conductor status
+cue status
 ```
 
-Prints issues in each active pipeline state, local spend per issue (from `.conductor/runs/`), and the worktree root.
+Prints issues in each active pipeline state, local spend per issue (from `.cue/runs/`), and the worktree root.
 
 Notes that stale `agent:in-dev` issues (crashed runs) must be relabeled by hand.
 
 ## ui
 
 ```bash
-conductor ui          # http://127.0.0.1:4224, opens a browser
-conductor ui 5000     # pick a port
-conductor ui --no-open
+cue ui          # http://127.0.0.1:4224, opens a browser
+cue ui 5000     # pick a port
+cue ui --no-open
 ```
 
 Serves the [local dashboard](/guide/dashboard) for the current repo. Localhost only, no authentication.

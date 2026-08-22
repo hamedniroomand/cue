@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build self-contained conductor binaries for every supported platform.
-# Output: dist/conductor-<os>-<arch> + dist/checksums.txt
+# Build self-contained cue binaries for every supported platform.
+# Output: dist/cue-<os>-<arch> + dist/checksums.txt
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -17,7 +17,7 @@ bun scripts/embed-ui.ts
 mkdir -p dist
 targets=(bun-darwin-arm64 bun-darwin-x64 bun-linux-x64 bun-linux-arm64)
 for target in "${targets[@]}"; do
-  out="dist/conductor-${target#bun-}"
+  out="dist/cue-${target#bun-}"
   echo "compiling ${out}"
   bun build --compile --target="${target}" src/cli.ts --outfile "${out}"
 done
@@ -25,6 +25,6 @@ done
 # Restore the committed empty manifest stub.
 git checkout -- src/ui-manifest.g.ts
 
-(cd dist && shasum -a 256 conductor-* > checksums.txt)
+(cd dist && shasum -a 256 cue-* > checksums.txt)
 echo "done:"
 ls -la dist/
