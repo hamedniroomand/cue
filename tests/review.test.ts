@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Issue } from "../src/github";
 import { parseVerdict, runReview } from "../src/stages/review";
 import { makeCtx } from "./triage.test";
+import { wt } from "./helpers/paths";
 
 const ISSUE: Issue = { number: 7, title: "Fix login", body: "b", labels: ["agent:in-review"] };
 const PLAN_VIEW = {
@@ -31,7 +32,7 @@ describe("runReview", () => {
     const { ctx, calls, runs } = await makeCtx(
       [
         { match: ["gh", "issue", "view", "7"], result: PLAN_VIEW },
-        { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ change" } },
+        { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ change" } },
         { match: ["gh", "pr", "comment", "agent/issue-7"] },
       ],
       [APPROVE],
@@ -46,12 +47,12 @@ describe("runReview", () => {
     const { ctx, runs } = await makeCtx(
       [
         { match: ["gh", "issue", "view", "7"], result: PLAN_VIEW },
-        { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ v1" } },
+        { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ v1" } },
         { match: ["sh", "-c", "bun test"] },
-        { match: ["git", "-C", "/wt/issue-7", "add", "-A"] },
-        { match: ["git", "-C", "/wt/issue-7", "commit", "-m"] },
-        { match: ["git", "-C", "/wt/issue-7", "push"] },
-        { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ v2" } },
+        { match: ["git", "-C", wt(7), "add", "-A"] },
+        { match: ["git", "-C", wt(7), "commit", "-m"] },
+        { match: ["git", "-C", wt(7), "push"] },
+        { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ v2" } },
         { match: ["gh", "pr", "comment", "agent/issue-7"] },
       ],
       [REJECT, "fixed the off-by-one", APPROVE],
@@ -65,17 +66,17 @@ describe("runReview", () => {
   test("iteration cap: still-rejected verdict is returned, not looped forever", async () => {
     const ghCalls = [
       { match: ["gh", "issue", "view", "7"], result: PLAN_VIEW },
-      { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ v1" } },
+      { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ v1" } },
       { match: ["sh", "-c", "bun test"] },
-      { match: ["git", "-C", "/wt/issue-7", "add", "-A"] },
-      { match: ["git", "-C", "/wt/issue-7", "commit", "-m"] },
-      { match: ["git", "-C", "/wt/issue-7", "push"] },
-      { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ v2" } },
+      { match: ["git", "-C", wt(7), "add", "-A"] },
+      { match: ["git", "-C", wt(7), "commit", "-m"] },
+      { match: ["git", "-C", wt(7), "push"] },
+      { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ v2" } },
       { match: ["sh", "-c", "bun test"] },
-      { match: ["git", "-C", "/wt/issue-7", "add", "-A"] },
-      { match: ["git", "-C", "/wt/issue-7", "commit", "-m"] },
-      { match: ["git", "-C", "/wt/issue-7", "push"] },
-      { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ v3" } },
+      { match: ["git", "-C", wt(7), "add", "-A"] },
+      { match: ["git", "-C", wt(7), "commit", "-m"] },
+      { match: ["git", "-C", wt(7), "push"] },
+      { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ v3" } },
       { match: ["gh", "pr", "comment", "agent/issue-7"] },
     ];
     const { ctx, runs } = await makeCtx(ghCalls, [REJECT, "fix1", REJECT, "fix2", REJECT]);
@@ -88,7 +89,7 @@ describe("runReview", () => {
     const { ctx, runs } = await makeCtx(
       [
         { match: ["gh", "issue", "view", "7"], result: PLAN_VIEW },
-        { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ v1" } },
+        { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ v1" } },
       ],
       ["not json", "still not json"],
     );

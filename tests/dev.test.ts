@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Issue } from "../src/github";
 import { devTools, runDev } from "../src/stages/dev";
 import { makeCtx } from "./triage.test";
+import { wt } from "./helpers/paths";
 
 describe("devTools", () => {
   test("allows unrestricted Bash by default", async () => {
@@ -53,9 +54,9 @@ describe("runDev", () => {
         { match: ["git", "-C", "/repos/widgets", "fetch"] },
         { match: ["git", "-C", "/repos/widgets", "worktree", "add"] },
         { match: ["sh", "-c", "bun test"] },
-        { match: ["git", "-C", "/wt/issue-7", "add", "-A"] },
-        { match: ["git", "-C", "/wt/issue-7", "commit", "-m"] },
-        { match: ["git", "-C", "/wt/issue-7", "push", "-u", "origin", "agent/issue-7"] },
+        { match: ["git", "-C", wt(7), "add", "-A"] },
+        { match: ["git", "-C", wt(7), "commit", "-m"] },
+        { match: ["git", "-C", wt(7), "push", "-u", "origin", "agent/issue-7"] },
         {
           match: ["gh", "pr", "create"],
           result: { stdout: "https://github.com/acme/widgets/pull/9" },
@@ -79,7 +80,7 @@ describe("runDev", () => {
     );
     await runDev(ctx, ISSUE);
     const run = runs[0]!;
-    expect(run.cwd).toBe("/wt/issue-7");
+    expect(run.cwd).toBe(wt(7));
     expect(run.model).toBe("sonnet");
     expect(run.allowedTools).toContain("Bash");
     expect(run.prompt).toContain("## Approach");
@@ -95,9 +96,9 @@ describe("runDev", () => {
         { match: ["git", "-C", "/repos/widgets", "worktree", "add"] },
         { match: ["sh", "-c", "bun test"], result: { code: 1, stderr: "2 tests failed" } },
         { match: ["sh", "-c", "bun test"] },
-        { match: ["git", "-C", "/wt/issue-7", "add", "-A"] },
-        { match: ["git", "-C", "/wt/issue-7", "commit", "-m"] },
-        { match: ["git", "-C", "/wt/issue-7", "push"] },
+        { match: ["git", "-C", wt(7), "add", "-A"] },
+        { match: ["git", "-C", wt(7), "commit", "-m"] },
+        { match: ["git", "-C", wt(7), "push"] },
         { match: ["gh", "pr", "create"], result: { stdout: "url" } },
         { match: ["gh", "issue", "edit", "7"] },
       ],

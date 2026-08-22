@@ -23,7 +23,7 @@ describe("RunLogger", () => {
       outcome: "failed",
       error: "boom",
     });
-    expect(p1).toContain(`${dir}/42/triage-`);
+    expect(p1).toContain(join(dir, "42", "triage-"));
     const written = await Bun.file(p1).json();
     expect(written.costUsd).toBe(0.03);
     expect(await logger.totalCost(42)).toBeCloseTo(1.23);
@@ -67,7 +67,7 @@ describe("RunLogger", () => {
       durationMs: 1500,
       outcome: "ok",
     });
-    const id = path.split("/").pop()!.replace(".json", "");
+    const id = path.split(/[\\/]/).pop()!.replace(".json", "");
     const detail = await logger.read(5, id);
     expect(detail).not.toBeNull();
     expect(detail!.stage).toBe("triage");

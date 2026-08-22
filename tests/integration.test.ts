@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { runIssue } from "../src/pipeline";
 import { makeCtx } from "./triage.test";
+import { wt } from "./helpers/paths";
 
 const PLAN =
   "## Problem\np\n## Approach\na\n## Files likely touched\n- f\n## Acceptance criteria\n- [ ] c\n## Risk\nlow";
@@ -44,9 +45,9 @@ describe("full lifecycle", () => {
         { match: ["git", "-C", "/repos/widgets", "fetch"] },
         { match: ["git", "-C", "/repos/widgets", "worktree", "add"] },
         { match: ["sh", "-c", "bun test"] },
-        { match: ["git", "-C", "/wt/issue-7", "add", "-A"] },
-        { match: ["git", "-C", "/wt/issue-7", "commit", "-m"] },
-        { match: ["git", "-C", "/wt/issue-7", "push"] },
+        { match: ["git", "-C", wt(7), "add", "-A"] },
+        { match: ["git", "-C", wt(7), "commit", "-m"] },
+        { match: ["git", "-C", wt(7), "push"] },
         {
           match: ["gh", "pr", "create"],
           result: { stdout: "https://github.com/acme/widgets/pull/9" },
@@ -66,7 +67,7 @@ describe("full lifecycle", () => {
           ],
         },
         { match: ["gh", "issue", "view", "7"], result: PLAN_VIEW },
-        { match: ["git", "-C", "/wt/issue-7", "diff"], result: { stdout: "+ fix" } },
+        { match: ["git", "-C", wt(7), "diff"], result: { stdout: "+ fix" } },
         { match: ["gh", "pr", "comment", "agent/issue-7"] },
       ],
       ["implemented per plan", APPROVE],

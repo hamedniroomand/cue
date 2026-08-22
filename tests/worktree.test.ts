@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { WorktreeManager } from "../src/worktree";
 import { makeFakeExec } from "./helpers/fakeExec";
+import { wt as wtPath } from "./helpers/paths";
 
 const CFG = { repoPath: "/repos/widgets", worktreeRoot: "/wt", baseBranch: "main" };
 
@@ -17,13 +18,13 @@ describe("WorktreeManager", () => {
           "add",
           "-b",
           "agent/issue-7",
-          "/wt/issue-7",
+          wtPath(7),
           "origin/main",
         ],
       },
     ]);
     const wt = await new WorktreeManager(exec, CFG).create(7);
-    expect(wt).toEqual({ path: "/wt/issue-7", branch: "agent/issue-7" });
+    expect(wt).toEqual({ path: wtPath(7), branch: "agent/issue-7" });
     expect(calls).toHaveLength(2);
   });
 
@@ -36,7 +37,7 @@ describe("WorktreeManager", () => {
       },
     ]);
     const wt = await new WorktreeManager(exec, CFG).create(7);
-    expect(wt.path).toBe("/wt/issue-7");
+    expect(wt.path).toBe(wtPath(7));
   });
 
   test("create bootstraps an empty initial commit when the remote base branch is missing", async () => {
@@ -58,7 +59,7 @@ describe("WorktreeManager", () => {
           "add",
           "-b",
           "agent/issue-7",
-          "/wt/issue-7",
+          wtPath(7),
           "origin/main",
         ],
       },
@@ -94,9 +95,9 @@ describe("WorktreeManager", () => {
 
   test("commitAll returns false when there is nothing to commit", async () => {
     const { exec } = makeFakeExec([
-      { match: ["git", "-C", "/wt/issue-7", "add", "-A"] },
+      { match: ["git", "-C", wtPath(7), "add", "-A"] },
       {
-        match: ["git", "-C", "/wt/issue-7", "commit", "-m"],
+        match: ["git", "-C", wtPath(7), "commit", "-m"],
         result: { code: 1, stdout: "nothing to commit" },
       },
     ]);
@@ -106,7 +107,7 @@ describe("WorktreeManager", () => {
   test("diff returns the three-dot diff against origin base", async () => {
     const { exec, calls } = makeFakeExec([
       {
-        match: ["git", "-C", "/wt/issue-7", "diff", "origin/main...HEAD"],
+        match: ["git", "-C", wtPath(7), "diff", "origin/main...HEAD"],
         result: { stdout: "+ new line" },
       },
     ]);

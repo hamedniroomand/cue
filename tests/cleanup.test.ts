@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { runCleanup } from "../src/cleanup";
 import { poll } from "../src/pipeline";
 import { makeCtx } from "./triage.test";
+import { wt } from "./helpers/paths";
 
 const IN_REVIEW = JSON.stringify([
   { number: 7, title: "Fix login", body: "b", labels: [{ name: "agent:in-review" }] },
@@ -40,7 +41,7 @@ describe("runCleanup", () => {
             "agent:done",
           ],
         },
-        { match: ["git", "-C", "/repos/widgets", "worktree", "remove", "--force", "/wt/issue-7"] },
+        { match: ["git", "-C", "/repos/widgets", "worktree", "remove", "--force", wt(7)] },
         { match: ["git", "-C", "/repos/widgets", "branch", "-D", "agent/issue-7"] },
       ],
       [],

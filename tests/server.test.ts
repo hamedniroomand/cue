@@ -17,8 +17,17 @@ beforeAll(async () => {
 /** Boot the dashboard server on an ephemeral port. */
 async function serve() {
   const { ctx } = await makeCtx([], []);
-  const { url, stop } = startServer(ctx, 0);
-  return { ctx, url, stop };
+  // Bun.serve({ port: 0 }) fails to bind on Windows, so an ephemeral port
+  // request cannot be used here: pick random high ports and retry collisions.
+  for (let attempt = 0; ; attempt++) {
+    const port = 20_000 + Math.floor(Math.random() * 40_000);
+    try {
+      const { url, stop } = startServer(ctx, port);
+      return { ctx, url, stop };
+    } catch (err) {
+      if (attempt >= 9) throw err;
+    }
+  }
 }
 
 describe("dashboard server", () => {
