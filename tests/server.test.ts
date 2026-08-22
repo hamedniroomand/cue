@@ -275,6 +275,146 @@ describe.skipIf(bunWindowsListenBroken)('dashboard server', () => {
     }
   });
 
+  test('POST /api/retry/:issue with a plan resets a fresh worktree and re-queues dev', async () => {
+    const FAILED = JSON.stringify([
+      { number: 12, title: 'CORS', body: 'b', labels: [{ name: 'agent:failed' }] },
+    ]);
+    const PLAN_VIEW = {
+      stdout: JSON.stringify({ comments: [{ body: '<!-- cue:plan -->\nplan' }] }),
+    };
+    const { ctx, calls } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:failed'],
+          result: { stdout: FAILED },
+        },
+        { match: ['gh', 'issue', 'view', '12'], result: PLAN_VIEW },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'remove'] },
+        { match: ['git', '-C', '/repos/widgets', 'branch', '-D'] },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '12',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:failed',
+            '--add-label',
+            'agent:approved',
+          ],
+        },
+      ],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/retry/12`, { method: 'POST' });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ retried: true, to: 'agent:approved', started: true });
+      expect(calls[4]).toEqual(expect.arrayContaining(['--add-label', 'agent:approved']));
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/retry/:issue without a plan re-queues triage from scratch', async () => {
+    const FAILED = JSON.stringify([
+      { number: 12, title: 'CORS', body: 'b', labels: [{ name: 'agent:failed' }] },
+    ]);
+    const { ctx, calls } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:failed'],
+          result: { stdout: FAILED },
+        },
+        { match: ['gh', 'issue', 'view', '12'], result: { stdout: '{"comments":[]}' } },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '12',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:failed',
+            '--add-label',
+            'agent:ready',
+          ],
+        },
+      ],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/retry/12`, { method: 'POST' });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ retried: true, to: 'agent:ready', started: true });
+      // No worktree surgery for a triage retry.
+      expect(calls.some((c) => c.includes('worktree'))).toBe(false);
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/retry/:issue on a failed replan goes back to agent:replan', async () => {
+    const FAILED = JSON.stringify([
+      {
+        number: 12,
+        title: 'CORS',
+        body: 'b',
+        labels: [{ name: 'agent:planned' }, { name: 'agent:failed' }],
+      },
+    ]);
+    const { ctx } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:failed'],
+          result: { stdout: FAILED },
+        },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '12',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:failed',
+            '--add-label',
+            'agent:replan',
+          ],
+        },
+      ],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/retry/12`, { method: 'POST' });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ retried: true, to: 'agent:replan', started: true });
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/retry/:issue 404s when the issue is not failed', async () => {
+    const { ctx } = await makeCtx(
+      [{ match: ['gh', 'issue', 'list'], result: { stdout: '[]' } }],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/retry/12`, { method: 'POST' });
+      expect(res.status).toBe(404);
+    } finally {
+      stop();
+    }
+  });
+
   // The board used to re-sweep the runs directory once per issue for cost, and
   // never reported tokens at all — so a claude issue showed dollars only.
   test('buildState rolls cost AND tokens onto board issues from one index sweep', async () => {

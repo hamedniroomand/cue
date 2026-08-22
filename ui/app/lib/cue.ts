@@ -124,3 +124,8 @@ export async function replanIssue(issue: number, feedback: string): Promise<void
     body: JSON.stringify({ feedback }),
   });
 }
+
+/** Re-queue a failed issue: replan if pending, dev if a plan exists, else triage. */
+export async function retryIssue(issue: number): Promise<void> {
+  await fetch(`/api/retry/${issue}`, { method: "POST" });
+}

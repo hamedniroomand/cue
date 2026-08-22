@@ -18,6 +18,7 @@ import { Link, useParams } from "react-router";
 import { JsonView } from "~/components/json-view";
 import { Markdown } from "~/components/markdown";
 import { PlannedActions } from "~/components/planned-actions";
+import { RetryAction } from "~/components/retry-action";
 import { SectionLabel, Shell } from "~/components/shell";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -65,6 +66,16 @@ export default function Runs() {
       issue != null &&
       (state?.columns
         .find((c) => c.label === "agent:planned")
+        ?.issues.some((i) => i.number === issue) ??
+        false),
+    [state, issue],
+  );
+
+  const failed = useMemo(
+    () =>
+      issue != null &&
+      (state?.columns
+        .find((c) => c.label === "agent:failed")
         ?.issues.some((i) => i.number === issue) ??
         false),
     [state, issue],
@@ -252,6 +263,23 @@ export default function Runs() {
                 <CardContent>
                   <div className="max-w-md">
                     <PlannedActions issue={issue} onDone={refresh} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {failed && issue != null && (
+              <Card className="ring-1 ring-destructive/30">
+                <CardHeader>
+                  <CardTitle className="text-sm">Run failed</CardTitle>
+                  <CardDescription>
+                    The failure comment is on the GitHub issue and the crashed run is recorded
+                    below. Retry re-queues the right stage — a revised plan if one was requested,
+                    dev with a fresh worktree if a plan exists, triage from scratch otherwise.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-w-40">
+                    <RetryAction issue={issue} onDone={refresh} />
                   </div>
                 </CardContent>
               </Card>

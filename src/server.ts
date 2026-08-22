@@ -3,6 +3,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { Issue } from '@/github';
 import { poll, runIssue } from '@/pipeline';
 import type { CueEvent, StageContext } from '@/stages/context';
+import { PLAN_MARKER } from '@/stages/triage';
 import { UI_FILES } from '@/ui-manifest.g';
 
 /** Built SPA output (ui/ is a react-router app in SPA mode). Resolved against
@@ -199,6 +200,34 @@ export function startServer(
           if (busy) return Response.json({ approved: true, started: false });
           launch(`run #${n}`, () => runIssue(ctx, approved));
           return Response.json({ approved: true, started: true });
+        },
+      },
+      // One-click retry for a failed issue. Routing is deterministic: back to
+      // replan when a revision was pending, to dev when a plan already exists
+      // (with a fresh worktree), to triage from scratch otherwise.
+      '/api/retry/:issue': {
+        POST: async (req: Bun.BunRequest<'/api/retry/:issue'>) => {
+          const n = Number(req.params.issue);
+          const issue = (await ctx.github.listIssues('agent:failed')).find((i) => i.number === n);
+          if (!issue) {
+            return Response.json({ error: `issue #${n} is not failed` }, { status: 404 });
+          }
+          const target = issue.labels.includes('agent:planned')
+            ? 'agent:replan'
+            : (await ctx.github.findComment(n, PLAN_MARKER))
+              ? 'agent:approved'
+              : 'agent:ready';
+          // A dev retry starts clean: the failed run's worktree may hold
+          // half-applied changes the fresh run must not inherit.
+          if (target === 'agent:approved') await ctx.worktrees.remove(n);
+          await ctx.github.swapLabel(n, 'agent:failed', target);
+          const retried: Issue = {
+            ...issue,
+            labels: [...issue.labels.filter((l) => l !== 'agent:failed'), target],
+          };
+          if (busy) return Response.json({ retried: true, to: target, started: false });
+          launch(`run #${n}`, () => runIssue(ctx, retried));
+          return Response.json({ retried: true, to: target, started: true });
         },
       },
       // Request a revised plan: post the human's feedback (the replan stage

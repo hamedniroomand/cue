@@ -21,6 +21,8 @@ You can trigger `process` and `run` from the dashboard; they execute the same Ty
 
 Issues in the `agent:planned` column carry **Approve** and **Replan** buttons — the same human gate, without leaving the board. Approve swaps the label to `agent:approved` and starts the dev run immediately (if a run is already in progress, the approval sticks and the next `process` picks it up). Replan expands an inline feedback box; the feedback is posted as an issue comment (where the replan stage reads it) before the label swaps to `agent:replan`.
 
+Issues in the `agent:failed` column carry a **Retry** button (also shown on the issue's run page). Retry re-queues the right stage deterministically: back to `agent:replan` if a plan revision was pending, to `agent:approved` with a fresh worktree if a plan exists, or to `agent:ready` for a re-triage otherwise.
+
 Set [`webhookUrl`](/guide/config#fields) to also get a POST notification the moment a plan awaits approval or a draft PR awaits merge — useful when nobody is watching the board.
 
 ## Runs

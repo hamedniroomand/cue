@@ -14,6 +14,7 @@ import {
 } from "recharts";
 
 import { PlannedActions } from "~/components/planned-actions";
+import { RetryAction } from "~/components/retry-action";
 import { SectionHeading, Shell } from "~/components/shell";
 import { BoardSkeleton, ChartSkeleton, StatSkeleton } from "~/components/skeletons";
 import { Stat } from "~/components/stat";
@@ -436,6 +437,9 @@ export default function Home() {
                               </Link>
                               {column.label === "agent:planned" && (
                                 <PlannedActions issue={issue.number} onDone={refresh} />
+                              )}
+                              {column.label === "agent:failed" && (
+                                <RetryAction issue={issue.number} onDone={refresh} />
                               )}
                             </div>
                           ))}
