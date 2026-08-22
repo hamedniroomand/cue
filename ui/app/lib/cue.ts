@@ -4,26 +4,15 @@
  * Every fetch falls back to the bundled fixtures in app/fixtures so the
  * dashboard is reviewable without a cue process running.
  *
- * Transcript normalization lives in ./transcript (pure, covered by the root
- * test suite) and is re-exported here for the routes.
+ * Transcript normalization lives in ./transcript and board classification in
+ * ./board — both pure, both covered by the root test suite — and both are
+ * re-exported here so the routes have a single import.
  */
 
+import type { DashboardState, RunIndexEntry } from "./board";
+
+export * from "./board";
 export * from "./transcript";
-
-export interface BoardIssue {
-  number: number;
-  title: string;
-  labels: string[];
-  cost: number;
-}
-
-export interface DashboardState {
-  repo: string;
-  worktreeRoot: string;
-  models: { triage: string; dev: string; review: string };
-  busy: string | null;
-  columns: Array<{ label: string; issues: BoardIssue[] }>;
-}
 
 export interface CueEvent {
   ts: number;
@@ -42,25 +31,12 @@ export interface RunSummary {
   error?: string;
 }
 
-/** One issue that has runs recorded on disk — board membership not required. */
-export interface RunIndexEntry {
-  issue: number;
-  runs: number;
-  costUsd: number;
-  lastTs: number;
-  title?: string;
-}
-
 export interface RunDetail extends RunSummary {
   prompt: string;
   result: unknown;
 }
 
 export const STAGES = ["triage", "replan", "dev", "fix", "review", "review-fix"] as const;
-
-export function shortLabel(label: string): string {
-  return label.replace("agent:", "");
-}
 
 export function formatUsd(n: number): string {
   return n >= 1 ? `$${n.toFixed(2)}` : `$${n.toFixed(3)}`;
