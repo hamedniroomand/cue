@@ -1,4 +1,4 @@
 bun run lint && bun run format:check
 bun run --cwd ui typecheck
 bun run --cwd ui lint
-bun run --cwd ui format
+bun run --cwd ui format:check
