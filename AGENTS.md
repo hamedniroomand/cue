@@ -51,6 +51,7 @@ src/
 ├── platform.ts         # POSIX/WINDOWS personality (gate shell, agent env allowlist), injected via StageContext
 ├── config.ts           # valibot schema + resolveConfig: .cue/config.json, repo auto-detect from origin
 ├── scaffold.ts         # creates/tops up the target's .cue/ (config + $schema, prompts dir, gitignore)
+├── configure.ts        # `cue init` wizard: @clack/prompts behind an injectable Ask seam
 ├── spinner.ts          # single-slot ora frame + PhaseRunner seam; disabled when stdout is not a TTY
 └── log.ts              # per-invocation transcripts + cost under <target>/.cue/runs/<issue>/
 prompts/                # packaged default role prompts; <target>/.cue/prompts/ overrides per file
@@ -68,7 +69,8 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
 
 - **All subprocess execution goes through the `Exec` type from `src/exec.ts`.**
   Never call `Bun.spawn` anywhere else; it is what makes every module testable.
-- **Lean dependencies.** The CLI package's only runtime deps are valibot, consola and ora. The dashboard is a
+- **Lean dependencies.** The CLI package's only runtime deps are valibot, consola, ora and
+  @clack/prompts. The dashboard is a
   separate package (`ui/package.json`) that owns react, react-router, tailwind and the
   shadcn stack — its deps never enter the CLI's. Do not add packages to either without
   being asked.
@@ -198,6 +200,14 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   assets must live in `docs/content/public/` — files in `docs/public/` are NOT copied to
   the site root (`logo.svg`/`favicon.svg` only survive because the config references
   them). Verified empirically; put new published assets under `docs/content/public/`.
+- **Interactive prompting is `@clack/prompts`, behind the `Ask` seam.** `configure.ts`
+  wraps only `select` and `text` (plus optional `begin`/`end` framing) so tests replay
+  scripted answers — never drive a terminal in a test, and never import clack outside
+  `configure.ts`. `consola.prompt` was tried first and rejected: it has real bugs in
+  practice, and its default cancel strategy resolves with the _initial_ value, which
+  turns a Ctrl+C into a silent "yes to everything". Every clack result must go through
+  `isCancel` and throw `PromptCancelled`. `cue init` prompts only when stdin AND stdout
+  are TTYs and `--yes` is absent, so scripted installs cannot block.
 - **Spinners live in the CLI, never in a stage.** `src/spinner.ts` owns one frame
   (`cliSpinner`); the reporter drives it for the `poll` stage's dead air and parks it via
   `interject` around every other printed line. Modules with their own pending phases take

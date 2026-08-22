@@ -1,6 +1,6 @@
 {
   "name": "cue",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "MIT",
   "bin": {
     "cue": "./src/cli.ts"
@@ -31,6 +31,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@clack/prompts": "^1.7.0",
     "consola": "^3.4.2",
     "ora": "^9.4.1",
     "valibot": "^1.4.2"
