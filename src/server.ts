@@ -1,4 +1,4 @@
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import type { Issue } from "./github";
 import { poll, runIssue } from "./pipeline";
 import type { CueEvent, StageContext } from "./stages/context";
@@ -32,7 +32,11 @@ async function serveClient(pathname: string): Promise<Response> {
   const index = Bun.file(join(dir, "index.html"));
   if (pathname !== "/") {
     const target = resolve(dir, `.${pathname}`);
-    if (target.startsWith(dir + "/")) {
+    // Separator-agnostic containment check: on Windows resolve() returns
+    // backslashes, so a `startsWith(dir + "/")` guard would reject every
+    // asset and silently serve index.html as text/html for all of them.
+    const rel = relative(dir, target);
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute(rel)) {
       const file = Bun.file(target);
       if (await file.exists()) return new Response(file);
     }

@@ -35,6 +35,19 @@ describe("dashboard server", () => {
     }
   });
 
+  test("serves real assets from the client dir with their own content type", async () => {
+    await Bun.write(join(process.env.CUE_CLIENT_DIR!, "assets", "app.js"), "console.log(1);");
+    const { url, stop } = await serve();
+    try {
+      const res = await fetch(`${url}/assets/app.js`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).not.toContain("text/html");
+      expect(await res.text()).toBe("console.log(1);");
+    } finally {
+      stop();
+    }
+  });
+
   test("refuses to serve files outside the built client directory", async () => {
     const { url, stop } = await serve();
     try {
@@ -58,7 +71,7 @@ describe("dashboard server", () => {
         durationMs: 1234,
         outcome: "ok",
       });
-      const id = path.split("/").pop()!.replace(".json", "");
+      const id = path.split(/[\\/]/).pop()!.replace(".json", "");
 
       const res = await fetch(`${url}/api/runs/4/${id}`);
       expect(res.status).toBe(200);
