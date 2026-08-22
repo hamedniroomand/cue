@@ -50,6 +50,8 @@ src/
 ├── exec.ts             # THE ONLY place Bun.spawn is called; injectable Exec type
 ├── platform.ts         # POSIX/WINDOWS personality (gate shell, agent env allowlist), injected via StageContext
 ├── config.ts           # valibot schema + resolveConfig: .cue/config.json, repo auto-detect from origin
+├── scaffold.ts         # creates/tops up the target's .cue/ (config + $schema, prompts dir, gitignore)
+├── spinner.ts          # single-slot ora frame + PhaseRunner seam; disabled when stdout is not a TTY
 └── log.ts              # per-invocation transcripts + cost under <target>/.cue/runs/<issue>/
 prompts/                # packaged default role prompts; <target>/.cue/prompts/ overrides per file
 scripts/fixtures.ts     # snapshots local .cue runs into ui/app/fixtures/data.json
@@ -66,7 +68,7 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
 
 - **All subprocess execution goes through the `Exec` type from `src/exec.ts`.**
   Never call `Bun.spawn` anywhere else; it is what makes every module testable.
-- **Lean dependencies.** The CLI package's only runtime deps are valibot and consola. The dashboard is a
+- **Lean dependencies.** The CLI package's only runtime deps are valibot, consola and ora. The dashboard is a
   separate package (`ui/package.json`) that owns react, react-router, tailwind and the
   shadcn stack — its deps never enter the CLI's. Do not add packages to either without
   being asked.
@@ -122,7 +124,10 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
 - Cue runs **from inside the target repo** (cwd = repoPath); all per-project
   state lives in the target's `.cue/` directory. Every config field is optional
   (`repo` auto-detects from the origin remote). Config changes must update the valibot
-  schema in `config.ts` and the defaults table in `docs/content/guide/config.md`.
+  schema in `config.ts`, the defaults table in `docs/content/guide/config.md`, AND the
+  published JSON Schema at `docs/content/public/schema/config.json` —
+  `tests/schema.test.ts` compares keys and defaults against `ConfigSchema.entries`
+  and fails the build on drift.
 - Worktrees default to `~/.cue/worktrees/<owner>-<repo>/issue-<n>` — deliberately
   OUTSIDE the target repo so IDE indexing and repo-root tool globs never see them.
   Do not move them into the repo; `worktreeRoot` in config is the user's override.
@@ -182,5 +187,22 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
 - Stages emit through `ctx.onEvent` (CueEvent in stages/context.ts) — never
   console.log directly from a stage. The CLI prints events; `cue ui` also
   broadcasts them over SSE.
+- **The published config JSON Schema is a hand-written mirror of `ConfigSchema`**, served
+  at `CONFIG_SCHEMA_URL` and written into scaffolded configs as `$schema` for editor
+  autocompletion. It must stay an https URL — a package-relative path would not survive
+  `bun build --compile`. It is intentionally stricter than the parser
+  (`additionalProperties: false`) so editors flag keys cue ignores, and its `adapter`
+  enum must include the `agy` alias. `tests/schema.test.ts` is the only thing preventing
+  drift; do not weaken it.
+- **VitePress resolves `publicDir` under `srcDir`.** With `srcDir: "content"`, static
+  assets must live in `docs/content/public/` — files in `docs/public/` are NOT copied to
+  the site root (`logo.svg`/`favicon.svg` only survive because the config references
+  them). Verified empirically; put new published assets under `docs/content/public/`.
+- **Spinners live in the CLI, never in a stage.** `src/spinner.ts` owns one frame
+  (`cliSpinner`); the reporter drives it for the `poll` stage's dead air and parks it via
+  `interject` around every other printed line. Modules with their own pending phases take
+  the `PhaseRunner` seam (`upgrade.ts`) instead of importing ora, so they stay testable
+  with `noPhase`. The spinner disables itself when stdout is not a TTY, which is what
+  keeps CI logs and `cue ui`'s SSE stream unchanged.
 - Design docs live under `docs/superpowers/` which is **gitignored on purpose** —
   don't try to commit them or "fix" the .gitignore.

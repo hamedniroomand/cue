@@ -9,9 +9,26 @@ import type { Exec } from '@/exec';
 const positiveInt = v.pipe(v.number(), v.integer(), v.minValue(1));
 const repoPattern = v.pipe(v.string(), v.regex(/^[\w.-]+\/[\w.-]+$/, 'repo must be org/name'));
 
+/**
+ * Where the published JSON Schema lives in this repo. VitePress resolves its
+ * publicDir under `srcDir`, so it must sit in docs/content/public/ — files in
+ * docs/public/ are NOT copied to the site root. From here it publishes to
+ * CONFIG_SCHEMA_URL.
+ */
+export const CONFIG_SCHEMA_PATH = 'docs/content/public/schema/config.json';
+
+/**
+ * Absolute URL of the published schema — written into scaffolded configs as
+ * "$schema" for editor autocompletion. It must stay an https URL: a path into
+ * the package would not survive `bun build --compile` release binaries.
+ * The schema itself is a hand-written mirror of ConfigSchema below, kept
+ * honest by tests/schema.test.ts.
+ */
+export const CONFIG_SCHEMA_URL = 'https://hamedniroomand.github.io/cue/schema/config.json';
+
 // Everything is optional in the file: a project can adopt cue with an
 // empty (or absent) .cue/config.json.
-const ConfigSchema = v.object({
+export const ConfigSchema = v.object({
   repo: v.optional(repoPattern),
   adapter: v.optional(v.picklist(['claude', 'antigravity', 'agy', 'codex']), 'codex'),
   models: v.optional(v.object({ triage: v.string(), dev: v.string(), review: v.string() })),

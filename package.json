@@ -1,6 +1,6 @@
 {
   "name": "cue",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "MIT",
   "bin": {
     "cue": "./src/cli.ts"
@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "consola": "^3.4.2",
+    "ora": "^9.4.1",
     "valibot": "^1.4.2"
   },
   "devDependencies": {
