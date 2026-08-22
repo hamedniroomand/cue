@@ -6,6 +6,7 @@ import { consola } from 'consola';
 import { ADAPTERS } from '@/adapters/registry';
 import { runCleanup } from '@/cleanup';
 import { resolveConfig } from '@/config';
+import { clackAsk, promptConfig, shouldPrompt } from '@/configure';
 import { VERSION } from '@/embedded';
 import { realExec } from '@/exec';
 import { GitHub } from '@/github';
@@ -13,7 +14,7 @@ import { RunLogger } from '@/log';
 import { nextAction, poll, runIssue } from '@/pipeline';
 import { currentPlatform } from '@/platform';
 import { printEvent } from '@/reporter';
-import { scaffold } from '@/scaffold';
+import { readRawConfig, scaffold } from '@/scaffold';
 import { cliPhase, cliSpinner, withSpinner } from '@/spinner';
 import type { StageContext } from '@/stages/context';
 import { WorktreeManager } from '@/worktree';
@@ -48,8 +49,31 @@ async function makeContext(): Promise<StageContext> {
   };
 }
 
+/**
+ * Interactive unless stdin/stdout are not both TTYs (CI, pipes, `cue init | tee`)
+ * or `--yes` was passed — a scripted init must never block on a prompt.
+ */
+async function initAnswers(
+  cwd: string,
+  flags: string[],
+): Promise<Record<string, unknown> | undefined> {
+  if (!shouldPrompt(flags, { stdin: process.stdin.isTTY, stdout: process.stdout.isTTY })) {
+    return undefined;
+  }
+  const current = await readRawConfig(cwd);
+  try {
+    const { config, notes } = await promptConfig(current, clackAsk);
+    for (const note of notes) consola.warn(note);
+    return config;
+  } catch (err) {
+    // consolaAsk rejects on Ctrl+C, so bail out before anything is written.
+    throw new Error('init cancelled — nothing was written', { cause: err });
+  }
+}
+
 async function init(ctx: StageContext): Promise<void> {
-  for (const change of await scaffold(ctx.config.repoPath)) consola.success(change);
+  const answers = await initAnswers(ctx.config.repoPath, process.argv.slice(3));
+  for (const change of await scaffold(ctx.config.repoPath, answers)) consola.success(change);
   const labels = `creating ${String(LABELS.length)} agent:* labels on ${ctx.config.repo}`;
   // A disabled spinner is silent, so piped/CI runs need these two lines to keep
   // the label phase visible the way the old per-label output did.
@@ -114,7 +138,8 @@ const HELP = `cue — drive headless coding agents through a GitHub-issue pipeli
 Usage: cue <command> (run from inside a target repo)
 
 Commands:
-  init         create the agent:* labels and scaffold .cue/ in this repo
+  init         configure .cue/ and create the agent:* labels in this repo
+               (asks for adapter + test/lint commands; --yes keeps the defaults)
   poll         reconcile finished PRs, then run every actionable issue
   run <n>      run the next pipeline stage for issue #n
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
@@ -124,6 +149,7 @@ Commands:
                browser automatically — pass --no-open to skip
 
 Flags:
+  -y, --yes       init: skip the questions and keep the current/default config
   -h, --help      show this help
   -v, --version   print the cue version
 
