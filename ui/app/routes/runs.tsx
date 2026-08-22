@@ -15,6 +15,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { JsonView } from "~/components/json-view";
+import { Markdown } from "~/components/markdown";
 import { PlannedActions } from "~/components/planned-actions";
 import { SectionLabel, Shell } from "~/components/shell";
 import { Badge } from "~/components/ui/badge";
@@ -450,9 +452,9 @@ function RunView({ detail }: { detail: RunDetail }) {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[34rem]">
-                <pre className="pr-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                  {detail.prompt}
-                </pre>
+                <div className="pr-3">
+                  <Markdown text={detail.prompt} />
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -466,9 +468,9 @@ function RunView({ detail }: { detail: RunDetail }) {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[34rem]">
-                <pre className="pr-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                  {JSON.stringify(detail.result, null, 2)}
-                </pre>
+                <div className="pr-3">
+                  <JsonView value={detail.result} />
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -553,6 +555,9 @@ function Row({ row }: { row: TranscriptRow }) {
           : row.detail;
 
   const failed = row.kind === "tool_result" && row.failed;
+  // Agent messages, thinking, and the final result (triage plans especially)
+  // are markdown; tool traffic stays literal monospace.
+  const isMarkdown = row.kind === "text" || row.kind === "thinking" || row.kind === "result";
 
   return (
     <div
@@ -564,17 +569,23 @@ function Row({ row }: { row: TranscriptRow }) {
       )}
     >
       <Icon className={cn("mt-0.5 size-3.5 shrink-0", failed ? "text-destructive" : meta.tone)} />
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="font-mono text-[10px] text-muted-foreground uppercase">{meta.title}</span>
-        <p
-          className={cn(
-            "min-w-0 text-xs leading-relaxed break-words whitespace-pre-wrap",
-            row.kind === "tool" || row.kind === "tool_result" ? "font-mono" : "",
-            row.kind === "thinking" && "text-muted-foreground italic",
-          )}
-        >
-          {body}
-        </p>
+        {isMarkdown ? (
+          <Markdown
+            text={body ?? ""}
+            className={cn(row.kind === "thinking" && "text-muted-foreground italic")}
+          />
+        ) : (
+          <p
+            className={cn(
+              "min-w-0 text-xs leading-relaxed break-words whitespace-pre-wrap",
+              (row.kind === "tool" || row.kind === "tool_result") && "font-mono",
+            )}
+          >
+            {body}
+          </p>
+        )}
       </div>
     </div>
   );

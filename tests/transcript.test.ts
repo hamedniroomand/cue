@@ -82,6 +82,69 @@ describe('toRows: codex stream', () => {
   });
 });
 
+describe('toRows: streamed fragment coalescing', () => {
+  test('agy text_delta fragments merge verbatim into one markdown-complete row', () => {
+    const rows = toRows([
+      { event: 'step_update', step_update: { text_delta: '## Plan\n- use `Bun.' } },
+      { event: 'step_update', step_update: { text_delta: 'serve()` and' } },
+      { event: 'step_update', step_update: { text_delta: ' **done**.' } },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: 'text',
+      text: '## Plan\n- use `Bun.serve()` and **done**.',
+    });
+  });
+
+  test('whitespace-only deltas join words instead of being dropped', () => {
+    const rows = toRows([
+      { event: 'step_update', step_update: { text_delta: 'GET, POST' } },
+      { event: 'step_update', step_update: { text_delta: '\n' } },
+      { event: 'step_update', step_update: { text_delta: ', PUT' } },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: 'text', text: 'GET, POST\n, PUT' });
+  });
+
+  test('a tool call between deltas starts a new text row', () => {
+    const rows = toRows([
+      { event: 'step_update', step_update: { text_delta: 'first' } },
+      {
+        event: 'step_update',
+        step_update: { tool_name: 'grep_search', tool_info: { parameters: { Query: 'x' } } },
+      },
+      { event: 'step_update', step_update: { text_delta: 'second' } },
+    ]);
+    expect(rows.map((r) => r.kind)).toEqual(['text', 'tool', 'text']);
+  });
+
+  test('consecutive complete claude text blocks merge as paragraphs, same role only', () => {
+    const rows = toRows([
+      {
+        type: 'assistant',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'Part one.' }] },
+      },
+      {
+        type: 'assistant',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'Part two.' }] },
+      },
+      { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'A reply.' }] } },
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ kind: 'text', text: 'Part one.\n\nPart two.' });
+    expect(rows[1]).toMatchObject({ kind: 'text', role: 'user', text: 'A reply.' });
+  });
+
+  test('consecutive thinking blocks merge as paragraphs', () => {
+    const rows = toRows([
+      { type: 'item.completed', item: { type: 'reasoning', text: 'First thought.' } },
+      { type: 'item.completed', item: { type: 'reasoning', text: 'Second thought.' } },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: 'thinking', text: 'First thought.\n\nSecond thought.' });
+  });
+});
+
 describe('toRows: antigravity stream', () => {
   test('renders init, steps, and the object-shaped result', () => {
     const rows = toRows([
