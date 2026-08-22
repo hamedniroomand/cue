@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { Exec } from "./exec";
 
 export interface WorktreeConfig {
@@ -13,7 +14,7 @@ export class WorktreeManager {
   ) {}
 
   path(issue: number): string {
-    return `${this.cfg.worktreeRoot}/issue-${issue}`;
+    return join(this.cfg.worktreeRoot, `issue-${issue}`);
   }
 
   branch(issue: number): string {

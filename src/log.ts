@@ -1,4 +1,5 @@
 import { mkdir, readdir } from "node:fs/promises";
+import { join } from "node:path";
 
 export interface RunEntry {
   prompt: string;
@@ -36,15 +37,15 @@ export class RunLogger {
   constructor(private runsDir: string) {}
 
   async log(issue: number, stage: string, entry: RunEntry): Promise<string> {
-    const dir = `${this.runsDir}/${issue}`;
+    const dir = join(this.runsDir, String(issue));
     await mkdir(dir, { recursive: true });
-    const path = `${dir}/${stage}-${Date.now()}.json`;
+    const path = join(dir, `${stage}-${Date.now()}.json`);
     await Bun.write(path, JSON.stringify(entry, null, 2));
     return path;
   }
 
   async list(issue: number): Promise<RunSummary[]> {
-    const dir = `${this.runsDir}/${issue}`;
+    const dir = join(this.runsDir, String(issue));
     let files: string[];
     try {
       files = await readdir(dir);
@@ -55,7 +56,7 @@ export class RunLogger {
     for (const f of files.toSorted()) {
       const m = f.match(/^(.+)-(\d+)\.json$/);
       if (!m) continue;
-      const entry = (await Bun.file(`${dir}/${f}`).json()) as RunEntry;
+      const entry = (await Bun.file(join(dir, f)).json()) as RunEntry;
       runs.push({
         stage: m[1]!,
         ts: Number(m[2]!),
@@ -74,7 +75,7 @@ export class RunLogger {
    */
   async read(issue: number, id: string): Promise<RunDetail | null> {
     if (!Number.isSafeInteger(issue) || issue < 0) return null;
-    const dir = `${this.runsDir}/${issue}`;
+    const dir = join(this.runsDir, String(issue));
     let files: string[];
     try {
       files = await readdir(dir);
@@ -85,7 +86,7 @@ export class RunLogger {
     if (!name) return null;
     const m = name.match(/^(.+)-(\d+)\.json$/);
     if (!m) return null;
-    const entry = (await Bun.file(`${dir}/${name}`).json()) as RunEntry;
+    const entry = (await Bun.file(join(dir, name)).json()) as RunEntry;
     return {
       stage: m[1]!,
       ts: Number(m[2]!),
@@ -116,7 +117,7 @@ export class RunLogger {
       if (!Number.isSafeInteger(issue) || issue <= 0) continue;
       let files: string[];
       try {
-        files = await readdir(`${this.runsDir}/${name}`);
+        files = await readdir(join(this.runsDir, name));
       } catch {
         continue;
       }
@@ -127,7 +128,7 @@ export class RunLogger {
       for (const f of files.toSorted()) {
         const m = f.match(/^(.+)-(\d+)\.json$/);
         if (!m) continue;
-        const entry = (await Bun.file(`${this.runsDir}/${name}/${f}`).json()) as RunEntry;
+        const entry = (await Bun.file(join(this.runsDir, name, f)).json()) as RunEntry;
         runs += 1;
         costUsd += entry.costUsd ?? 0;
         lastTs = Math.max(lastTs, Number(m[2]!));
@@ -139,7 +140,7 @@ export class RunLogger {
   }
 
   async totalCost(issue: number): Promise<number> {
-    const dir = `${this.runsDir}/${issue}`;
+    const dir = join(this.runsDir, String(issue));
     let files: string[];
     try {
       files = await readdir(dir);
@@ -148,7 +149,7 @@ export class RunLogger {
     }
     let total = 0;
     for (const f of files) {
-      const entry = (await Bun.file(`${dir}/${f}`).json()) as RunEntry;
+      const entry = (await Bun.file(join(dir, f)).json()) as RunEntry;
       total += entry.costUsd ?? 0;
     }
     return total;

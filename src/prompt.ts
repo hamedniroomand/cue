@@ -6,6 +6,7 @@ export function renderPrompt(template: string, vars: Record<string, string>): st
   });
 }
 
+import { join } from "node:path";
 import { EMBEDDED_PROMPTS } from "./embedded";
 
 // Earlier directories win: [project overrides, packaged defaults]. The prompts
@@ -13,7 +14,7 @@ import { EMBEDDED_PROMPTS } from "./embedded";
 // no prompts directory on disk at all.
 export async function loadPrompt(dirs: string[], name: string): Promise<string> {
   for (const dir of dirs) {
-    const file = Bun.file(`${dir}/${name}.md`);
+    const file = Bun.file(join(dir, `${name}.md`));
     if (await file.exists()) return file.text();
   }
   const embedded = EMBEDDED_PROMPTS[name];

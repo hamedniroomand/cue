@@ -4,14 +4,14 @@ import { makeFakeExec } from "./helpers/fakeExec";
 
 describe("realExec", () => {
   test("captures stdout and exit code", async () => {
-    const r = await realExec(["sh", "-c", "echo hello"]);
+    const r = await realExec(["bun", "-e", "console.log('hello')"]);
     expect(r.code).toBe(0);
     expect(r.stdout.trim()).toBe("hello");
   });
 
   test("streams stdout lines to onLine while still returning full output", async () => {
     const lines: string[] = [];
-    const r = await realExec(["sh", "-c", 'printf "one\\ntwo\\n"'], {
+    const r = await realExec(["bun", "-e", "console.log('one'); console.log('two')"], {
       onLine: (l) => lines.push(l),
     });
     expect(lines).toEqual(["one", "two"]);
@@ -19,7 +19,7 @@ describe("realExec", () => {
   });
 
   test("reports non-zero exit without throwing", async () => {
-    const r = await realExec(["sh", "-c", "echo boom >&2; exit 3"]);
+    const r = await realExec(["bun", "-e", "console.error('boom'); process.exit(3)"]);
     expect(r.code).toBe(3);
     expect(r.stderr).toContain("boom");
   });
