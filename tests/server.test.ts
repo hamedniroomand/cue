@@ -42,7 +42,14 @@ async function serve() {
   throw new Error(`no loopback hostname bindable:\n${errors.join('\n')}`);
 }
 
-describe('dashboard server', () => {
+// Bun 1.4.0 (the Rust rewrite) cannot listen() on Windows CI: every loopback
+// bind — any hostname, any port, Bun.serve and node:net alike — fails with
+// EADDRINUSE errno 0. Pinning bun 1.3.14 is not an option (it cannot read the
+// v2 lockfile 1.4 writes), so skip the only listening suite there until the
+// upstream regression is fixed, then remove this guard.
+const bunWindowsListenBroken = process.platform === 'win32';
+
+describe.skipIf(bunWindowsListenBroken)('dashboard server', () => {
   test('startServer binds the requested hostname and reports it in the url', async () => {
     const { ctx } = await makeCtx([], []);
     const { url, stop } = startServer(ctx, 0, 'localhost');
