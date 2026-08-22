@@ -148,16 +148,19 @@ async function openBrowser(url: string): Promise<void> {
 async function main(): Promise<void> {
   const [command, arg] = process.argv.slice(2);
   if (command === '--help' || command === '-h' || command === 'help') {
+    // oxlint-disable-next-line no-console -- plain stdout so --help pipes cleanly (no consola decoration)
     console.log(HELP);
     return;
   }
   if (command === '--version' || command === '-v' || command === 'version') {
+    // oxlint-disable-next-line no-console -- plain stdout so --version pipes cleanly
     console.log(VERSION);
     return;
   }
   const known = ['init', 'poll', 'run', 'cleanup', 'status', 'ui'];
   if (!command || !known.includes(command)) {
     if (command) consola.error(`unknown command: ${command}\n`);
+    // oxlint-disable-next-line no-console -- plain stdout so --help pipes cleanly
     console.log(HELP);
     process.exitCode = 1;
     return;
