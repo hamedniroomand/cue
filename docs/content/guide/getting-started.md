@@ -19,10 +19,18 @@ The release binaries do **not** require Bun or Node. You only need [Bun](https:/
 
 ## Install the CLI
 
-Self-contained binaries (macOS/Linux, arm64/x64) ship on GitHub Releases. The installer verifies a SHA-256 checksum:
+Self-contained binaries (macOS/Linux arm64/x64, Windows x64) ship on GitHub Releases. The installers verify a SHA-256 checksum.
+
+macOS / Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hamedniroomand/cue/main/install.sh | bash
+```
+
+Windows (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/hamedniroomand/cue/main/install.ps1 | iex"
 ```
 
 Optional environment variables:
@@ -30,18 +38,31 @@ Optional environment variables:
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `CUE_VERSION` | latest release | A tag such as `v0.2.0` |
-| `CUE_BIN_DIR` | `~/.local/bin` | Where to put the `cue` binary |
+| `CUE_BIN_DIR` | `~/.local/bin` (`%LOCALAPPDATA%\Programs\cue` on Windows) | Where to put the `cue` binary |
 | `CUE_REPO` | `hamedniroomand/cue` | `owner/repo` to download from |
 
 If you already have the [CUE language](https://cuelang.org) CLI installed, its `cue` binary will collide on `PATH`. Install this CLI to a dedicated `CUE_BIN_DIR`, or put that directory earlier on `PATH`.
 
-Windows is supported through WSL. Verify with:
+Verify with:
 
 ```bash
 cue --version
 ```
 
-If `~/.local/bin` is not on your `PATH`, add it to your shell profile.
+If the install directory is not on your `PATH`, the installer prints the line to add.
+
+### Windows notes
+
+Cue runs natively on Windows (WSL also works). Two extra prerequisites:
+
+- [Git for Windows](https://gitforwindows.org) — Claude Code's Bash tool depends on it
+- Long paths: worktrees live under `%USERPROFILE%\.cue\worktrees\…`, which plus a
+  project's `node_modules` can exceed the legacy 260-character limit. Enable
+  `git config --global core.longpaths true`, or point `worktreeRoot` in
+  `.cue/config.json` at a short path such as `C:\w`.
+
+Keep `gate` commands shell-portable: they run through `cmd` on Windows and `sh`
+elsewhere (`bun test`, `npm test`, and `&&` chaining work in both).
 
 ## Adopt in a project
 

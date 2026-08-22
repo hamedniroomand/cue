@@ -19,7 +19,7 @@ All project-specific state lives in the **target** repo, not in the Cue install:
 | `adapter` | `"claude"` | `"codex"` is planned and currently exits with a clear error |
 | `models` | triage `haiku`, dev `sonnet`, review `sonnet` | Passed to the Claude CLI |
 | `maxTurns` | triage 15, dev 60, review 25 | Per-stage turn cap |
-| `gate` | `{ "test": "bun test" }` | Optional `lint` string. Run in the worktree via `sh -c` |
+| `gate` | `{ "test": "bun test" }` | Optional `lint` string. Run in the worktree via the OS shell (`sh -c`; `cmd /c` on Windows) — keep commands shell-portable |
 | `reviewFixIterations` | `2` | Bounded review → fix loop |
 | `devBashAllowlist` | unset | Claude permission patterns such as `"bun *"`, `"git status"`. Unset = unrestricted Bash for dev/fix agents |
 | `worktreeRoot` | `~/.cue/worktrees/<owner>-<repo>` | Deliberately **outside** the target repo |

@@ -43,6 +43,7 @@ src/
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos (--allow-empty)
 ├── gates.ts            # deterministic test/lint runner (sh -c in the worktree)
 ├── exec.ts             # THE ONLY place Bun.spawn is called; injectable Exec type
+├── platform.ts         # POSIX/WINDOWS personality (gate shell, agent env allowlist), injected via StageContext
 ├── config.ts           # valibot schema + resolveConfig: .cue/config.json, repo auto-detect from origin
 └── log.ts              # per-invocation transcripts + cost under <target>/.cue/runs/<issue>/
 prompts/                # packaged default role prompts; <target>/.cue/prompts/ overrides per file
