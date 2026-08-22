@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { PlannedActions } from "~/components/planned-actions";
 import { SectionLabel, Shell } from "~/components/shell";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -51,9 +52,21 @@ const runId = (r: RunSummary) => `${r.stage}-${r.ts}`;
 
 export default function Runs() {
   const params = useParams();
-  const { state } = useCue();
+  const { state, refresh } = useCue();
   const index = useRunIndex();
   const issue = params.issue ? Number(params.issue) : null;
+
+  // The plan is read here, so the approval gate lives here too: true while the
+  // viewed issue sits in the agent:planned column.
+  const awaitingApproval = useMemo(
+    () =>
+      issue != null &&
+      (state?.columns
+        .find((c) => c.label === "agent:planned")
+        ?.issues.some((i) => i.number === issue) ??
+        false),
+    [state, issue],
+  );
 
   /**
    * Active = still on the label board. Done = has runs recorded on disk but has
@@ -224,7 +237,23 @@ export default function Runs() {
           </div>
 
           {/* ------------------------------------------------------ run detail */}
-          <div className="min-w-0">
+          <div className="flex min-w-0 flex-col gap-4">
+            {awaitingApproval && issue != null && (
+              <Card className="ring-1 ring-primary/30">
+                <CardHeader>
+                  <CardTitle className="text-sm">Awaiting plan approval</CardTitle>
+                  <CardDescription>
+                    Read the triage plan below (the newest triage or replan run), then gate it —
+                    Approve starts the dev run, Replan sends your feedback back for a revised plan.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-w-md">
+                    <PlannedActions issue={issue} onDone={refresh} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {issue == null ? (
               <Empty className="h-96 rounded-xl ring-1 ring-border">
                 <EmptyHeader>
