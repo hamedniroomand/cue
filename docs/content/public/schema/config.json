@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://hamedniroomand.github.io/cue/schema/config.json",
+  "title": "Cue configuration",
+  "description": "Configuration for cue, the GitHub-issue agent pipeline runner. Lives at .cue/config.json in the target repo. Every field is optional.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL of this schema, for editor autocompletion."
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^[\\w.-]+/[\\w.-]+$",
+      "description": "GitHub repository as owner/name. Auto-detected from the origin remote when unset.",
+      "examples": ["acme/widgets"]
+    },
+    "adapter": {
+      "type": "string",
+      "enum": ["codex", "antigravity", "agy", "claude"],
+      "default": "codex",
+      "description": "Which headless agent CLI drives the stages. \"agy\" is an alias for \"antigravity\". Model names are adapter-specific, so setting \"models\" requires setting this explicitly too."
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["triage", "dev", "review"],
+      "description": "Per-stage model, passed straight to the selected CLI. Defaults to the adapter's own set. Requires \"adapter\" to be set explicitly.",
+      "properties": {
+        "triage": { "type": "string", "description": "Model for plan generation and replan." },
+        "dev": { "type": "string", "description": "Model for implementation and review fixes." },
+        "review": { "type": "string", "description": "Model for the review verdict." }
+      }
+    },
+    "maxTurns": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": { "triage": 15, "dev": 60, "review": 25 },
+      "description": "Per-stage turn cap. Enforced by the claude adapter only (--max-turns); codex and antigravity have no turn cap.",
+      "properties": {
+        "triage": { "type": "integer", "minimum": 1 },
+        "dev": { "type": "integer", "minimum": 1 },
+        "review": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "reviewFixIterations": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 2,
+      "description": "How many times the review verdict may send the dev agent back for fixes before the stage gives up. 0 disables the fix loop."
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test"],
+      "default": { "test": "bun test" },
+      "description": "Deterministic gate run in the worktree after dev. Executed through the OS shell (sh -c, cmd /c on Windows) — keep commands shell-portable.",
+      "properties": {
+        "test": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Test command. A non-zero exit fails the dev stage.",
+          "examples": ["bun test", "npm test", "pytest -q"]
+        },
+        "lint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional lint command, run after the tests pass.",
+          "examples": ["bun run lint", "npm run lint"]
+        }
+      }
+    },
+    "devBashAllowlist": {
+      "type": "array",
+      "description": "Shell command patterns the dev and fix agents may run (Claude permission syntax). Unset means Bash is unrestricted. Enforced by the claude adapter only — codex and antigravity get a full shell inside their sandbox.",
+      "items": { "type": "string", "minLength": 1 },
+      "examples": [["bun *", "git status", "git diff *"]]
+    },
+    "worktreeRoot": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where per-issue git worktrees are created. Defaults to ~/.cue/worktrees/<owner>-<repo> — deliberately outside the target repo so IDE indexing never sees it."
+    },
+    "baseBranch": {
+      "type": "string",
+      "default": "main",
+      "description": "Branch that draft PRs target, and the branch worktrees are cut from. Cue never merges and never commits to it."
+    },
+    "staleClaimMinutes": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 90,
+      "description": "How long an agent:in-dev claim is treated as live before another poll may pick the issue up again."
+    }
+  },
+  "examples": [
+    {
+      "gate": { "test": "bun test" }
+    },
+    {
+      "adapter": "codex",
+      "gate": { "test": "npm test", "lint": "npm run lint" },
+      "models": { "triage": "gpt-5.3-codex", "dev": "gpt-5.3-codex", "review": "gpt-5.3-codex" },
+      "maxTurns": { "triage": 15, "dev": 60, "review": 25 },
+      "reviewFixIterations": 2,
+      "devBashAllowlist": ["bun *", "git status", "git diff *"],
+      "baseBranch": "main"
+    }
+  ]
+}

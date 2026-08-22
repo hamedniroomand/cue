@@ -51,6 +51,16 @@ describe('resolveConfig', () => {
     expect(cfg.devBashAllowlist).toBeUndefined(); // default: Bash unrestricted
   });
 
+  test('the $schema key editors use is ignored by the parser, not rejected', async () => {
+    const cwd = await tmpRepo({
+      $schema: 'https://hamedniroomand.github.io/cue/schema/config.json',
+      adapter: 'claude',
+    });
+    const cfg = await resolveConfig(originExec('git@github.com:acme/widgets.git'), cwd);
+    expect(cfg.adapter).toBe('claude');
+    expect('$schema' in cfg).toBe(false);
+  });
+
   test('config file fields override defaults, explicit repo skips detection', async () => {
     const cwd = await tmpRepo({
       repo: 'acme/other',

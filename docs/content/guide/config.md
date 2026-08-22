@@ -11,10 +11,26 @@ All project-specific state lives in the **target** repo, not in the Cue install:
 
 `cue init` writes a minimal `config.json`. You can also start from an empty file or omit fields you do not care about. `repo` is auto-detected from `origin` when unset.
 
+## Editor autocompletion
+
+Cue publishes a JSON Schema for `config.json`. `cue init` writes it in as the first key, so VS Code (and any editor with JSON Schema support) autocompletes field names, enumerates the valid `adapter` values, shows each field's description on hover, and flags typos as you type:
+
+```json
+{
+  "$schema": "https://hamedniroomand.github.io/cue/schema/config.json",
+  "gate": { "test": "bun test" }
+}
+```
+
+Already have a `.cue/config.json`? Re-run `cue init` — it adds the `$schema` key in place and leaves every other field untouched. Or paste the line yourself.
+
+The schema is deliberately a little stricter than the parser: it rejects unknown keys, so a misspelled field shows up as a squiggle in the editor instead of being silently ignored at runtime.
+
 ## Fields
 
 | Field | Default | Notes |
 | --- | --- | --- |
+| `$schema` | written by `cue init` | Editor autocompletion only; Cue ignores it |
 | `repo` | from the `origin` remote | `owner/name` |
 | `adapter` | `"codex"` | Options: `"codex"`, `"antigravity"` (or `"agy"`), `"claude"` |
 | `models` | Codex: `gpt-5.3-codex`; Antigravity: triage `gemini-3.7-flash-medium`, dev/review `gemini-3.7-flash-high`; Claude: triage `haiku`, dev/review `sonnet` | Passed to the selected CLI. Model names are adapter-specific, so setting `models` requires setting `adapter` explicitly too — Cue refuses the combination of explicit models with a defaulted adapter. |
@@ -30,6 +46,7 @@ Example:
 
 ```json
 {
+  "$schema": "https://hamedniroomand.github.io/cue/schema/config.json",
   "adapter": "codex",
   "gate": {
     "test": "npm test",
