@@ -97,6 +97,15 @@ Once the draft PR is open (`agent:in-review`), you close the loop the same way y
 
 Repeat as many rounds as you like; merge when satisfied. If the agent concludes everything is already addressed, it says so on the PR instead of pushing an empty commit. PR feedback is treated as untrusted input, and the approved plan stays the scope authority — feedback refines the implementation, it does not replace the plan.
 
+## Living specs & learnings (opt-in)
+
+Cue can maintain a knowledge layer inside the target repo — plain markdown, committed like code, zero configuration:
+
+- **Living specs.** Create `openspec/specs/` (if you already use [OpenSpec](https://github.com/Fission-AI/OpenSpec)) or `.cue/specs/`. Cue detects the directory: triage reads the specs as the source of truth and adds a `## Spec changes` section to every plan (OpenSpec `ADDED` / `MODIFIED` / `REMOVED` delta format, WHEN/THEN scenarios); approving the plan approves the delta; dev applies the delta to the spec files **in the same PR**, so specs and code merge atomically and can never drift; review verifies the diff matches the delta. Cue speaks OpenSpec's file format but has no dependency on its tooling — repos already running OpenSpec get this for free.
+- **Learnings.** Create an empty `.cue/learnings.md`. When the review loop had to force fixes, a small retrospective call distills those findings into at most three durable one-line lessons appended to the file — in the same PR, so you review them at merge time. Future triage, dev, and revise prompts carry the recorded lessons.
+
+Both are presence-detected: delete the directory or file to switch them off. Specs and learnings carry the same trust level as the codebase, because they only ever change through human-merged PRs.
+
 ## What each stage does & why
 
 Each stage in Cue is designed around a single principle: **use LLMs inside the nodes, plain deterministic code between the nodes.**

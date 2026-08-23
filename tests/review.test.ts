@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { Issue } from '@/github';
 import { parseVerdict, runReview } from '@/stages/review';
@@ -133,6 +136,107 @@ describe('runReview', () => {
     const verdict = await runReview(ctx, ISSUE);
     expect(verdict.approve).toBe(false);
     expect(runs).toHaveLength(5);
+  });
+
+  test('fix-forcing findings are distilled into .cue/learnings.md and pushed', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cue-review-learn-'));
+    const wtDir = join(root, 'issue-7');
+    await mkdir(join(wtDir, '.cue', 'specs'), { recursive: true });
+    await Bun.write(join(wtDir, '.cue', 'learnings.md'), '- first lesson\n');
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['git', '-C', wtDir, 'diff'], result: { stdout: '+ v1' } },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wtDir, 'add', '-A'] },
+        { match: ['git', '-C', wtDir, 'commit', '-m'] },
+        { match: ['git', '-C', wtDir, 'push'] },
+        { match: ['git', '-C', wtDir, 'diff'], result: { stdout: '+ v2' } },
+        { match: ['gh', 'pr', 'comment', 'agent/issue-7'] },
+        { match: ['git', '-C', wtDir, 'add', '-A'] },
+        { match: ['git', '-C', wtDir, 'commit', '-m'] },
+        { match: ['git', '-C', wtDir, 'push'] },
+      ],
+      [REJECT, 'fixed the off-by-one', APPROVE, '- guard array indexing at boundaries'],
+    );
+    ctx.config.worktreeRoot = root;
+    const verdict = await runReview(ctx, ISSUE);
+    expect(verdict.approve).toBe(true);
+    // The review prompt carries the spec-consistency note when specs exist.
+    expect(runs[0]!.prompt).toContain('## Spec changes');
+    // The distiller saw the findings and the already-recorded lessons.
+    const distill = runs[3]!;
+    expect(distill.prompt).toContain('off by one');
+    expect(distill.prompt).toContain('- first lesson');
+    expect(distill.access).toBe('read-only');
+    const file = await Bun.file(join(wtDir, '.cue', 'learnings.md')).text();
+    expect(file).toBe('- first lesson\n- guard array indexing at boundaries\n');
+  });
+
+  test('a distiller reply with no durable lesson records nothing', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cue-review-none-'));
+    const wtDir = join(root, 'issue-7');
+    await Bun.write(join(wtDir, '.cue', 'learnings.md'), '- first lesson\n');
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['git', '-C', wtDir, 'diff'], result: { stdout: '+ v1' } },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wtDir, 'add', '-A'] },
+        { match: ['git', '-C', wtDir, 'commit', '-m'] },
+        { match: ['git', '-C', wtDir, 'push'] },
+        { match: ['git', '-C', wtDir, 'diff'], result: { stdout: '+ v2' } },
+        { match: ['gh', 'pr', 'comment', 'agent/issue-7'] },
+        // No further git calls: nothing to record, nothing to push.
+      ],
+      [REJECT, 'fixed it', APPROVE, 'NONE'],
+    );
+    ctx.config.worktreeRoot = root;
+    const verdict = await runReview(ctx, ISSUE);
+    expect(verdict.approve).toBe(true);
+    expect(runs).toHaveLength(4);
+    const file = await Bun.file(join(wtDir, '.cue', 'learnings.md')).text();
+    expect(file).toBe('- first lesson\n');
+  });
+
+  test('a distiller crash never fails a finished review', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cue-review-crash-'));
+    const wtDir = join(root, 'issue-7');
+    await Bun.write(join(wtDir, '.cue', 'learnings.md'), '');
+    const { ctx } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['git', '-C', wtDir, 'diff'], result: { stdout: '+ v1' } },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wtDir, 'add', '-A'] },
+        { match: ['git', '-C', wtDir, 'commit', '-m'] },
+        { match: ['git', '-C', wtDir, 'push'] },
+        { match: ['git', '-C', wtDir, 'diff'], result: { stdout: '+ v2' } },
+        { match: ['gh', 'pr', 'comment', 'agent/issue-7'] },
+      ],
+      // The fourth adapter call (distiller) exhausts the fake and throws.
+      [REJECT, 'fixed it', APPROVE],
+    );
+    ctx.config.worktreeRoot = root;
+    const verdict = await runReview(ctx, ISSUE);
+    expect(verdict.approve).toBe(true);
+  });
+
+  test('an approve on the first pass records no learnings even when enabled', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cue-review-clean-'));
+    const wtDir = join(root, 'issue-7');
+    await Bun.write(join(wtDir, '.cue', 'learnings.md'), '- first lesson\n');
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['git', '-C', wtDir, 'diff'], result: { stdout: '+ change' } },
+        { match: ['gh', 'pr', 'comment', 'agent/issue-7'] },
+      ],
+      [APPROVE],
+    );
+    ctx.config.worktreeRoot = root;
+    await runReview(ctx, ISSUE);
+    expect(runs).toHaveLength(1);
   });
 
   test('unparseable verdict retries once with a JSON nudge, then throws', async () => {

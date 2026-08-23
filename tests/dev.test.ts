@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { Issue } from '@/github';
 import { runDev } from '@/stages/dev';
@@ -81,6 +84,34 @@ describe('runDev', () => {
         url: 'https://github.com/acme/widgets/pull/9',
       }),
     ]);
+  });
+
+  test('injects spec guidance and learnings found in the worktree', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cue-dev-specs-'));
+    const wtDir = join(root, 'issue-7');
+    await mkdir(join(wtDir, '.cue', 'specs'), { recursive: true });
+    await Bun.write(join(wtDir, '.cue', 'learnings.md'), '- never weaken tests to get green\n');
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wtDir, 'add', '-A'] },
+        { match: ['git', '-C', wtDir, 'commit', '-m'] },
+        { match: ['git', '-C', wtDir, 'push'] },
+        { match: ['gh', 'pr', 'create'], result: { stdout: 'pr url' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      ['implemented the feature'],
+    );
+    ctx.config.worktreeRoot = root;
+    await runDev(ctx, ISSUE);
+    const prompt = runs[0]!.prompt;
+    expect(prompt).toContain('.cue/specs');
+    expect(prompt).toContain('## Spec changes');
+    expect(prompt).toContain('never weaken tests to get green');
   });
 
   test('forwards the configured devBashAllowlist to the adapter', async () => {
