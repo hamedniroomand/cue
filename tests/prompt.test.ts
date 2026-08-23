@@ -46,4 +46,10 @@ describe('loadPrompt', () => {
   test('throws for a missing prompt', async () => {
     await expect(loadPrompt(['prompts'], 'nope')).rejects.toThrow('prompt not found');
   });
+
+  test('falls back to the embedded copy when no directory has the file', async () => {
+    const text = await loadPrompt(['/definitely-not-a-prompts-dir'], 'triage');
+    expect(text).toContain('{{issue_number}}');
+    expect(text).toContain('{{issue_title}}');
+  });
 });

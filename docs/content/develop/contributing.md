@@ -19,6 +19,8 @@ bun run cue <cmd>  # CLI against cwd (usually a target repo)
 
 Always run `bun run check` before claiming a change works.
 
+`bun test` always reports coverage (`bunfig.toml`) and writes `coverage/lcov.info`. The suite fails if any file drops below 95% lines or 80% functions (Bun's threshold is per-file). CI (`.github/workflows/tests.yml`) uploads that LCOV file as an artifact and to [Codecov](https://about.codecov.io/).
+
 ## Tests and fakes
 
 - Subprocess-touching code: `makeFakeExec` in `tests/helpers/` — scripted `{ match, result }` replay, `"*"` wildcards, prefix matching.

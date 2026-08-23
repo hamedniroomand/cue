@@ -62,7 +62,7 @@ bun run format:check
 bun run check         # lint + format:check + tests
 ```
 
-`bun test` is the default quality bar. You do not need GitHub or Claude credentials to develop the runner.
+`bun test` is the default quality bar. It also prints a coverage table (and writes `coverage/lcov.info`) — CI fails the job if coverage drops below the threshold in `bunfig.toml`. You do not need GitHub or Claude credentials to develop the runner.
 
 ## Docs site
 

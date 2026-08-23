@@ -25,6 +25,11 @@ describe('realExec', () => {
     expect(r.code).toBe(3);
     expect(r.stderr).toContain('boom');
   });
+
+  test('kills a hung process when timeoutMs elapses', async () => {
+    const r = await realExec(['bun', '-e', 'await Bun.sleep(30_000)'], { timeoutMs: 80 });
+    expect(r.code).not.toBe(0);
+  });
 });
 
 describe('makeFakeExec', () => {
