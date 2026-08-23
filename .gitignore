@@ -4,3 +4,4 @@ node_modules/
 cue.json
 tests/tmp-config-*.json
 dist/
+.cue/runs/
