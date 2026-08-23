@@ -322,6 +322,10 @@ describe('poll runs cleanup first', () => {
           match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:replan'],
           result: { stdout: '[]' },
         },
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:revise'],
+          result: { stdout: '[]' },
+        },
       ],
       [],
     );

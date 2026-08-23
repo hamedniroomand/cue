@@ -21,16 +21,23 @@ export const BOARD_LABELS = [
   "agent:replan",
   "agent:in-dev",
   "agent:in-review",
+  "agent:revise",
   "agent:failed",
 ];
 
 /** Labels `cue run` / Process now will pick up — mirrors ACTIONABLE_LABELS in src/action.ts. */
-export const ACTIONABLE_LABELS = ["agent:ready", "agent:approved", "agent:replan"] as const;
+export const ACTIONABLE_LABELS = [
+  "agent:ready",
+  "agent:approved",
+  "agent:replan",
+  "agent:revise",
+] as const;
 
 const NEXT_ACTION: Record<(typeof ACTIONABLE_LABELS)[number], string> = {
   "agent:ready": "triage",
   "agent:approved": "dev",
   "agent:replan": "replan",
+  "agent:revise": "revise",
 };
 
 export interface BoardIssue {

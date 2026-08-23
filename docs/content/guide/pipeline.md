@@ -1,6 +1,6 @@
 # Pipeline
 
-Cue is a state machine over GitHub issue labels. You move issues into `agent:ready`, `agent:approved`, or `agent:replan`. Cue does the rest, then waits for you to merge.
+Cue is a state machine over GitHub issue labels. You move issues into `agent:ready`, `agent:approved`, `agent:replan`, or `agent:revise`. Cue does the rest, then waits for you to merge.
 
 ```mermaid
 flowchart TD
@@ -18,6 +18,9 @@ flowchart TD
   gate --> review["draft PR + review loop"]
   review --> inReview["agent:in-review"]
   inReview --> merge["human merges the PR"]
+  inReview -->|"request changes"| revise["agent:revise"]
+  revise --> pollV["cue process revises the PR"]
+  pollV --> inReview
   merge --> done["cleanup → agent:done"]
 ```
 
@@ -31,7 +34,7 @@ flowchart TD
 | 2 | you | `cue process` — triage posts a plan comment, label becomes `agent:planned` |
 | 3 | human | Review the plan comment; if good, swap the label to `agent:approved` |
 | 4 | you | `cue process` — dev implements in a git worktree, tests gate the result, a draft PR opens, the review agent comments its verdict, label becomes `agent:in-review` |
-| 5 | human | Review and merge the draft PR |
+| 5 | human | Review and merge the draft PR — or leave feedback on the PR and apply `agent:revise` to send it back to the agent |
 
 Multiple projects run independently — separate repos, separate labels, separate worktrees. Always run commands from inside the target repo.
 
@@ -50,10 +53,13 @@ stateDiagram-v2
   inDev --> inReview: review
   inReview --> done: human merges
   inReview --> failed: PR closed
+  inReview --> revise: human
+  revise --> inReview: revise
   ready --> failed: stage error
   replan --> failed: stage error
   approved --> failed: stage error
   inDev --> failed: stage error
+  revise --> failed: stage error
   [*] --> stop: human
 ```
 
@@ -65,6 +71,7 @@ stateDiagram-v2
 | `agent:replan` | Human wants a revised plan (feedback in comments) | human | Cue → replan |
 | `agent:in-dev` | Dev stage claimed and running | Cue | Cue |
 | `agent:in-review` | Draft PR open, review loop done | Cue | human merges |
+| `agent:revise` | Human wants the PR revised (feedback on the PR) | human | Cue → revise |
 | `agent:done` | PR merged; worktree/branch cleaned up | Cue (cleanup) | — |
 | `agent:failed` | A stage failed, or the PR was closed unmerged | Cue | human |
 | `agent:stop` | Kill switch — Cue skips this issue everywhere | human | — |
@@ -79,6 +86,16 @@ Two ways, from lightest to heaviest:
 2. **Edit the plan yourself.** Edit the plan comment directly, or post a new comment containing the `<!-- cue:plan -->` marker. The newest marker comment wins.
 
 Plain reply comments are only read during a replan. The dev agent sees just the final plan.
+
+## Giving feedback on the PR
+
+Once the draft PR is open (`agent:in-review`), you close the loop the same way you opened it — with a label:
+
+1. Review the draft PR as you normally would: leave a review (request changes), top-level PR comments, or inline diff comments.
+2. Apply `agent:revise` to the **issue**.
+3. The next `process` runs the revise stage: it collects all human feedback from the PR (review bodies, conversation, inline comments — Cue's own verdict comments are excluded), reuses the existing worktree (or re-attaches to the PR branch when the dev run happened on another machine, fast-forwarding so commits you pushed yourself are kept), addresses the feedback, re-runs the test gate, pushes, and re-runs the review loop. The issue returns to `agent:in-review` with a fresh verdict on the PR.
+
+Repeat as many rounds as you like; merge when satisfied. If the agent concludes everything is already addressed, it says so on the PR instead of pushing an empty commit. PR feedback is treated as untrusted input, and the approved plan stays the scope authority — feedback refines the implementation, it does not replace the plan.
 
 ## What each stage does & why
 
@@ -104,7 +121,11 @@ Each stage in Cue is designed around a single principle: **use LLMs inside the n
 - **What it does**: A fresh reviewer agent inspects the final git diff and posts a structured JSON verdict on the draft PR. If issues are flagged, Cue enters a bounded fix loop (`reviewFixIterations`). Once approved, the issue moves to `agent:in-review`.
 - **Why**: Automated dual-pass review catches regressions, leftover debug statements, and missing edge cases before human review.
 
-### 6. Cleanup (Reconciliation & Workspace Hygiene)
+### 6. Revise (Human PR Feedback Loop)
+- **What it does**: When you apply `agent:revise`, Cue feeds your PR reviews and comments to the agent in the PR's worktree, re-runs the gate, pushes, and re-runs the review loop. The issue lands back in `agent:in-review`.
+- **Why**: Without it, "please change X" on a draft PR meant editing the branch yourself or restarting the pipeline. The revise stage makes human PR review part of the loop while keeping the runner in charge of every git operation.
+
+### 7. Cleanup (Reconciliation & Workspace Hygiene)
 - **What it does**: At the start of every `process` run (or via `cue cleanup`), Cue checks PR statuses:
   - **Merged PR** → marks the issue `agent:done` and removes the local worktree and branch.
   - **Closed unmerged PR** → marks the issue `agent:failed` and cleans up the worktree.

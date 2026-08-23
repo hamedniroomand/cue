@@ -1,15 +1,15 @@
 /**
- * Outbound webhook for the two moments a human is waited on: a plan is ready
- * for approval, and a draft PR is ready for merge. One plain JSON POST —
- * `text` makes it Slack-compatible, `content` Discord-compatible, and the
- * structured fields serve everything else.
+ * Outbound webhook for the moments a human is waited on: a plan is ready for
+ * approval, and a draft PR is ready (or freshly revised) for merge. One plain
+ * JSON POST — `text` makes it Slack-compatible, `content` Discord-compatible,
+ * and the structured fields serve everything else.
  *
  * Notifications are best-effort by contract: a down webhook must never fail a
  * stage, so every error is swallowed and the request is bounded by a timeout.
  */
 
 export interface Notification {
-  event: 'planned' | 'pr-opened';
+  event: 'planned' | 'pr-opened' | 'revised';
   issue: number;
   title: string;
   repo: string;

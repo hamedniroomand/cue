@@ -47,7 +47,7 @@ cue process
 The main loop. It:
 
 1. Reconciles finished PRs ([cleanup](#cleanup)).
-2. Lists issues labeled `agent:ready`, `agent:replan`, or `agent:approved`.
+2. Lists issues labeled `agent:ready`, `agent:replan`, `agent:approved`, or `agent:revise`.
 3. Runs the next stage for each one.
 
 Use this after you label work, after you approve a plan, and after you merge.
@@ -66,7 +66,7 @@ Compatibility alias for `cue process`. New scripts and documentation should use 
 cue run [n]
 ```
 
-Runs the next pipeline stage for a single issue. Pass an issue number (`cue run 42`) or run `cue run` without arguments to select from an interactive list of actionable issues (`agent:ready`, `agent:approved`, or `agent:replan`), sorted newest to oldest (latest pre-selected).
+Runs the next pipeline stage for a single issue. Pass an issue number (`cue run 42`) or run `cue run` without arguments to select from an interactive list of actionable issues (`agent:ready`, `agent:approved`, `agent:replan`, or `agent:revise`), sorted newest to oldest (latest pre-selected).
 
 **Non-interactive runs never prompt.** When stdin or stdout is not a TTY — CI, a pipe — `cue run` without a number errors with the usage line. Pass the issue number instead.
 

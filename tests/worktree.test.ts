@@ -95,6 +95,76 @@ describe('WorktreeManager', () => {
     await expect(new WorktreeManager(exec, CFG).create(7)).rejects.toThrow('not a git repository');
   });
 
+  test('ensure reuses a live worktree and fast-forwards it to origin', async () => {
+    const { exec, calls } = makeFakeExec([
+      { match: ['git', '-C', '/repos/widgets', 'fetch', 'origin', 'agent/issue-7'] },
+      { match: ['git', '-C', wtPath(7), 'rev-parse', '--git-dir'] },
+      { match: ['git', '-C', wtPath(7), 'merge', '--ff-only', 'origin/agent/issue-7'] },
+    ]);
+    const wt = await new WorktreeManager(exec, CFG).ensure(7);
+    expect(wt).toEqual({ path: wtPath(7), branch: 'agent/issue-7' });
+    expect(calls).toHaveLength(3);
+  });
+
+  test('ensure re-attaches a missing worktree to the existing local branch', async () => {
+    const { exec, calls } = makeFakeExec([
+      { match: ['git', '-C', '/repos/widgets', 'fetch', 'origin', 'agent/issue-7'] },
+      {
+        match: ['git', '-C', wtPath(7), 'rev-parse', '--git-dir'],
+        result: { code: 128, stderr: 'fatal: not a git repository' },
+      },
+      { match: ['git', '-C', '/repos/widgets', 'worktree', 'add', wtPath(7), 'agent/issue-7'] },
+      { match: ['git', '-C', wtPath(7), 'merge', '--ff-only', 'origin/agent/issue-7'] },
+    ]);
+    const wt = await new WorktreeManager(exec, CFG).ensure(7);
+    expect(wt.branch).toBe('agent/issue-7');
+    expect(calls).toHaveLength(4);
+  });
+
+  test('ensure creates a tracking branch from origin when no local branch exists', async () => {
+    const { exec, calls } = makeFakeExec([
+      { match: ['git', '-C', '/repos/widgets', 'fetch', 'origin', 'agent/issue-7'] },
+      {
+        match: ['git', '-C', wtPath(7), 'rev-parse', '--git-dir'],
+        result: { code: 128, stderr: 'fatal: not a git repository' },
+      },
+      {
+        match: ['git', '-C', '/repos/widgets', 'worktree', 'add', wtPath(7), 'agent/issue-7'],
+        result: { code: 128, stderr: 'fatal: invalid reference: agent/issue-7' },
+      },
+      {
+        match: [
+          'git',
+          '-C',
+          '/repos/widgets',
+          'worktree',
+          'add',
+          '--track',
+          '-b',
+          'agent/issue-7',
+          wtPath(7),
+          'origin/agent/issue-7',
+        ],
+      },
+      { match: ['git', '-C', wtPath(7), 'merge', '--ff-only', 'origin/agent/issue-7'] },
+    ]);
+    const wt = await new WorktreeManager(exec, CFG).ensure(7);
+    expect(wt.path).toBe(wtPath(7));
+    expect(calls).toHaveLength(5);
+  });
+
+  test('ensure surfaces a diverged branch instead of silently rewriting it', async () => {
+    const { exec } = makeFakeExec([
+      { match: ['git', '-C', '/repos/widgets', 'fetch', 'origin', 'agent/issue-7'] },
+      { match: ['git', '-C', wtPath(7), 'rev-parse', '--git-dir'] },
+      {
+        match: ['git', '-C', wtPath(7), 'merge', '--ff-only'],
+        result: { code: 128, stderr: 'fatal: Not possible to fast-forward, aborting.' },
+      },
+    ]);
+    await expect(new WorktreeManager(exec, CFG).ensure(7)).rejects.toThrow('fast-forward');
+  });
+
   test('commitAll returns false when there is nothing to commit', async () => {
     const { exec } = makeFakeExec([
       { match: ['git', '-C', wtPath(7), 'add', '-A'] },

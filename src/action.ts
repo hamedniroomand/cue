@@ -1,14 +1,21 @@
-export type Action = 'triage' | 'dev' | 'replan' | 'skip';
+export type Action = 'triage' | 'dev' | 'replan' | 'revise' | 'skip';
 
 /** Labels that `cue run` / `cue process` will pick up, in queue order. */
-export const ACTIONABLE_LABELS = ['agent:ready', 'agent:approved', 'agent:replan'] as const;
+export const ACTIONABLE_LABELS = [
+  'agent:ready',
+  'agent:approved',
+  'agent:replan',
+  'agent:revise',
+] as const;
 
 /**
- * First matching label wins. stop freezes the issue; replan beats a leftover
+ * First matching label wins. stop freezes the issue; revise beats replan —
+ * feedback on a shipped PR outranks re-planning; replan beats a leftover
  * ready/approved; ready beats approved so a re-opened ticket is re-triaged.
  */
 const PRIORITY: Array<[label: string, action: Action]> = [
   ['agent:stop', 'skip'],
+  ['agent:revise', 'revise'],
   ['agent:replan', 'replan'],
   ['agent:ready', 'triage'],
   ['agent:approved', 'dev'],

@@ -7,7 +7,7 @@ import { PLAN_MARKER } from '@/stages/triage';
 
 const DEV_TIMEOUT_MS = 60 * 60_000;
 
-async function runFix(
+export async function runFix(
   ctx: StageContext,
   cwd: string,
   issue: number,

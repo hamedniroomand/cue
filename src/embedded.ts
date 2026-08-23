@@ -4,6 +4,7 @@ import devPrompt from '../prompts/dev.md' with { type: 'file' };
 import fixPrompt from '../prompts/fix.md' with { type: 'file' };
 import replanPrompt from '../prompts/replan.md' with { type: 'file' };
 import reviewPrompt from '../prompts/review.md' with { type: 'file' };
+import revisePrompt from '../prompts/revise.md' with { type: 'file' };
 import triagePrompt from '../prompts/triage.md' with { type: 'file' };
 
 export const EMBEDDED_PROMPTS: Record<string, string> = {
@@ -11,6 +12,7 @@ export const EMBEDDED_PROMPTS: Record<string, string> = {
   fix: fixPrompt,
   replan: replanPrompt,
   review: reviewPrompt,
+  revise: revisePrompt,
   triage: triagePrompt,
 };
 

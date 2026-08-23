@@ -50,7 +50,7 @@ describe('GitHub', () => {
     );
   });
 
-  test('listActionable fans out the three labels and keeps each issue once', async () => {
+  test('listActionable fans out the four labels and keeps each issue once', async () => {
     const dual = JSON.stringify([
       {
         number: 7,
@@ -75,10 +75,14 @@ describe('GitHub', () => {
         match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:replan'],
         result: { stdout: dual },
       },
+      {
+        match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:revise'],
+        result: { stdout: '[]' },
+      },
     ]);
     const issues = await new GitHub(exec, 'acme/widgets').listActionable();
     expect(issues.map((i) => i.number)).toEqual([7, 9]);
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
   });
 
   test('listIssuesByLabel fans out in chunks and maps results per label', async () => {
@@ -174,6 +178,49 @@ describe('GitHub', () => {
       const { exec } = makeFakeExec([{ match: ['gh', 'api'], result }]);
       expect(await new GitHub(exec, 'acme/widgets').labelAddedAt(7, 'agent:in-dev')).toBeNull();
     }
+  });
+
+  test('prFeedback merges reviews, PR comments, and inline diff comments in order', async () => {
+    const prView = JSON.stringify({
+      number: 9,
+      comments: [{ author: { login: 'hamed' }, body: 'also rename the flag' }],
+      reviews: [
+        { author: { login: 'hamed' }, body: 'needs a guard here', state: 'CHANGES_REQUESTED' },
+        { author: { login: 'sam' }, body: '', state: 'APPROVED' },
+      ],
+    });
+    const inline = [
+      JSON.stringify({ author: 'hamed', body: 'off by one', path: 'src/a.ts', line: 12 }),
+      JSON.stringify({ author: 'sam', body: 'typo', path: 'src/b.ts', line: null }),
+    ].join('\n');
+    const { exec, calls } = makeFakeExec([
+      {
+        match: ['gh', 'pr', 'view', 'agent/issue-7', '--repo', 'acme/widgets'],
+        result: { stdout: prView },
+      },
+      {
+        match: ['gh', 'api', 'repos/acme/widgets/pulls/9/comments', '--paginate'],
+        result: { stdout: inline },
+      },
+    ]);
+    const { number, items } = await new GitHub(exec, 'acme/widgets').prFeedback('agent/issue-7');
+    expect(number).toBe(9);
+    expect(items).toEqual([
+      { author: 'hamed', body: 'needs a guard here' },
+      { author: 'hamed', body: 'also rename the flag' },
+      { author: 'hamed', body: 'off by one', path: 'src/a.ts', line: 12 },
+      { author: 'sam', body: 'typo', path: 'src/b.ts' },
+    ]);
+    expect(calls[0]).toContain('--json');
+  });
+
+  test('prFeedback throws when the branch has no PR', async () => {
+    const { exec } = makeFakeExec([
+      { match: ['gh', 'pr', 'view'], result: { code: 1, stderr: 'no pull requests found' } },
+    ]);
+    await expect(new GitHub(exec, 'acme/widgets').prFeedback('agent/issue-7')).rejects.toThrow(
+      'gh failed',
+    );
   });
 
   test('createDraftPR returns the PR URL', async () => {

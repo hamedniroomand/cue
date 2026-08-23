@@ -24,7 +24,7 @@ import {
  * Header stand-in for `cue process` / `cue run [n]`. Nothing selected polls
  * every actionable issue; picking one from the dropdown changes the button
  * to Run #n. Clear returns to Process now. The list is the same set the CLI
- * picker shows (ready / approved / replan).
+ * picker shows (ready / approved / replan / revise).
  */
 export function ProcessControl({
   state,
@@ -74,7 +74,7 @@ export function ProcessControl({
           {issues.length === 0 ? (
             <DropdownMenuGroup>
               <DropdownMenuLabel>No actionable issues</DropdownMenuLabel>
-              <DropdownMenuItem disabled>Needs ready, approved, or replan</DropdownMenuItem>
+              <DropdownMenuItem disabled>Needs ready, approved, replan, or revise</DropdownMenuItem>
             </DropdownMenuGroup>
           ) : (
             <DropdownMenuGroup>

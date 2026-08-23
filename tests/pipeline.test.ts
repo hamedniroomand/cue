@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import type { Issue } from '@/github';
 import { poll, runIssue } from '@/pipeline';
 
+import { wt } from './helpers/paths';
 import { makeCtx } from './triage.test';
 
 describe('runIssue failure handling', () => {
@@ -83,6 +84,107 @@ describe('runIssue failure handling', () => {
     expect(await runIssue(ctx, issue)).toBe('failed');
   });
 
+  test('agent:revise runs revise then review', async () => {
+    const PLAN_VIEW = {
+      stdout: JSON.stringify({ comments: [{ body: '<!-- cue:plan -->\nplan' }] }),
+    };
+    const { ctx, calls } = await makeCtx(
+      [
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:revise',
+            '--add-label',
+            'agent:in-dev',
+          ],
+        },
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        {
+          match: ['gh', 'pr', 'view', 'agent/issue-7'],
+          result: {
+            stdout: JSON.stringify({
+              number: 9,
+              comments: [{ author: { login: 'hamed' }, body: 'tighten the regex' }],
+              reviews: [],
+            }),
+          },
+        },
+        { match: ['gh', 'api', 'repos/acme/widgets/pulls/9/comments'], result: { stdout: '' } },
+        { match: ['git', '-C', '/repos/widgets', 'fetch', 'origin', 'agent/issue-7'] },
+        { match: ['git', '-C', wt(7), 'rev-parse', '--git-dir'] },
+        { match: ['git', '-C', wt(7), 'merge', '--ff-only'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'] },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:in-dev',
+            '--add-label',
+            'agent:in-review',
+          ],
+        },
+        // runReview follows the revise
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['git', '-C', wt(7), 'diff'], result: { stdout: '+ revised' } },
+        { match: ['gh', 'pr', 'comment', 'agent/issue-7'] },
+      ],
+      ['revised the code', JSON.stringify({ approve: true, findings: [] })],
+    );
+    const issue: Issue = {
+      number: 7,
+      title: 't',
+      body: 'b',
+      labels: ['agent:in-review', 'agent:revise'],
+    };
+    expect(await runIssue(ctx, issue)).toBe('done');
+    expect(calls.at(-1)!.join(' ')).toContain('approve');
+  });
+
+  test('a revise failure drops the agent:in-dev claim so only agent:failed remains', async () => {
+    const { ctx, calls } = await makeCtx(
+      [
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '7',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:revise',
+            '--add-label',
+            'agent:in-dev',
+          ],
+        },
+        { match: ['gh', 'issue', 'view', '7'], result: { stdout: '{"comments":[]}' } },
+        // No PR on the branch → runRevise throws after claiming.
+        { match: ['gh', 'pr', 'view'], result: { code: 1, stderr: 'no pull requests found' } },
+        { match: ['gh', 'issue', 'comment', '7'] },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:in-dev'] },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--add-label', 'agent:failed'] },
+      ],
+      [],
+    );
+    const issue: Issue = { number: 7, title: 't', body: 'b', labels: ['agent:revise'] };
+    expect(await runIssue(ctx, issue)).toBe('failed');
+    expect(calls).toHaveLength(6);
+  });
+
   test('skip labels do nothing', async () => {
     const { ctx, calls } = await makeCtx([], []);
     await runIssue(ctx, {
@@ -109,6 +211,7 @@ describe('poll reporting', () => {
         emptyList('agent:ready'),
         emptyList('agent:approved'),
         emptyList('agent:replan'),
+        emptyList('agent:revise'),
       ],
       [],
     );
@@ -141,6 +244,7 @@ describe('poll reporting', () => {
           result: { stdout: DUAL },
         },
         emptyList('agent:replan'),
+        emptyList('agent:revise'),
         { match: ['gh', 'issue', 'edit', '7'] },
         { match: ['gh', 'issue', 'comment', '7'] },
         { match: ['gh', 'issue', 'edit', '7'] },
@@ -167,6 +271,7 @@ describe('poll reporting', () => {
         },
         emptyList('agent:approved'),
         emptyList('agent:replan'),
+        emptyList('agent:revise'),
         { match: ['gh', 'issue', 'edit', '7'] },
         { match: ['gh', 'issue', 'comment', '7'] },
         { match: ['gh', 'issue', 'edit', '7'] },

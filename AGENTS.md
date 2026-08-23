@@ -2,7 +2,8 @@
 
 Cue is a deterministic Bun + TypeScript runner that drives headless coding
 agents (Claude Code via `claude -p`) through a GitHub-issue pipeline:
-**Triage → human approves plan → Dev → Test gate → Review loop → Draft PR → human merges.**
+**Triage → human approves plan → Dev → Test gate → Review loop → Draft PR → human merges**
+(a human can also label `agent:revise` to send PR feedback back through the agent).
 GitHub is the state store: `agent:*` labels are the state machine, issue comments
 carry handoffs (the plan), draft PRs are the output. User-facing flow and
 label table: `docs/content/` (VitePress) and https://hamedniroomand.github.io/cue/
@@ -35,6 +36,7 @@ src/
 │   ├── triage.ts       # read-only plan generation; exports PLAN_MARKER
 │   ├── replan.ts       # plan revision from human feedback comments (has WebSearch)
 │   ├── dev.ts          # worktree implementation + gate + draft PR
+│   ├── revise.ts       # addresses human PR feedback in the PR's worktree + gate, then review re-runs
 │   └── review.ts       # JSON verdict + bounded fix loop; exports parseVerdict, Verdict
 ├── adapters/
 │   ├── types.ts        # AgentAdapter / AgentRunOptions (semantic: access/webSearch/bashAllowlist) / AgentResult
@@ -77,9 +79,9 @@ tests/helpers/          # makeFakeExec (scripted subprocess replay), makeFakeAda
   shadcn stack — its deps never enter the CLI's. Do not add packages to either without
   being asked.
 - **Label names are exact:** `agent:ready`, `agent:planned`, `agent:approved`,
-  `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:done`, `agent:failed`,
-  `agent:stop`. They appear in code, tests, prompts, README, and on real repos —
-  change all or none.
+  `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:revise`, `agent:done`,
+  `agent:failed`, `agent:stop`. They appear in code, tests, prompts, README, and on
+  real repos — change all or none.
 - **The plan-comment marker is exactly `<!-- cue:plan -->`** (`PLAN_MARKER` in
   `stages/triage.ts`, defined once). The dev/replan stages find plans by newest
   comment containing it.
