@@ -109,6 +109,16 @@ In a terminal, `init` asks three questions — which agent CLI to use, the test 
 4. Triage posts a plan comment and the label becomes `agent:planned`.
 5. Read the plan. If it looks right, swap the label to `agent:approved`. If not, [ask for a revision](/guide/pipeline#giving-feedback-on-a-plan).
 6. `cue process` again. Dev implements in a worktree, the test gate runs, a draft PR opens, and the review agent comments a verdict. The label becomes `agent:in-review`.
-7. You review and merge the draft PR. The next `process` (or `cue cleanup`) marks the issue `agent:done` and removes the worktree.
+7. You review the draft PR. If something needs changing, leave your feedback on the PR and label the issue `agent:revise` — the next `process` [sends it back through the agent](/guide/pipeline#giving-feedback-on-the-pr) and returns to `agent:in-review` with a fresh verdict.
+8. Merge the draft PR. The next `process` (or `cue cleanup`) marks the issue `agent:done` and removes the worktree.
 
 That is the whole human loop. Details, labels, and edge cases live in [Pipeline](/guide/pipeline). Command reference: [Commands](/guide/commands).
+
+## Optional: living specs and learnings
+
+Two knowledge layers are off by default and switched on by creating a file — there is nothing to configure:
+
+- `openspec/specs/` or `.cue/specs/` makes specs the source of truth: plans gain a `## Spec changes` delta and dev updates the spec files in the same PR as the code.
+- An empty `.cue/learnings.md` lets the review loop distill the fixes it had to force into durable one-line lessons that later runs carry in context.
+
+See [Pipeline → Living specs & learnings](/guide/pipeline#living-specs-learnings-opt-in).

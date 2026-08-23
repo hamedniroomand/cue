@@ -4,6 +4,8 @@ Cue (pronounced _kyoo_, like “cue the lights”) is a CLI that turns GitHub is
 
 ```
 Issue (agent:ready) ──> Triage Plan ──> You Approve (agent:approved) ──> Dev & Test Gate ──> Code Review ──> Draft PR ──> You Merge
+                                                                                                   ^                  │
+                                                                                                   └──── agent:revise ┘
 ```
 
 Instead of babysitting interactive agent sessions in your terminal, Cue runs coding agents through a deterministic pipeline where GitHub acts as the state store: labels drive the state machine, issue comments carry implementation plans, and draft PRs deliver the finished code.
