@@ -20,7 +20,8 @@ for target in "${targets[@]}"; do
   out="dist/cue-${target#bun-}"
   [[ "${target}" == *windows* ]] && out+=".exe"
   echo "compiling ${out}"
-  bun build --compile --target="${target}" src/cli.ts --outfile "${out}"
+  bun build --compile --production --drop=debugger --keep-names \
+    --target="${target}" src/cli.ts --outfile "${out}"
 done
 
 # Restore the committed empty manifest stub.
