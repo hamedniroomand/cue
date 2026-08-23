@@ -1,13 +1,21 @@
 import { describe, expect, test } from 'bun:test';
 
+import { ACTIONABLE_LABELS } from '@/action';
 import { BOARD_LABELS } from '@/server';
 
 // The dashboard's issue classifier lives in the ui package but is pure TS with
 // no ui-only imports, so the root suite covers it directly.
-// oxlint-disable-next-line import/no-relative-parent-imports -- ui/ is outside the @/ alias root on purpose
-import { BOARD_LABELS as UI_BOARD_LABELS, runIssueSet, splitIssues } from '../ui/app/lib/board';
-// oxlint-disable-next-line import/no-relative-parent-imports -- see above
-import type { DashboardState, RunIndexEntry } from '../ui/app/lib/board';
+import {
+  ACTIONABLE_LABELS as UI_ACTIONABLE_LABELS,
+  actionableIssues,
+  BOARD_LABELS as UI_BOARD_LABELS,
+  processButtonLabel,
+  resolveProcessTarget,
+  runIssueSet,
+  splitIssues,
+  type DashboardState,
+  type RunIndexEntry,
+} from '../ui/app/lib/board'; // oxlint-disable-line import/no-relative-parent-imports -- ui/ is outside the @/ alias root
 
 const state = (...numbers: number[]): DashboardState => ({
   repo: 'o/r',
@@ -133,5 +141,79 @@ describe('BOARD_LABELS', () => {
   // ui copy must stay identical to the server's — label names are exact.
   test('mirrors the server board columns exactly', () => {
     expect(UI_BOARD_LABELS).toEqual(BOARD_LABELS);
+  });
+});
+
+describe('actionableIssues', () => {
+  test('is empty while the board is still loading', () => {
+    expect(actionableIssues(null)).toEqual([]);
+  });
+
+  test('keeps ready, approved, and replan issues, newest first', () => {
+    const mixed: DashboardState = {
+      ...state(),
+      columns: [
+        {
+          label: 'agent:ready',
+          issues: [{ number: 3, title: 'Triage me', labels: [], cost: 0, tokens: 0 }],
+        },
+        {
+          label: 'agent:planned',
+          issues: [{ number: 9, title: 'Awaiting approval', labels: [], cost: 0, tokens: 0 }],
+        },
+        {
+          label: 'agent:approved',
+          issues: [{ number: 12, title: 'Build it', labels: [], cost: 0, tokens: 0 }],
+        },
+        {
+          label: 'agent:replan',
+          issues: [{ number: 7, title: 'Revise plan', labels: [], cost: 0, tokens: 0 }],
+        },
+        {
+          label: 'agent:in-dev',
+          issues: [{ number: 4, title: 'In flight', labels: [], cost: 0, tokens: 0 }],
+        },
+        {
+          label: 'agent:failed',
+          issues: [{ number: 2, title: 'Broke', labels: [], cost: 0, tokens: 0 }],
+        },
+      ],
+    };
+    expect(actionableIssues(mixed)).toEqual([
+      { number: 12, title: 'Build it', label: 'approved', action: 'dev' },
+      { number: 7, title: 'Revise plan', label: 'replan', action: 'replan' },
+      { number: 3, title: 'Triage me', label: 'ready', action: 'triage' },
+    ]);
+  });
+});
+
+describe('resolveProcessTarget', () => {
+  const queue = actionableIssues(state(3, 1));
+
+  test('polls every actionable issue when nothing is selected', () => {
+    expect(resolveProcessTarget(null, queue)).toEqual({ kind: 'poll' });
+  });
+
+  test('runs the selected issue while it is still actionable', () => {
+    expect(resolveProcessTarget(3, queue)).toEqual({ kind: 'run', issue: 3 });
+  });
+
+  test('falls back to poll once the selected issue leaves the queue', () => {
+    expect(resolveProcessTarget(9, queue)).toEqual({ kind: 'poll' });
+  });
+});
+
+describe('processButtonLabel', () => {
+  test('names the poll action and the single-issue run', () => {
+    expect(processButtonLabel({ kind: 'poll' })).toBe('Process now');
+    expect(processButtonLabel({ kind: 'run', issue: 42 })).toBe('Run #42');
+  });
+});
+
+describe('ACTIONABLE_LABELS', () => {
+  // The picker only offers what `cue run` would; drift would let the dashboard
+  // start a stage the CLI refuses, or hide one it accepts.
+  test('mirrors the pipeline actionable labels exactly', () => {
+    expect([...UI_ACTIONABLE_LABELS]).toEqual([...ACTIONABLE_LABELS]);
   });
 });

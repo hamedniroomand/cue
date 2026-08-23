@@ -1,11 +1,12 @@
-import { ActivityIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
+import { ActivityIcon, DownloadIcon } from "lucide-react";
 import { NavLink } from "react-router";
 
+import { ProcessControl } from "~/components/process-control";
 import { ChipSkeleton } from "~/components/skeletons";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { Badge } from "~/components/ui/badge";
-import { Separator } from "~/components/ui/separator";
 import { Button } from "~/components/ui/button";
+import { Separator } from "~/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import type { DashboardState } from "~/lib/cue";
 import { cn } from "~/lib/utils";
@@ -39,11 +40,13 @@ function Ambient() {
 export function Shell({
   state,
   onPoll,
+  onRun,
   onExport,
   children,
 }: {
   state: DashboardState | null;
   onPoll?: () => void;
+  onRun?: (issue: number) => void;
   onExport?: () => void;
   children: React.ReactNode;
 }) {
@@ -125,12 +128,7 @@ export function Shell({
               Export
             </Button>
           )}
-          {onPoll && (
-            <Button size="sm" className="shrink-0" disabled={state?.busy != null} onClick={onPoll}>
-              <RefreshCwIcon data-icon="inline-start" className="hidden sm:block" />
-              Process now
-            </Button>
-          )}
+          {onPoll && onRun && <ProcessControl state={state} onPoll={onPoll} onRun={onRun} />}
         </div>
       </header>
 

@@ -43,6 +43,7 @@ import {
   formatUsage,
   formatUsd,
   poll,
+  runIssue,
   shortLabel,
   STAGES,
 } from "~/lib/cue";
@@ -150,7 +151,12 @@ export default function Home() {
   }
 
   return (
-    <Shell state={state} onPoll={() => void poll()} onExport={exportReport}>
+    <Shell
+      state={state}
+      onPoll={() => void poll()}
+      onRun={(n) => void runIssue(n)}
+      onExport={exportReport}
+    >
       <div className="flex flex-col gap-12">
         {/* ------------------------------------------------ executive summary */}
         <section className="reveal overflow-hidden rounded-xl bg-surface text-surface-foreground ring-1 ring-foreground/10">
