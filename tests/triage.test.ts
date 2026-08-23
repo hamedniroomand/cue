@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -82,6 +82,9 @@ describe('runTriage', () => {
     expect(run.access).toBe('read-only');
     expect(run.webSearch).toBeUndefined();
     expect(run.prompt).toContain('Fix login');
+    // No specs dir, no learnings file → the knowledge layer stays fully out of the prompt.
+    expect(run.prompt).not.toContain('## Spec changes');
+    expect(run.prompt).not.toContain('Repo learnings');
     const commentCall = calls[1]!;
     expect(commentCall.join(' ')).toContain(PLAN_MARKER);
     expect(notifications).toEqual([
@@ -93,6 +96,26 @@ describe('runTriage', () => {
         url: 'https://github.com/acme/widgets/issues/7',
       }),
     ]);
+  });
+
+  test('injects spec guidance and learnings when the repo keeps them', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cue-triage-specs-'));
+    await mkdir(join(root, 'openspec', 'specs'), { recursive: true });
+    await Bun.write(join(root, '.cue', 'learnings.md'), '- always update the schema mirror\n');
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'comment', '7'] },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      [GOOD_PLAN],
+    );
+    ctx.config.repoPath = root;
+    await runTriage(ctx, ISSUE);
+    const prompt = runs[0]!.prompt;
+    expect(prompt).toContain('openspec/specs');
+    expect(prompt).toContain('## Spec changes');
+    expect(prompt).toContain('always update the schema mirror');
   });
 
   test('a crashed adapter run is still recorded with its partial transcript', async () => {

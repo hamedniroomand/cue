@@ -57,8 +57,9 @@ const STAGE_COLORS: Record<string, string> = {
   fix: "var(--chart-5)",
   review: "var(--chart-3)",
   "review-fix": "var(--chart-5)",
-  // Revise is dev-shaped work, so it shares dev's hue.
+  // Revise is dev-shaped work, so it shares dev's hue; learnings is review-shaped.
   revise: "var(--chart-2)",
+  learnings: "var(--chart-3)",
 };
 
 /**

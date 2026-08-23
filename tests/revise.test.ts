@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { Issue } from '@/github';
 import { runRevise } from '@/stages/revise';
@@ -105,6 +108,35 @@ describe('runRevise', () => {
         url: 'https://github.com/acme/widgets/pull/9',
       }),
     ]);
+  });
+
+  test('injects spec guidance and learnings found in the worktree', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cue-revise-specs-'));
+    const wtDir = join(root, 'issue-7');
+    await mkdir(join(wtDir, 'openspec', 'specs'), { recursive: true });
+    await Bun.write(join(wtDir, '.cue', 'learnings.md'), '- keep gh out of agent env\n');
+    const { ctx, runs } = await makeCtx(
+      [
+        CLAIM,
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: prViewResult() },
+        { match: ['gh', 'api', 'repos/acme/widgets/pulls/9/comments'], result: { stdout: '' } },
+        { match: ['git', '-C', '/repos/widgets', 'fetch', 'origin', 'agent/issue-7'] },
+        { match: ['git', '-C', wtDir, 'rev-parse', '--git-dir'] },
+        { match: ['git', '-C', wtDir, 'merge', '--ff-only'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wtDir, 'add', '-A'] },
+        { match: ['git', '-C', wtDir, 'commit', '-m'] },
+        { match: ['git', '-C', wtDir, 'push'] },
+        RELEASE,
+      ],
+      ['addressed the feedback'],
+    );
+    ctx.config.worktreeRoot = root;
+    await runRevise(ctx, ISSUE);
+    const prompt = runs[0]!.prompt;
+    expect(prompt).toContain('openspec/specs');
+    expect(prompt).toContain('keep gh out of agent env');
   });
 
   test('no code changes: skips the push, tells the PR, still returns to in-review', async () => {

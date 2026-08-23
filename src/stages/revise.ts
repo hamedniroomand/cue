@@ -1,6 +1,7 @@
 import { runGate } from '@/gates';
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
+import { knowledgeVars, specsDevGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
 import { runFix } from '@/stages/dev';
 import { loggedRun } from '@/stages/run';
@@ -29,7 +30,12 @@ export async function runRevise(ctx: StageContext, issue: Issue): Promise<void> 
 
   const wt = await ctx.worktrees.ensure(issue.number);
   const template = await loadPrompt(ctx.promptsDirs, 'revise');
-  const prompt = renderPrompt(template, { issue_title: issue.title, plan, feedback });
+  const prompt = renderPrompt(template, {
+    issue_title: issue.title,
+    plan,
+    feedback,
+    ...(await knowledgeVars(wt.path, specsDevGuidance)),
+  });
   await loggedRun(ctx, issue.number, 'revise', {
     prompt,
     cwd: wt.path,

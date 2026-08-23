@@ -1,5 +1,6 @@
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
+import { knowledgeVars, specsPlanGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
 import { loggedRun } from '@/stages/run';
 
@@ -13,6 +14,7 @@ export async function runTriage(ctx: StageContext, issue: Issue): Promise<void> 
     issue_number: String(issue.number),
     issue_title: issue.title,
     issue_body: issue.body,
+    ...(await knowledgeVars(ctx.config.repoPath, specsPlanGuidance)),
   });
   const res = await loggedRun(ctx, issue.number, 'triage', {
     prompt,

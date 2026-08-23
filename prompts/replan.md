@@ -13,6 +13,10 @@ repository's worktree and the plan text. If the approach requires reference mate
 that is not in the repo, include that content verbatim in the plan — the dev agent is
 forbidden from searching the filesystem for it.
 
+{{learnings}}
+
+{{specs_guidance}}
+
 Respond with EXACTLY this structure (it is posted verbatim as an issue comment):
 
 ## Problem

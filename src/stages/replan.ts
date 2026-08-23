@@ -1,5 +1,6 @@
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
+import { knowledgeVars, specsPlanGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
 import { loggedRun } from '@/stages/run';
 import { PLAN_MARKER } from '@/stages/triage';
@@ -27,6 +28,7 @@ export async function runReplan(ctx: StageContext, issue: Issue): Promise<void> 
     issue_body: issue.body,
     previous_plan: previousPlan,
     feedback,
+    ...(await knowledgeVars(ctx.config.repoPath, specsPlanGuidance)),
   });
   const res = await loggedRun(ctx, issue.number, 'replan', {
     prompt,

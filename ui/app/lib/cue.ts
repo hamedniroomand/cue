@@ -38,7 +38,16 @@ export interface RunDetail extends RunSummary {
   result: unknown;
 }
 
-export const STAGES = ["triage", "replan", "dev", "fix", "review", "review-fix", "revise"] as const;
+export const STAGES = [
+  "triage",
+  "replan",
+  "dev",
+  "fix",
+  "review",
+  "review-fix",
+  "revise",
+  "learnings",
+] as const;
 
 export function formatUsd(n: number): string {
   return n >= 1 ? `$${n.toFixed(2)}` : `$${n.toFixed(3)}`;
