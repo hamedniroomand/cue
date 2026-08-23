@@ -197,27 +197,39 @@ describe('formatIssueOptions', () => {
     { number: 20, title: 'Needs replan', body: '', labels: ['agent:replan'] },
   ];
 
-  test('sorts issues descending by number (newest to oldest)', () => {
+  test("preserves caller order — sorting is the caller's job", () => {
     const options = formatIssueOptions(issues);
-    expect(options.map((o) => o.value)).toEqual(['42', '20', '5']);
+    expect(options.map((o) => o.value)).toEqual(['5', '42', '20']);
   });
 
   test('formats option labels with number and title', () => {
     const options = formatIssueOptions(issues);
     expect(options.map((o) => o.label)).toEqual([
+      '#5 Old issue',
       '#42 Approved feature',
       '#20 Needs replan',
-      '#5 Old issue',
     ]);
   });
 
   test('formats hints with stage label and target action', () => {
     const options = formatIssueOptions(issues);
     expect(options.map((o) => o.hint)).toEqual([
+      'agent:ready → triage',
       'agent:approved → dev',
       'agent:replan → replan',
-      'agent:ready → triage',
     ]);
+  });
+
+  test('hint uses nextAction priority when several agent:* labels are present', () => {
+    const options = formatIssueOptions([
+      {
+        number: 8,
+        title: 'Revise the plan',
+        body: '',
+        labels: ['agent:planned', 'agent:replan'],
+      },
+    ]);
+    expect(options[0]?.hint).toBe('agent:replan → replan');
   });
 });
 
@@ -256,6 +268,6 @@ describe('promptSelectIssue', () => {
         throw new PromptCancelled();
       },
     };
-    expect(promptSelectIssue(issues, cancelAsk)).rejects.toThrow(PromptCancelled);
+    await expect(promptSelectIssue(issues, cancelAsk)).rejects.toThrow(PromptCancelled);
   });
 });

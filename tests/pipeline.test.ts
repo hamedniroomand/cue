@@ -1,21 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 
 import type { Issue } from '@/github';
-import { nextAction, poll, runIssue } from '@/pipeline';
+import { poll, runIssue } from '@/pipeline';
 
 import { makeCtx } from './triage.test';
-
-describe('nextAction', () => {
-  test('routes by label with stop winning over everything', () => {
-    expect(nextAction(['agent:ready'])).toBe('triage');
-    expect(nextAction(['agent:approved', 'bug'])).toBe('dev');
-    expect(nextAction(['agent:planned', 'agent:replan'])).toBe('replan');
-    expect(nextAction(['agent:replan', 'agent:stop'])).toBe('skip');
-    expect(nextAction(['agent:ready', 'agent:stop'])).toBe('skip');
-    expect(nextAction(['agent:planned'])).toBe('skip');
-    expect(nextAction([])).toBe('skip');
-  });
-});
 
 describe('runIssue failure handling', () => {
   test('a stage error becomes an issue comment + agent:failed, not a crash', async () => {
@@ -129,6 +117,40 @@ describe('poll reporting', () => {
     expect(pollEvents[0]).toMatchObject({ kind: 'start', issue: 0 });
     expect(pollEvents.at(-1)).toMatchObject({ kind: 'done' });
     expect(pollEvents.at(-1)!.message).toContain('nothing to do');
+  });
+
+  test('a multi-labeled issue is processed once', async () => {
+    const DUAL = JSON.stringify([
+      {
+        number: 7,
+        title: 't',
+        body: 'b',
+        labels: [{ name: 'agent:ready' }, { name: 'agent:approved' }],
+      },
+    ]);
+    const { ctx, events } = await makeCtx(
+      [
+        emptyList('agent:in-review'),
+        emptyList('agent:in-dev'),
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
+          result: { stdout: DUAL },
+        },
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:approved'],
+          result: { stdout: DUAL },
+        },
+        emptyList('agent:replan'),
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'comment', '7'] },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      ['garbage output'],
+    );
+    await poll(ctx);
+    const pollEvents = events.filter((e) => e.stage === 'poll');
+    expect(pollEvents[1]!.message).toContain('1 actionable');
+    expect(pollEvents.at(-1)!.message).toContain('1 processed');
   });
 
   test('reports the actionable count and the failure count', async () => {

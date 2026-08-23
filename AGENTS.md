@@ -27,7 +27,8 @@ test framework.
 ```
 src/
 ├── cli.ts              # entrypoint + label definitions; builds the real StageContext
-├── pipeline.ts         # nextAction (label → stage routing), runIssue (failure → agent:failed), poll
+├── action.ts           # nextAction (label → stage) — shared by pipeline and prompts
+├── pipeline.ts         # runIssue (failure → agent:failed), poll
 ├── cleanup.ts          # reconciles merged/closed PRs: agent:done / agent:failed + worktree removal
 ├── stages/
 │   ├── context.ts      # StageContext — the DI bundle every stage receives

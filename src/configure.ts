@@ -1,8 +1,8 @@
 import { intro, isCancel, outro, select, text } from '@clack/prompts';
 
+import { actioningLabel, nextAction } from '@/action';
 import { ADAPTERS, type AdapterName } from '@/adapters/registry';
 import type { Issue } from '@/github';
-import { nextAction } from '@/pipeline';
 
 export interface AskOption {
   value: string;
@@ -38,8 +38,9 @@ export const ADAPTER_OPTIONS: AskOption[] = [
 ];
 
 /**
- * Whether `cue init` may ask questions. A scripted install must never block on a
- * prompt, so both streams have to be a terminal — and `--yes` always wins.
+ * Whether an interactive prompt may run (`cue init`, `cue run` with no number).
+ * A scripted install or a piped `cue run` must never block, so both streams
+ * have to be a terminal — and `--yes` always wins.
  */
 export function shouldPrompt(
   flags: string[],
@@ -137,14 +138,13 @@ export async function promptConfig(
 }
 
 /**
- * Formats a list of actionable issues as options for the interactive select prompt.
- * Issues are sorted newest to oldest by issue number.
+ * Maps issues to select options in caller order. `promptSelectIssue` sorts
+ * newest-first before calling this; the function itself does not reorder.
  */
 export function formatIssueOptions(issues: Issue[]): AskOption[] {
-  const sorted = issues.toSorted((a, b) => b.number - a.number);
-  return sorted.map((issue) => {
+  return issues.map((issue) => {
     const action = nextAction(issue.labels);
-    const stageLabel = issue.labels.find((l) => l.startsWith('agent:'));
+    const stageLabel = actioningLabel(issue.labels);
     const hint = stageLabel ? `${stageLabel} → ${action}` : action;
     return {
       value: String(issue.number),

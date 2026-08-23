@@ -28,6 +28,59 @@ describe('GitHub', () => {
     expect(calls[0]).toContain('--json');
   });
 
+  test('getIssue views one issue and flattens label objects to names', async () => {
+    const payload = JSON.stringify({
+      number: 7,
+      title: 'Fix login',
+      body: 'It breaks',
+      labels: [{ name: 'agent:ready' }, { name: 'bug' }],
+    });
+    const { exec, calls } = makeFakeExec([
+      { match: ['gh', 'issue', 'view', '7'], result: { stdout: payload } },
+    ]);
+    const issue = await new GitHub(exec, 'acme/widgets').getIssue(7);
+    expect(issue).toEqual({
+      number: 7,
+      title: 'Fix login',
+      body: 'It breaks',
+      labels: ['agent:ready', 'bug'],
+    });
+    expect(calls[0]).toEqual(
+      expect.arrayContaining(['issue', 'view', '7', '--json', 'number,title,body,labels']),
+    );
+  });
+
+  test('listActionable fans out the three labels and keeps each issue once', async () => {
+    const dual = JSON.stringify([
+      {
+        number: 7,
+        title: 'Fix login',
+        body: '',
+        labels: [{ name: 'agent:ready' }, { name: 'agent:replan' }],
+      },
+    ]);
+    const approved = JSON.stringify([
+      { number: 9, title: 'Ship it', body: '', labels: [{ name: 'agent:approved' }] },
+    ]);
+    const { exec, calls } = makeFakeExec([
+      {
+        match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
+        result: { stdout: dual },
+      },
+      {
+        match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:approved'],
+        result: { stdout: approved },
+      },
+      {
+        match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:replan'],
+        result: { stdout: dual },
+      },
+    ]);
+    const issues = await new GitHub(exec, 'acme/widgets').listActionable();
+    expect(issues.map((i) => i.number)).toEqual([7, 9]);
+    expect(calls).toHaveLength(3);
+  });
+
   test('listIssuesByLabel fans out in chunks and maps results per label', async () => {
     const labels = ['l1', 'l2', 'l3', 'l4'];
     const { exec, calls } = makeFakeExec(

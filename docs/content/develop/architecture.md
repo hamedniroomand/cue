@@ -19,7 +19,8 @@ GitHub is the state store: `agent:*` labels are the state machine, issue comment
 ```
 src/
 ├── cli.ts              # entrypoint + label definitions; builds the real StageContext
-├── pipeline.ts         # nextAction (label → stage), runIssue (failure → agent:failed), process loop
+├── action.ts           # nextAction (label → stage) — shared by pipeline and prompts
+├── pipeline.ts         # runIssue (failure → agent:failed), process loop
 ├── cleanup.ts          # merged/closed PRs → agent:done / agent:failed + worktree removal
 ├── stages/
 │   ├── context.ts      # StageContext — DI bundle every stage receives

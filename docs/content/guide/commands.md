@@ -66,7 +66,9 @@ Compatibility alias for `cue process`. New scripts and documentation should use 
 cue run [n]
 ```
 
-Runs the next pipeline stage for a single issue. Pass an issue number (`cue run 42`) or run `cue run` without arguments to select from an interactive list of actionable issues (`agent:ready`, `agent:approved`, or `agent:replan`), sorted newest to oldest.
+Runs the next pipeline stage for a single issue. Pass an issue number (`cue run 42`) or run `cue run` without arguments to select from an interactive list of actionable issues (`agent:ready`, `agent:approved`, or `agent:replan`), sorted newest to oldest (latest pre-selected).
+
+**Non-interactive runs never prompt.** When stdin or stdout is not a TTY — CI, a pipe — `cue run` without a number errors with the usage line. Pass the issue number instead.
 
 Useful when you want to drive one issue without scanning the whole board.
 
