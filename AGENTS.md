@@ -232,3 +232,8 @@ stream-json --verbose`) are version-dependent; if the adapter breaks after a CLI
   keeps CI logs and `cue ui`'s SSE stream unchanged.
 - Design docs live under `docs/superpowers/` which is **gitignored on purpose** —
   don't try to commit them or "fix" the .gitignore.
+
+## Linting and formatting
+
+- After making code changes, run `bunx oxlint --fix`, then run `bunx oxfmt`.
+- Before finishing, run `bunx oxlint --deny-warnings --format=agent`.
