@@ -24,6 +24,15 @@ export const BOARD_LABELS = [
   "agent:failed",
 ];
 
+/** Labels `cue run` / Process now will pick up — mirrors ACTIONABLE_LABELS in src/action.ts. */
+export const ACTIONABLE_LABELS = ["agent:ready", "agent:approved", "agent:replan"] as const;
+
+const NEXT_ACTION: Record<(typeof ACTIONABLE_LABELS)[number], string> = {
+  "agent:ready": "triage",
+  "agent:approved": "dev",
+  "agent:replan": "replan",
+};
+
 export interface BoardIssue {
   number: number;
   title: string;
@@ -119,6 +128,56 @@ export function splitIssues(
  * Either source alone is enough to start fetching: a board issue with no
  * recorded run contributes nothing, and one with runs is already in the index.
  */
+export interface ActionableIssue {
+  number: number;
+  title: string;
+  label: string;
+  action: string;
+}
+
+export type ProcessTarget = { kind: "poll" } | { kind: "run"; issue: number };
+
+/**
+ * Issues the header picker can start — the same set `cue run` lists.
+ * Newest first so the dropdown matches the CLI select. `null` state is []
+ * (nothing to pick), not unknown: the button still says Process now.
+ */
+export function actionableIssues(state: DashboardState | null): ActionableIssue[] {
+  if (!state) return [];
+  const rows: ActionableIssue[] = [];
+  for (const column of state.columns) {
+    if (!isActionable(column.label)) continue;
+    for (const issue of column.issues) {
+      rows.push({
+        number: issue.number,
+        title: issue.title,
+        label: shortLabel(column.label),
+        action: NEXT_ACTION[column.label],
+      });
+    }
+  }
+  return rows.toSorted((a, b) => b.number - a.number);
+}
+
+function isActionable(label: string): label is (typeof ACTIONABLE_LABELS)[number] {
+  return (ACTIONABLE_LABELS as readonly string[]).includes(label);
+}
+
+/** A vanished selection (issue left the queue) is a poll, not a stale run. */
+export function resolveProcessTarget(
+  selected: number | null,
+  issues: ActionableIssue[],
+): ProcessTarget {
+  if (selected != null && issues.some((issue) => issue.number === selected)) {
+    return { kind: "run", issue: selected };
+  }
+  return { kind: "poll" };
+}
+
+export function processButtonLabel(target: ProcessTarget): string {
+  return target.kind === "run" ? `Run #${target.issue}` : "Process now";
+}
+
 export function runIssueSet(
   state: DashboardState | null,
   index: RunIndexEntry[] | null,

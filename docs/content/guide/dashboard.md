@@ -17,7 +17,7 @@ It is the same pipeline as the CLI. GitHub labels and `.cue/runs/` stay the shar
 - The `agent:*` label board (active issues only — `agent:done` is omitted on purpose)
 - A live log streamed over SSE while stages run
 
-You can trigger `process` and `run` from the dashboard; they execute the same TypeScript as the CLI.
+You can trigger `process` and `run` from the dashboard; they execute the same TypeScript as the CLI. The header **Process now** button is `cue process` (every actionable issue). Open the chevron to pick one issue by title — the same set `cue run` lists (`agent:ready`, `agent:approved`, `agent:replan`) — and the button becomes **Run #n**. Clear the selection to go back to processing the whole queue.
 
 Issues in the `agent:planned` column carry **Approve** and **Replan** buttons — the same human gate, without leaving the board. Approve swaps the label to `agent:approved` and starts the dev run immediately (if a run is already in progress, the approval sticks and the next `process` picks it up). Replan expands an inline feedback box; the feedback is posted as an issue comment (where the replan stage reads it) before the label swaps to `agent:replan`.
 

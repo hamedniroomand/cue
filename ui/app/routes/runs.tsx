@@ -44,6 +44,7 @@ import {
   formatUsd,
   normalizeEvents,
   poll,
+  runIssue,
   splitIssues,
   statsFor,
   toRows,
@@ -120,7 +121,7 @@ export default function Runs() {
   }, [issue, done]);
 
   return (
-    <Shell state={state} onPoll={() => void poll()}>
+    <Shell state={state} onPoll={() => void poll()} onRun={(n) => void runIssue(n)}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
           <SectionLabel>Run Explorer</SectionLabel>
