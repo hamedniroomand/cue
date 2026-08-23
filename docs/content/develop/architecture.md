@@ -27,6 +27,7 @@ src/
 │   ├── triage.ts       # read-only plan generation; PLAN_MARKER
 │   ├── replan.ts       # plan revision from human comments (has WebSearch)
 │   ├── dev.ts          # worktree implementation + gate + draft PR
+│   ├── revise.ts       # human PR feedback → worktree + gate; review re-runs after
 │   └── review.ts       # JSON verdict + bounded fix loop
 ├── adapters/
 │   ├── types.ts        # AgentAdapter / AgentRunOptions (access, webSearch, bashAllowlist) / AgentResult
@@ -41,6 +42,7 @@ src/
 ├── github.ts           # typed wrapper over the gh CLI
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos
 ├── gates.ts            # deterministic test/lint runner (sh -c in the worktree)
+├── specs.ts            # opt-in knowledge layer: specs dir + .cue/learnings.md, presence-detected
 ├── exec.ts             # THE ONLY place Bun.spawn is called
 ├── platform.ts         # POSIX/Windows personality: gate shell, agent env allowlist
 ├── config.ts           # valibot schema + resolveConfig
@@ -61,7 +63,7 @@ These are load-bearing. Tests encode most of them.
 
 - **All subprocess execution goes through `Exec` in `src/exec.ts`.** Never call `Bun.spawn` anywhere else — that is what makes every module testable.
 - **Lean dependencies.** The CLI's only runtime deps are valibot, consola, ora, and @clack/prompts. The dashboard is a separate package (`ui/package.json`); its deps never enter the CLI. Do not add packages to either without discussion.
-- **Label names are exact:** `agent:ready`, `agent:planned`, `agent:approved`, `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:done`, `agent:failed`, `agent:stop`.
+- **Label names are exact:** `agent:ready`, `agent:planned`, `agent:approved`, `agent:replan`, `agent:in-dev`, `agent:in-review`, `agent:revise`, `agent:done`, `agent:failed`, `agent:stop`.
 - **Plan-comment marker is exactly `<!-- cue:plan -->`** (`PLAN_MARKER` in `stages/triage.ts`). Dev and replan find plans by the newest comment containing it.
 - **Branch naming:** `agent/issue-<number>`.
 - **The GitHub token must never reach agent subprocesses.** The shared adapter base (`JsonlAdapter.run`) scrubs the env down to an OS allowlist plus the adapter's own API keys — never another provider's credentials. Every adapter test asserts `GH_TOKEN` is absent.
@@ -72,7 +74,7 @@ These are load-bearing. Tests encode most of them.
 ## How processing works
 
 1. `cleanup` reconciles PRs that have been merged or closed since the last run.
-2. `nextAction` maps the issue's labels to a stage (`triage` / `replan` / `dev`).
+2. `nextAction` maps the issue's labels to a stage (`triage` / `replan` / `dev` / `revise`).
 3. `runIssue` invokes that stage. On throw, it comments the error and applies `agent:failed`.
 4. Stages emit through `ctx.onEvent`. The CLI prints events; `cue ui` also broadcasts them over SSE.
 

@@ -52,6 +52,8 @@ flowchart LR
   gate --> review[6. Automated Code Review Loop]
   review --> pr[7. Draft PR created]
   pr --> merge[8. You review & merge PR]
+  merge -.->|"leave feedback, label agent:revise"| revise[Agent revises the PR]
+  revise -.-> review
 ```
 
 ### Why Cue?
