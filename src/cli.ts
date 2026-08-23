@@ -7,10 +7,16 @@ import { ADAPTERS } from '@/adapters/registry';
 import { formatTokens } from '@/adapters/usage';
 import { runCleanup } from '@/cleanup';
 import { resolveConfig } from '@/config';
-import { clackAsk, promptConfig, shouldPrompt } from '@/configure';
+import {
+  PromptCancelled,
+  clackAsk,
+  promptConfig,
+  promptSelectIssue,
+  shouldPrompt,
+} from '@/configure';
 import { VERSION } from '@/embedded';
 import { realExec } from '@/exec';
-import { GitHub } from '@/github';
+import { GitHub, type Issue } from '@/github';
 import { RunLogger } from '@/log';
 import { makeWebhookNotifier } from '@/notify';
 import { nextAction, poll, runIssue } from '@/pipeline';
@@ -156,7 +162,7 @@ Commands:
                (asks for adapter + test/lint commands; --yes keeps the defaults)
   process      reconcile finished PRs, then run every actionable issue
   poll         alias for process (kept for compatibility)
-  run <n>      run the next pipeline stage for issue #n
+  run [n]      run the next pipeline stage for issue #n (interactive list if omitted)
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
   status       issues per pipeline state, local spend, worktree root
   upgrade      update cue to the latest GitHub release (release installs only)
@@ -173,6 +179,49 @@ Labels drive the pipeline: agent:ready → triage plans, a human approves
 agent:replan requests a revised plan; agent:stop freezes an issue.
 Full state machine and configuration:
 https://hamedniroomand.github.io/cue/`;
+
+const RUN_USAGE = 'usage: cue run [issue-number]';
+
+async function runOne(ctx: StageContext, issue: Issue): Promise<void> {
+  consola.info(`running ${nextAction(issue.labels)} for #${issue.number}`);
+  await runIssue(ctx, issue);
+}
+
+async function runNumbered(ctx: StageContext, arg: string): Promise<void> {
+  const n = Number(arg);
+  if (!Number.isInteger(n)) throw new Error(RUN_USAGE);
+  const issue = await withSpinner(cliSpinner, `looking up issue #${n} on ${ctx.config.repo}`, () =>
+    ctx.github.getIssue(n),
+  );
+  if (nextAction(issue.labels) === 'skip') {
+    throw new Error(
+      `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, or agent:replan)`,
+    );
+  }
+  await runOne(ctx, issue);
+}
+
+async function runInteractive(ctx: StageContext): Promise<void> {
+  if (!shouldPrompt([], { stdin: process.stdin.isTTY, stdout: process.stdout.isTTY })) {
+    throw new Error(RUN_USAGE);
+  }
+  const issues = await withSpinner(cliSpinner, `reading ${ctx.config.repo} actionable issues`, () =>
+    ctx.github.listActionable(),
+  );
+  if (issues.length === 0) {
+    consola.info(
+      `no actionable issues found on ${ctx.config.repo} (needs agent:ready, agent:approved, or agent:replan)`,
+    );
+    return;
+  }
+  try {
+    const selected = await promptSelectIssue(issues, clackAsk);
+    if (selected) await runOne(ctx, selected);
+  } catch (err) {
+    if (err instanceof PromptCancelled) return;
+    throw err;
+  }
+}
 
 async function openBrowser(url: string): Promise<void> {
   const cmd =
@@ -239,24 +288,11 @@ async function main(): Promise<void> {
       await poll(ctx);
       break;
     case 'run': {
-      const n = Number(arg);
-      if (!Number.isInteger(n)) throw new Error('usage: cue run <issue-number>');
-      const issues = await withSpinner(
-        cliSpinner,
-        `looking up issue #${n} on ${ctx.config.repo}`,
-        async () => [
-          ...(await ctx.github.listIssues('agent:ready')),
-          ...(await ctx.github.listIssues('agent:approved')),
-          ...(await ctx.github.listIssues('agent:replan')),
-        ],
-      );
-      const issue = issues.find((i) => i.number === n);
-      if (!issue)
-        throw new Error(
-          `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, or agent:replan)`,
-        );
-      consola.info(`running ${nextAction(issue.labels)} for #${n}`);
-      await runIssue(ctx, issue);
+      if (arg !== undefined) {
+        await runNumbered(ctx, arg);
+        break;
+      }
+      await runInteractive(ctx);
       break;
     }
     case 'cleanup':

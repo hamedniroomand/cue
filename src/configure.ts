@@ -1,6 +1,8 @@
 import { intro, isCancel, outro, select, text } from '@clack/prompts';
 
+import { actioningLabel, nextAction } from '@/action';
 import { ADAPTERS, type AdapterName } from '@/adapters/registry';
+import type { Issue } from '@/github';
 
 export interface AskOption {
   value: string;
@@ -36,8 +38,9 @@ export const ADAPTER_OPTIONS: AskOption[] = [
 ];
 
 /**
- * Whether `cue init` may ask questions. A scripted install must never block on a
- * prompt, so both streams have to be a terminal — and `--yes` always wins.
+ * Whether an interactive prompt may run (`cue init`, `cue run` with no number).
+ * A scripted install or a piped `cue run` must never block, so both streams
+ * have to be a terminal — and `--yes` always wins.
  */
 export function shouldPrompt(
   flags: string[],
@@ -132,4 +135,34 @@ export async function promptConfig(
   if (nextGate.lint) summary.push(`lint \`${nextGate.lint}\``);
   ask.end?.(summary.join(' · '));
   return { config, notes };
+}
+
+/**
+ * Maps issues to select options in caller order. `promptSelectIssue` sorts
+ * newest-first before calling this; the function itself does not reorder.
+ */
+export function formatIssueOptions(issues: Issue[]): AskOption[] {
+  return issues.map((issue) => {
+    const action = nextAction(issue.labels);
+    const stageLabel = actioningLabel(issue.labels);
+    const hint = stageLabel ? `${stageLabel} → ${action}` : action;
+    return {
+      value: String(issue.number),
+      label: `#${issue.number} ${issue.title}`,
+      hint,
+    };
+  });
+}
+
+/**
+ * Prompts the user to pick an actionable issue from a list sorted from newest to oldest.
+ * Returns the selected Issue object, or undefined if the issue list is empty.
+ */
+export async function promptSelectIssue(issues: Issue[], ask: Ask): Promise<Issue | undefined> {
+  if (issues.length === 0) return undefined;
+  const sorted = issues.toSorted((a, b) => b.number - a.number);
+  const options = formatIssueOptions(sorted);
+  const picked = await ask.select('Select an issue to run:', options, options[0]!.value);
+  const pickedNum = Number(picked);
+  return sorted.find((i) => i.number === pickedNum);
 }

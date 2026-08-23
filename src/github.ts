@@ -1,3 +1,4 @@
+import { ACTIONABLE_LABELS } from '@/action';
 import type { Exec } from '@/exec';
 
 export interface Issue {
@@ -5,6 +6,22 @@ export interface Issue {
   title: string;
   body: string;
   labels: string[];
+}
+
+interface RawIssue {
+  number: number;
+  title: string;
+  body: string;
+  labels: Array<{ name: string }>;
+}
+
+function toIssue(raw: RawIssue): Issue {
+  return {
+    number: raw.number,
+    title: raw.title,
+    body: raw.body ?? '',
+    labels: raw.labels.map((l) => l.name),
+  };
 }
 
 export class GitHub {
@@ -53,18 +70,39 @@ export class GitHub {
       '--json',
       'number,title,body,labels',
     ]);
-    const raw = JSON.parse(out) as Array<{
-      number: number;
-      title: string;
-      body: string;
-      labels: Array<{ name: string }>;
-    }>;
-    return raw.map((i) => ({
-      number: i.number,
-      title: i.title,
-      body: i.body ?? '',
-      labels: i.labels.map((l) => l.name),
-    }));
+    return (JSON.parse(out) as RawIssue[]).map(toIssue);
+  }
+
+  /** One issue by number — not subject to `gh issue list`'s default 30-item cap. */
+  async getIssue(n: number): Promise<Issue> {
+    const out = await this.gh([
+      'issue',
+      'view',
+      String(n),
+      '--repo',
+      this.repo,
+      '--json',
+      'number,title,body,labels',
+    ]);
+    return toIssue(JSON.parse(out) as RawIssue);
+  }
+
+  /**
+   * Actionable issues, each once. Walks `ACTIONABLE_LABELS` so a ticket that
+   * carries two of them does not appear (or get processed) twice.
+   */
+  async listActionable(): Promise<Issue[]> {
+    const byLabel = await this.listIssuesByLabel([...ACTIONABLE_LABELS]);
+    const seen = new Set<number>();
+    const issues: Issue[] = [];
+    for (const label of ACTIONABLE_LABELS) {
+      for (const item of byLabel.get(label) ?? []) {
+        if (seen.has(item.number)) continue;
+        seen.add(item.number);
+        issues.push(item);
+      }
+    }
+    return issues;
   }
 
   async addLabel(n: number, label: string): Promise<void> {

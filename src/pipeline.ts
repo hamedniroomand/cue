@@ -1,3 +1,4 @@
+import { nextAction } from '@/action';
 import { runCleanup } from '@/cleanup';
 import type { Issue } from '@/github';
 import type { StageContext } from '@/stages/context';
@@ -6,15 +7,8 @@ import { runReplan } from '@/stages/replan';
 import { runReview } from '@/stages/review';
 import { runTriage } from '@/stages/triage';
 
-export type Action = 'triage' | 'dev' | 'replan' | 'skip';
-
-export function nextAction(labels: string[]): Action {
-  if (labels.includes('agent:stop')) return 'skip';
-  if (labels.includes('agent:replan')) return 'replan';
-  if (labels.includes('agent:ready')) return 'triage';
-  if (labels.includes('agent:approved')) return 'dev';
-  return 'skip';
-}
+export type { Action } from '@/action';
+export { nextAction };
 
 export type Outcome = 'done' | 'failed' | 'skip';
 
@@ -62,23 +56,15 @@ export async function poll(ctx: StageContext): Promise<void> {
     ctx.onEvent({ ts: Date.now(), issue: 0, stage: 'poll', kind, message });
   emit('start', `scanning ${ctx.config.repo} for actionable issues`);
   await runCleanup(ctx);
-  const actionable = await ctx.github.listIssuesByLabel([
-    'agent:ready',
-    'agent:approved',
-    'agent:replan',
-  ]);
-  const ready = actionable.get('agent:ready') ?? [];
-  const approved = actionable.get('agent:approved') ?? [];
-  const replans = actionable.get('agent:replan') ?? [];
-  const queue = [...ready, ...approved, ...replans];
+  const queue = await ctx.github.listActionable();
   if (queue.length === 0) {
     emit('done', 'nothing to do — no issues labeled agent:ready, agent:approved, or agent:replan');
     return;
   }
-  emit(
-    'progress',
-    `${queue.length} actionable: ${ready.length} triage, ${approved.length} dev, ${replans.length} replan`,
-  );
+  const triage = queue.filter((i) => nextAction(i.labels) === 'triage').length;
+  const dev = queue.filter((i) => nextAction(i.labels) === 'dev').length;
+  const replan = queue.filter((i) => nextAction(i.labels) === 'replan').length;
+  emit('progress', `${queue.length} actionable: ${triage} triage, ${dev} dev, ${replan} replan`);
   let failed = 0;
   for (const issue of queue) {
     if ((await runIssue(ctx, issue)) === 'failed') failed++;
