@@ -32,6 +32,15 @@ export async function readRawConfig(cwd: string): Promise<Record<string, unknown
   return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
 }
 
+export interface ScaffoldOptions {
+  /**
+   * Create an empty `.cue/learnings.md`, arming the review stage's retrospective.
+   * Only ever creates: an existing file may hold recorded lessons, and `init` is
+   * documented as safe to re-run.
+   */
+  learnings?: boolean;
+}
+
 /**
  * Creates (or tops up) the target repo's `.cue/` directory. Returns the list of
  * things it changed so the CLI owns all printing.
@@ -41,7 +50,11 @@ export async function readRawConfig(cwd: string): Promise<Record<string, unknown
  * only when the result actually differs — accepting every pre-filled answer
  * leaves it byte-identical.
  */
-export async function scaffold(cwd: string, config?: Record<string, unknown>): Promise<string[]> {
+export async function scaffold(
+  cwd: string,
+  config?: Record<string, unknown>,
+  options: ScaffoldOptions = {},
+): Promise<string[]> {
   const done: string[] = [];
   await mkdir(join(cwd, '.cue', 'prompts'), { recursive: true });
 
@@ -70,6 +83,16 @@ export async function scaffold(cwd: string, config?: Record<string, unknown>): P
   } else {
     await Bun.write(configPath, serialize(DEFAULT_CONFIG));
     done.push("created .cue/config.json — adjust the gate to this project's test command");
+  }
+
+  // Deliberately not gitignored: dev, revise and review read this file from the
+  // worktree, which is created from origin — an uncommitted one is invisible there.
+  if (options.learnings) {
+    const learnings = Bun.file(join(cwd, '.cue', 'learnings.md'));
+    if (!(await learnings.exists())) {
+      await Bun.write(learnings, '');
+      done.push('created .cue/learnings.md — commit it so worktrees can see it');
+    }
   }
 
   const gitignorePath = join(cwd, '.gitignore');

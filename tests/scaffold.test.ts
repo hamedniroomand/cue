@@ -127,6 +127,38 @@ describe('scaffold', () => {
   });
 });
 
+const learningsOf = (cwd: string) => join(cwd, '.cue', 'learnings.md');
+
+describe('scaffold learnings opt-in', () => {
+  test('never creates the file unless asked — the layer stays off by default', async () => {
+    const cwd = await tmpRepo();
+    await scaffold(cwd);
+    expect(existsSync(learningsOf(cwd))).toBe(false);
+  });
+
+  test('creates an empty learnings file when the wizard opted in, and says so', async () => {
+    const cwd = await tmpRepo();
+    const done = await scaffold(cwd, undefined, { learnings: true });
+    expect(await Bun.file(learningsOf(cwd)).text()).toBe('');
+    expect(done.join('\n')).toContain('.cue/learnings.md');
+  });
+
+  test('recorded lessons are never clobbered by a re-run', async () => {
+    const cwd = await tmpRepo();
+    await mkdir(join(cwd, '.cue'), { recursive: true });
+    await Bun.write(learningsOf(cwd), '- a hard-won lesson\n');
+    const done = await scaffold(cwd, undefined, { learnings: true });
+    expect(await Bun.file(learningsOf(cwd)).text()).toBe('- a hard-won lesson\n');
+    expect(done.join('\n')).not.toContain('learnings');
+  });
+
+  test('is left out of .gitignore — it must be committed for worktrees to see it', async () => {
+    const cwd = await tmpRepo();
+    await scaffold(cwd, undefined, { learnings: true });
+    expect(await Bun.file(join(cwd, '.gitignore')).text()).not.toContain('learnings');
+  });
+});
+
 describe('readRawConfig', () => {
   test('returns an empty object when there is no config yet', async () => {
     expect(await readRawConfig(await tmpRepo())).toEqual({});

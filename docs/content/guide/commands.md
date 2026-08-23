@@ -10,7 +10,7 @@ cue --version
 ## init
 
 ```bash
-cue init          # asks three questions, then sets everything up
+cue init          # asks four questions, then sets everything up
 cue init --yes    # skip the questions, keep current/default values
 ```
 
@@ -22,13 +22,18 @@ Creates the `agent:*` labels on the GitHub repo and scaffolds `.cue/` in the cur
 
 ### The questions
 
-In a terminal, `init` asks for the three settings Cue cannot guess:
+In a terminal, `init` asks for the three settings Cue cannot guess, then offers the one opt-in feature nothing else would mention:
 
 | Question | Pre-filled with |
 | --- | --- |
 | Which agent CLI drives the stages? | your current `adapter`, else `codex` |
 | Test command for the gate | your current `gate.test`, else `bun test` |
 | Lint command (blank for none) | your current `gate.lint`, else nothing |
+| Let review record durable lessons in `.cue/learnings.md`? | `No` |
+
+Answering **Yes** to the last one creates an empty `.cue/learnings.md`, which switches on [review-distilled learnings](/guide/pipeline#living-specs-learnings-opt-in). It writes no config field — the layer is presence-detected, so the file *is* the setting. **Commit the file**: dev, revise and review read it from the worktree, which is created from `origin`, so an uncommitted one is invisible to them.
+
+The question is skipped entirely once `.cue/learnings.md` exists, and `init` never deletes or truncates it — a re-run cannot lose recorded lessons. To switch the layer off, delete the file yourself.
 
 Everything else keeps its default and is edited in the file, where the schema autocompletes it. Answers are pre-filled and editable, so pressing Enter through the whole thing leaves `config.json` byte-identical — `init` doubles as a reconfigure command without risking a tuned setup. Ctrl+C aborts before anything is written.
 
