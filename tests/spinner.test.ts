@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { createSpinner, withSpinner } from '@/spinner';
+import { cliPhase, createSpinner, noPhase, spinnerPhase, withSpinner } from '@/spinner';
 
 /** Records what a real ora instance would have been told to do. */
 function fakeOra(initial = '') {
@@ -120,6 +120,22 @@ describe('createSpinner (disabled — no TTY, CI, piped output)', () => {
     spinner.succeed('done');
     expect(made).toBe(0);
     expect(printed).toEqual(['line']);
+  });
+});
+
+describe('PhaseRunner', () => {
+  test('noPhase runs the task with no spinner and returns its value', async () => {
+    expect(await noPhase('ignored', async () => 7)).toBe(7);
+  });
+
+  test('spinnerPhase binds withSpinner to a given spinner', async () => {
+    const { ora, spinner } = harness();
+    expect(await spinnerPhase(spinner)('working', async () => 1)).toBe(1);
+    expect(ora.calls).toEqual(['start:working', 'succeed:working']);
+  });
+
+  test('cliPhase runs a task through the shared CLI spinner', async () => {
+    expect(await cliPhase('quiet', async () => 'ok')).toBe('ok');
   });
 });
 

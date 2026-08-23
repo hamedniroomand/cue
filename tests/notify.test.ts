@@ -42,4 +42,8 @@ describe('makeWebhookNotifier', () => {
   test('an unset url resolves to the silent notifier', () => {
     expect(makeWebhookNotifier(undefined)).toBe(noNotify);
   });
+
+  test('the silent notifier resolves without doing anything', async () => {
+    await expect(noNotify(NOTE)).resolves.toBeUndefined();
+  });
 });

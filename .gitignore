@@ -5,3 +5,4 @@ cue.json
 tests/tmp-config-*.json
 dist/
 .cue/runs/
+coverage/

@@ -174,6 +174,13 @@ describe('toRows: antigravity stream', () => {
     expect(b).toMatchObject({ kind: 'result', text: 'Answer.', costUsd: 0.5 });
   });
 
+  test('a step_update with only a message becomes an assistant text row', () => {
+    const rows = toRows([{ event: 'step_update', step_update: { message: '  still going  ' } }]);
+    expect(rows).toEqual([
+      expect.objectContaining({ kind: 'text', role: 'assistant', text: 'still going' }),
+    ]);
+  });
+
   test('statsFor surfaces the shared token extractor on the stream', () => {
     // Extraction itself is covered in tests/usage.test.ts; this only pins that
     // statsFor wires it up, so the RunView metric and the run index agree.
@@ -202,5 +209,55 @@ describe('toRows: antigravity stream', () => {
       reasoning: 1213,
       total: 69626,
     });
+  });
+});
+
+describe('toRows: claude system and tool_result', () => {
+  test('permission_denied and rate_limit events become their own rows', () => {
+    const rows = toRows([
+      { type: 'system', subtype: 'permission_denied', tool_name: 'Bash' },
+      { type: 'rate_limit_event', subtype: 'retrying in 2s' },
+      { type: 'system', subtype: 'hook' },
+    ]);
+    expect(rows).toEqual([
+      { key: '0', kind: 'denied', detail: 'Bash' },
+      { key: '1', kind: 'rate_limit', detail: 'retrying in 2s' },
+    ]);
+  });
+
+  test('permission_denied without a tool name falls back to unknown tool', () => {
+    const rows = toRows([{ type: 'system', subtype: 'permission_denied' }]);
+    expect(rows[0]).toEqual({ key: '0', kind: 'denied', detail: 'unknown tool' });
+  });
+
+  test('rate_limit_event without a subtype uses a generic label', () => {
+    const rows = toRows([{ type: 'rate_limit_event' }]);
+    expect(rows[0]).toEqual({ key: '0', kind: 'rate_limit', detail: 'rate limited' });
+  });
+
+  test('tool_result content is flattened from a string, a text-block array, or JSON', () => {
+    const rows = toRows([
+      {
+        type: 'user',
+        message: {
+          content: [
+            { type: 'tool_result', content: 'plain ok' },
+            {
+              type: 'tool_result',
+              content: [{ text: 'first' }, { text: 'second' }],
+              is_error: true,
+            },
+            { type: 'tool_result', content: { exit: 1 } },
+            { type: 'tool_result' },
+          ],
+        },
+      },
+    ]);
+    expect(rows).toEqual([
+      { key: '0-0', kind: 'tool_result', detail: 'plain ok', failed: false },
+      { key: '0-1', kind: 'tool_result', detail: 'firstsecond', failed: true },
+      { key: '0-2', kind: 'tool_result', detail: '{"exit":1}', failed: false },
+      { key: '0-3', kind: 'tool_result', detail: '', failed: false },
+    ]);
   });
 });

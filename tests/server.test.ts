@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { BOARD_LABELS, buildState, startServer } from '@/server';
+import { UI_FILES } from '@/ui-manifest.g';
 
 import { makeCtx } from './triage.test';
 
@@ -484,6 +485,351 @@ describe.skipIf(bunWindowsListenBroken)('dashboard server', () => {
       expect(index[0].costUsd).toBeCloseTo(0.25);
     } finally {
       stop();
+    }
+  });
+
+  test('GET /api/runs/:issue lists the recorded runs for that issue', async () => {
+    const { ctx, url, stop } = await serve();
+    try {
+      await ctx.logger.log(4, 'triage', {
+        prompt: 'p',
+        result: null,
+        costUsd: 0.01,
+        durationMs: 10,
+        outcome: 'ok',
+      });
+      const res = await fetch(`${url}/api/runs/4`);
+      expect(res.status).toBe(200);
+      const list = await res.json();
+      expect(list).toHaveLength(1);
+      expect(list[0]).toMatchObject({ stage: 'triage', outcome: 'ok' });
+    } finally {
+      stop();
+    }
+  });
+
+  test('GET /api/state returns the board snapshot', async () => {
+    const { ctx } = await makeCtx(
+      Array.from({ length: BOARD_LABELS.length }, () => ({
+        match: ['gh', 'issue', 'list'],
+        result: { stdout: '[]' },
+      })),
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/state`);
+      expect(res.status).toBe(200);
+      const state = await res.json();
+      expect(state.repo).toBe('acme/widgets');
+      expect(state.columns.map((c: { label: string }) => c.label)).toEqual(BOARD_LABELS);
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/run/:issue starts an actionable issue', async () => {
+    const READY = JSON.stringify([
+      { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:ready' }] },
+    ]);
+    const { ctx } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
+          result: { stdout: READY },
+        },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:ready'] },
+      ],
+      [],
+    );
+    ctx.adapter = { run: () => new Promise(() => {}) };
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const started = await fetch(`${url}/api/run/7`, { method: 'POST' });
+      expect(started.status).toBe(200);
+      expect(await started.json()).toEqual({ started: 'run #7' });
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/run/:issue finds an issue sitting on a later actionable label', async () => {
+    const APPROVED = JSON.stringify([
+      { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:approved' }] },
+    ]);
+    const { ctx } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
+          result: { stdout: '[]' },
+        },
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:approved'],
+          result: { stdout: APPROVED },
+        },
+      ],
+      [],
+    );
+    ctx.adapter = { run: () => new Promise(() => {}) };
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/run/7`, { method: 'POST' });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ started: 'run #7' });
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/run/:issue 404s when the issue is not actionable', async () => {
+    const { ctx } = await makeCtx(
+      Array.from({ length: 4 }, () => ({
+        match: ['gh', 'issue', 'list'],
+        result: { stdout: '[]' },
+      })),
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const missing = await fetch(`${url}/api/run/99`, { method: 'POST' });
+      expect(missing.status).toBe(404);
+    } finally {
+      stop();
+    }
+  });
+
+  test('POST /api/replan/:issue 404s when the issue is not awaiting approval', async () => {
+    const { ctx } = await makeCtx(
+      [{ match: ['gh', 'issue', 'list'], result: { stdout: '[]' } }],
+      [],
+    );
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const res = await fetch(`${url}/api/replan/7`, { method: 'POST' });
+      expect(res.status).toBe(404);
+    } finally {
+      stop();
+    }
+  });
+
+  test('a second launch is 409 while the first is still running', async () => {
+    const READY = JSON.stringify([
+      { number: 7, title: 'Fix login', body: 'b', labels: [{ name: 'agent:ready' }] },
+    ]);
+    const { ctx } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
+          result: { stdout: READY },
+        },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:ready'] },
+      ],
+      [],
+    );
+    ctx.adapter = { run: () => new Promise(() => {}) };
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      const first = await fetch(`${url}/api/run/7`, { method: 'POST' });
+      expect(first.status).toBe(200);
+      await Bun.sleep(30);
+      const conflict = await fetch(`${url}/api/poll`, { method: 'POST' });
+      expect(conflict.status).toBe(409);
+      expect(await conflict.json()).toEqual({ error: 'busy: run #7' });
+    } finally {
+      stop();
+    }
+  });
+
+  test('approve, retry, and replan record the label change but do not start while busy', async () => {
+    const READY = JSON.stringify([
+      { number: 7, title: 'Hang', body: 'b', labels: [{ name: 'agent:ready' }] },
+    ]);
+    const PLANNED = JSON.stringify([
+      { number: 8, title: 'Plan', body: 'b', labels: [{ name: 'agent:planned' }] },
+    ]);
+    const FAILED = JSON.stringify([
+      { number: 9, title: 'Fail', body: 'b', labels: [{ name: 'agent:failed' }] },
+    ]);
+    const { ctx } = await makeCtx(
+      [
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:ready'],
+          result: { stdout: READY },
+        },
+        { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:ready'] },
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:planned'],
+          result: { stdout: PLANNED },
+        },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '8',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:planned',
+            '--add-label',
+            'agent:approved',
+          ],
+        },
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:failed'],
+          result: { stdout: FAILED },
+        },
+        { match: ['gh', 'issue', 'view', '9'], result: { stdout: '{"comments":[]}' } },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '9',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:failed',
+            '--add-label',
+            'agent:ready',
+          ],
+        },
+        {
+          match: ['gh', 'issue', 'list', '--repo', '*', '--label', 'agent:planned'],
+          result: { stdout: PLANNED },
+        },
+        {
+          match: [
+            'gh',
+            'issue',
+            'edit',
+            '8',
+            '--repo',
+            '*',
+            '--remove-label',
+            'agent:planned',
+            '--add-label',
+            'agent:replan',
+          ],
+        },
+      ],
+      [],
+    );
+    ctx.adapter = { run: () => new Promise(() => {}) };
+    const { url, stop } = startServer(ctx, 0, boundHost ?? '127.0.0.1');
+    try {
+      expect((await fetch(`${url}/api/run/7`, { method: 'POST' })).status).toBe(200);
+      await Bun.sleep(30);
+      const approved = await fetch(`${url}/api/approve/8`, { method: 'POST' });
+      expect(await approved.json()).toEqual({ approved: true, started: false });
+      const retried = await fetch(`${url}/api/retry/9`, { method: 'POST' });
+      expect(await retried.json()).toEqual({ retried: true, to: 'agent:ready', started: false });
+      const replan = await fetch(`${url}/api/replan/8`, { method: 'POST' });
+      expect(await replan.json()).toEqual({ replanRequested: true, started: false });
+    } finally {
+      stop();
+    }
+  });
+
+  test('GET /api/events streams a hello and then each CueEvent', async () => {
+    const { ctx, url, stop } = await serve();
+    try {
+      const res = await fetch(`${url}/api/events`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/event-stream');
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      const hello = await reader.read();
+      expect(dec.decode(hello.value)).toContain('connected');
+      ctx.onEvent({ ts: 1, issue: 0, stage: 'poll', kind: 'progress', message: 'hello-sse' });
+      const next = await reader.read();
+      expect(dec.decode(next.value)).toContain('hello-sse');
+      await reader.cancel();
+    } finally {
+      stop();
+    }
+  });
+
+  test('a failing launched task emits an error event then done', async () => {
+    const { ctx, url, stop } = await serve();
+    const events: Array<{ kind: string; message: string }> = [];
+    const prev = ctx.onEvent;
+    ctx.onEvent = (e) => {
+      events.push(e);
+      prev(e);
+    };
+    try {
+      const res = await fetch(`${url}/api/poll`, { method: 'POST' });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ started: 'poll' });
+      await Bun.sleep(50);
+      expect(events.some((e) => e.kind === 'error')).toBe(true);
+      expect(events.some((e) => e.kind === 'done' && e.message.includes('poll finished'))).toBe(
+        true,
+      );
+    } finally {
+      stop();
+    }
+  });
+
+  test('returns 503 when the dashboard client is missing', async () => {
+    const prev = process.env.CUE_CLIENT_DIR;
+    process.env.CUE_CLIENT_DIR = await mkdtemp(join(tmpdir(), 'cue-empty-client-'));
+    try {
+      const { url, stop } = await serve();
+      try {
+        const res = await fetch(`${url}/`);
+        expect(res.status).toBe(503);
+        expect(await res.text()).toContain('not built');
+      } finally {
+        stop();
+      }
+    } finally {
+      process.env.CUE_CLIENT_DIR = prev;
+    }
+  });
+
+  test('serves from the embedded UI_FILES manifest when it is populated', async () => {
+    const dir = process.env.CUE_CLIENT_DIR!;
+    await Bun.write(join(dir, 'assets', 'app.js'), 'console.log(1);');
+    UI_FILES['/index.html'] = join(dir, 'index.html');
+    UI_FILES['/assets/app.js'] = join(dir, 'assets', 'app.js');
+    try {
+      const { url, stop } = await serve();
+      try {
+        const index = await fetch(`${url}/`);
+        expect(index.status).toBe(200);
+        expect(await index.text()).toContain('cue fixture');
+        const asset = await fetch(`${url}/assets/app.js`);
+        expect(asset.status).toBe(200);
+        expect(await asset.text()).toBe('console.log(1);');
+        const fallback = await fetch(`${url}/runs/3`);
+        expect(fallback.status).toBe(200);
+        expect(fallback.headers.get('content-type')).toContain('text/html');
+      } finally {
+        stop();
+      }
+    } finally {
+      delete UI_FILES['/index.html'];
+      delete UI_FILES['/assets/app.js'];
+    }
+  });
+
+  test('falls through to disk when the embedded manifest has no index.html', async () => {
+    const dir = process.env.CUE_CLIENT_DIR!;
+    await Bun.write(join(dir, 'assets', 'app.js'), 'console.log(1);');
+    UI_FILES['/assets/app.js'] = join(dir, 'assets', 'app.js');
+    try {
+      const { url, stop } = await serve();
+      try {
+        const res = await fetch(`${url}/runs/3`);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('text/html');
+      } finally {
+        stop();
+      }
+    } finally {
+      delete UI_FILES['/assets/app.js'];
     }
   });
 });

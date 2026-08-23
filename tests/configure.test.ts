@@ -106,6 +106,16 @@ describe('promptConfig', () => {
     expect(notes).toEqual([]);
   });
 
+  test('an unknown pick falls back to the previous adapter, then codex', async () => {
+    const fromEmpty = await promptConfig({}, scriptedAsk(['not-an-adapter', 'bun test', '']));
+    expect(fromEmpty.config.adapter).toBe('codex');
+    const fromClaude = await promptConfig(
+      { adapter: 'claude' },
+      scriptedAsk(['not-an-adapter', 'bun test', '']),
+    );
+    expect(fromClaude.config.adapter).toBe('claude');
+  });
+
   test('unrelated fields survive the wizard untouched', async () => {
     const ask = scriptedAsk(['codex', 'bun test', '']);
     const { config } = await promptConfig(
@@ -218,6 +228,11 @@ describe('formatIssueOptions', () => {
       'agent:approved → dev',
       'agent:replan → replan',
     ]);
+  });
+
+  test('hint is just the action when no agent:* label is actioning', () => {
+    const options = formatIssueOptions([{ number: 1, title: 'Other', body: '', labels: ['bug'] }]);
+    expect(options[0]?.hint).toBe('skip');
   });
 
   test('hint uses nextAction priority when several agent:* labels are present', () => {

@@ -67,7 +67,7 @@ const GOOD_PLAN =
 
 describe('runTriage', () => {
   test('claims, plans read-only, comments with marker, labels planned', async () => {
-    const { ctx, calls, runs, notifications } = await makeCtx(
+    const { ctx, calls, runs, notifications, events } = await makeCtx(
       [
         { match: ['gh', 'issue', 'edit', '7', '--repo', '*', '--remove-label', 'agent:ready'] },
         { match: ['gh', 'issue', 'comment', '7'] },
@@ -85,6 +85,9 @@ describe('runTriage', () => {
     // No specs dir, no learnings file → the knowledge layer stays fully out of the prompt.
     expect(run.prompt).not.toContain('## Spec changes');
     expect(run.prompt).not.toContain('Repo learnings');
+    expect(events).toContainEqual(
+      expect.objectContaining({ issue: 7, stage: 'triage', kind: 'progress', message: 'working' }),
+    );
     const commentCall = calls[1]!;
     expect(commentCall.join(' ')).toContain(PLAN_MARKER);
     expect(notifications).toEqual([

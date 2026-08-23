@@ -1,0 +1,4 @@
+[test]
+coverageReporter = ["text", "lcov"]
+coverageThreshold = { lines = 0.95, functions = 0.8 }
+coveragePathIgnorePatterns = ["src/ui-manifest.g.ts", "tests/helpers/**"]
