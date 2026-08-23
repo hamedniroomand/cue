@@ -57,8 +57,6 @@ Optional environment variables:
 | `CUE_BIN_DIR` | `~/.local/bin` (`%LOCALAPPDATA%\Programs\cue` on Windows) | Where to put the `cue` binary |
 | `CUE_REPO` | `hamedniroomand/cue` | `owner/repo` to download from |
 
-If you already have the [CUE language](https://cuelang.org) CLI installed, its `cue` binary will collide on `PATH`. Install this CLI to a dedicated `CUE_BIN_DIR`, or put that directory earlier on `PATH`.
-
 Verify with:
 
 ```bash
