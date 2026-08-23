@@ -70,15 +70,18 @@ async function makeContext(): Promise<StageContext> {
 async function initAnswers(
   cwd: string,
   flags: string[],
-): Promise<Record<string, unknown> | undefined> {
+): Promise<{ config?: Record<string, unknown>; learnings: boolean }> {
   if (!shouldPrompt(flags, { stdin: process.stdin.isTTY, stdout: process.stdout.isTTY })) {
-    return undefined;
+    return { learnings: false };
   }
   const current = await readRawConfig(cwd);
+  const learningsExists = await Bun.file(join(cwd, '.cue', 'learnings.md')).exists();
   try {
-    const { config, notes } = await promptConfig(current, clackAsk);
+    const { config, notes, enableLearnings } = await promptConfig(current, clackAsk, {
+      learningsExists,
+    });
     for (const note of notes) consola.warn(note);
-    return config;
+    return { config, learnings: enableLearnings };
   } catch (err) {
     // consolaAsk rejects on Ctrl+C, so bail out before anything is written.
     throw new Error('init cancelled — nothing was written', { cause: err });
@@ -86,8 +89,13 @@ async function initAnswers(
 }
 
 async function init(ctx: StageContext): Promise<void> {
-  const answers = await initAnswers(ctx.config.repoPath, process.argv.slice(3));
-  for (const change of await scaffold(ctx.config.repoPath, answers)) consola.success(change);
+  const { config: answers, learnings } = await initAnswers(
+    ctx.config.repoPath,
+    process.argv.slice(3),
+  );
+  for (const change of await scaffold(ctx.config.repoPath, answers, { learnings })) {
+    consola.success(change);
+  }
   const labels = `creating ${String(LABELS.length)} agent:* labels on ${ctx.config.repo}`;
   // A disabled spinner is silent, so piped/CI runs need these two lines to keep
   // the label phase visible the way the old per-label output did.

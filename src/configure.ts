@@ -86,12 +86,28 @@ export interface PromptedConfig {
   config: Record<string, unknown>;
   /** Things the wizard decided on the user's behalf and must own up to. */
   notes: string[];
+  /**
+   * Create `.cue/learnings.md`. The knowledge layer is presence-detected, so
+   * this answer is a file to write, never a config field — see `src/specs.ts`.
+   */
+  enableLearnings: boolean;
 }
+
+export interface PromptConfigOptions {
+  /** True when `.cue/learnings.md` is already there, which skips that question. */
+  learningsExists?: boolean;
+}
+
+const LEARNINGS_OPTIONS: AskOption[] = [
+  { value: 'no', label: 'No', hint: 'add .cue/learnings.md later to switch it on' },
+  { value: 'yes', label: 'Yes', hint: 'review records lessons into .cue/learnings.md' },
+];
 
 /**
  * Asks the three settings Cue cannot guess — which agent CLI runs the stages,
- * and how this project tests and lints. Everything else keeps its default and
- * is edited in the file, where the published schema autocompletes it.
+ * and how this project tests and lints — then offers the one opt-in feature
+ * nothing else would ever mention. Everything else keeps its default and is
+ * edited in the file, where the published schema autocompletes it.
  *
  * Accepting every pre-filled answer round-trips `current` unchanged, so
  * re-running `cue init` never rewrites a tuned config by accident.
@@ -99,6 +115,7 @@ export interface PromptedConfig {
 export async function promptConfig(
   current: Record<string, unknown>,
   ask: Ask,
+  options: PromptConfigOptions = {},
 ): Promise<PromptedConfig> {
   const notes: string[] = [];
   ask.begin?.('Configuring Cue for this repo');
@@ -123,6 +140,16 @@ export async function promptConfig(
     test: test || asString(gate.test) || 'bun test',
     ...(lint ? { lint } : {}),
   };
+  // Only offered to repos that have not opted in: a repo with recorded lessons
+  // must never be asked a question whose other answer implies deleting them.
+  const enableLearnings = options.learningsExists
+    ? false
+    : (await ask.select(
+        'Let review record durable lessons in .cue/learnings.md?',
+        LEARNINGS_OPTIONS,
+        'no',
+      )) === 'yes';
+
   const config: Record<string, unknown> = { ...current, adapter, gate: nextGate };
 
   // Model names only mean something relative to an adapter, so carrying them
@@ -133,8 +160,9 @@ export async function promptConfig(
   }
   const summary = [`adapter ${adapter}`, `test \`${nextGate.test}\``];
   if (nextGate.lint) summary.push(`lint \`${nextGate.lint}\``);
+  if (enableLearnings) summary.push('learnings on');
   ask.end?.(summary.join(' · '));
-  return { config, notes };
+  return { config, notes, enableLearnings };
 }
 
 /**

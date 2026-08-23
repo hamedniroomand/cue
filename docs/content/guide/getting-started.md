@@ -97,7 +97,7 @@ my-project/
     └── runs/          # transcripts + costs per issue (gitignored)
 ```
 
-In a terminal, `init` asks three questions — which agent CLI to use, the test command for the gate, and an optional lint command — each pre-filled with a sensible default (`codex`, `bun test`, none). Pass `--yes` (or run non-interactively) to skip the questions and keep the defaults; you can always edit `.cue/config.json` later, or re-run `cue init` to reconfigure. See [Commands → init](/guide/commands#init) for the questions and [Configuration](/guide/config) for every field.
+In a terminal, `init` asks four questions — which agent CLI to use, the test command for the gate, an optional lint command, and whether to switch on [review learnings](#optional-living-specs-and-learnings) — each pre-filled with a sensible default (`codex`, `bun test`, none, `No`). Pass `--yes` (or run non-interactively) to skip the questions and keep the defaults; you can always edit `.cue/config.json` later, or re-run `cue init` to reconfigure. See [Commands → init](/guide/commands#init) for the questions and [Configuration](/guide/config) for every field.
 
 ## First issue
 
@@ -117,6 +117,6 @@ That is the whole human loop. Details, labels, and edge cases live in [Pipeline]
 Two knowledge layers are off by default and switched on by creating a file — there is nothing to configure:
 
 - `openspec/specs/` or `.cue/specs/` makes specs the source of truth: plans gain a `## Spec changes` delta and dev updates the spec files in the same PR as the code.
-- An empty `.cue/learnings.md` lets the review loop distill the fixes it had to force into durable one-line lessons that later runs carry in context.
+- An empty `.cue/learnings.md` lets the review loop distill the fixes it had to force into durable one-line lessons that later runs carry in context. `cue init` offers to create this one for you; commit it, or the worktrees the dev and review stages run in will never see it.
 
 See [Pipeline → Living specs & learnings](/guide/pipeline#living-specs-learnings-opt-in).

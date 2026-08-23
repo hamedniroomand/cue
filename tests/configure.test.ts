@@ -40,10 +40,10 @@ function scriptedAsk(answers: string[]): Ask & { asked: string[]; initials: stri
 }
 
 describe('promptConfig', () => {
-  test('asks adapter, test and lint — in that order, nothing else', async () => {
+  test('asks adapter, test, lint and learnings — in that order, nothing else', async () => {
     const ask = scriptedAsk(['claude', 'npm test', 'npm run lint']);
     const { config } = await promptConfig({}, ask);
-    expect(ask.asked).toHaveLength(3);
+    expect(ask.asked).toHaveLength(4);
     expect(config).toEqual({
       adapter: 'claude',
       gate: { test: 'npm test', lint: 'npm run lint' },
@@ -53,7 +53,7 @@ describe('promptConfig', () => {
   test('a fresh repo is pre-filled with the shipped defaults', async () => {
     const ask = scriptedAsk([]);
     const { config } = await promptConfig({}, ask);
-    expect(ask.initials).toEqual(['codex', 'bun test', '']);
+    expect(ask.initials).toEqual(['codex', 'bun test', '', 'no']);
     expect(config).toEqual({ adapter: 'codex', gate: { test: 'bun test' } });
   });
 
@@ -61,7 +61,7 @@ describe('promptConfig', () => {
     const ask = scriptedAsk([]);
     const current = { adapter: 'claude', gate: { test: 'npm test', lint: 'npm run lint' } };
     const { config } = await promptConfig(current, ask);
-    expect(ask.initials).toEqual(['claude', 'npm test', 'npm run lint']);
+    expect(ask.initials).toEqual(['claude', 'npm test', 'npm run lint', 'no']);
     // Accepting every default must round-trip unchanged, or re-running init
     // would silently rewrite a tuned config.
     expect(config).toEqual(current);
@@ -116,6 +116,32 @@ describe('promptConfig', () => {
     expect(fromClaude.config.adapter).toBe('claude');
   });
 
+  test('opting into learnings is reported as a file to create, never a config key', async () => {
+    const ask = scriptedAsk(['codex', 'bun test', '', 'yes']);
+    const { config, enableLearnings } = await promptConfig({}, ask);
+    expect(enableLearnings).toBe(true);
+    // The layer is presence-detected: a config field would be a second source
+    // of truth the parser and published schema know nothing about.
+    expect(config).toEqual({ adapter: 'codex', gate: { test: 'bun test' } });
+    expect(JSON.stringify(config)).not.toContain('learn');
+  });
+
+  test('learnings defaults to off, so accepting every default changes nothing', async () => {
+    const ask = scriptedAsk([]);
+    const { enableLearnings } = await promptConfig({}, ask);
+    expect(ask.initials[3]).toBe('no');
+    expect(enableLearnings).toBe(false);
+  });
+
+  test('a repo that already opted in is not asked again', async () => {
+    const ask = scriptedAsk([]);
+    const { enableLearnings } = await promptConfig({}, ask, { learningsExists: true });
+    expect(ask.asked).toHaveLength(3);
+    expect(ask.asked.join(' ')).not.toContain('learnings');
+    // Nothing to create — and nothing that could delete what is already recorded.
+    expect(enableLearnings).toBe(false);
+  });
+
   test('unrelated fields survive the wizard untouched', async () => {
     const ask = scriptedAsk(['codex', 'bun test', '']);
     const { config } = await promptConfig(
@@ -147,6 +173,13 @@ describe('promptConfig framing', () => {
     const base = scriptedAsk(['codex', 'bun test', '']);
     await promptConfig({}, { ...base, end: (m) => framed.push(m) });
     expect(framed[0]).toBe('adapter codex · test `bun test`');
+  });
+
+  test('mentions learnings in the summary only when it was turned on', async () => {
+    const framed: string[] = [];
+    const base = scriptedAsk(['codex', 'bun test', '', 'yes']);
+    await promptConfig({}, { ...base, end: (m) => framed.push(m) });
+    expect(framed[0]).toBe('adapter codex · test `bun test` · learnings on');
   });
 
   test('a backend with no framing hooks still works — they are optional', async () => {
