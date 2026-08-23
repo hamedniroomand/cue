@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits"],
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "commitMessageTopic": "GitHub Actions",
+      "semanticCommitType": "ci"
+    },
+    {
+      "description": "Group Oxc/Ox tooling (oxlint, oxfmt, oxlint-tsgolint, oxc-transform-react)",
+      "matchPackageNames": ["/^oxlint/", "/^oxfmt/", "/^oxc-/", "/^@oxc-/"],
+      "groupName": "oxc tooling",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Group VitePress and documentation dependencies",
+      "matchPackageNames": ["/^vitepress/", "/^mermaid/"],
+      "groupName": "vitepress dependencies",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Group React ecosystem in ui/",
+      "matchPackageNames": ["/^react/", "/^@types/react/"],
+      "groupName": "react ecosystem",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Group Tailwind CSS ecosystem in ui/",
+      "matchPackageNames": ["/^tailwindcss/", "/^@tailwindcss//"],
+      "groupName": "tailwind dependencies",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Group type definitions",
+      "matchPackageNames": ["/^@types//"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "type definitions"
+    }
+  ]
+}
