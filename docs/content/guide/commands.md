@@ -63,10 +63,10 @@ Compatibility alias for `cue process`. New scripts and documentation should use 
 ## run
 
 ```bash
-cue run 42
+cue run [n]
 ```
 
-Runs the next pipeline stage for a single issue. The issue must be in an actionable state: `agent:ready`, `agent:approved`, or `agent:replan`.
+Runs the next pipeline stage for a single issue. Pass an issue number (`cue run 42`) or run `cue run` without arguments to select from an interactive list of actionable issues (`agent:ready`, `agent:approved`, or `agent:replan`), sorted newest to oldest.
 
 Useful when you want to drive one issue without scanning the whole board.
 

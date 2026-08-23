@@ -7,10 +7,16 @@ import { ADAPTERS } from '@/adapters/registry';
 import { formatTokens } from '@/adapters/usage';
 import { runCleanup } from '@/cleanup';
 import { resolveConfig } from '@/config';
-import { clackAsk, promptConfig, shouldPrompt } from '@/configure';
+import {
+  PromptCancelled,
+  clackAsk,
+  promptConfig,
+  promptSelectIssue,
+  shouldPrompt,
+} from '@/configure';
 import { VERSION } from '@/embedded';
 import { realExec } from '@/exec';
-import { GitHub } from '@/github';
+import { GitHub, type Issue } from '@/github';
 import { RunLogger } from '@/log';
 import { makeWebhookNotifier } from '@/notify';
 import { nextAction, poll, runIssue } from '@/pipeline';
@@ -156,7 +162,7 @@ Commands:
                (asks for adapter + test/lint commands; --yes keeps the defaults)
   process      reconcile finished PRs, then run every actionable issue
   poll         alias for process (kept for compatibility)
-  run <n>      run the next pipeline stage for issue #n
+  run [n]      run the next pipeline stage for issue #n (interactive list if omitted)
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
   status       issues per pipeline state, local spend, worktree root
   upgrade      update cue to the latest GitHub release (release installs only)
@@ -239,24 +245,73 @@ async function main(): Promise<void> {
       await poll(ctx);
       break;
     case 'run': {
-      const n = Number(arg);
-      if (!Number.isInteger(n)) throw new Error('usage: cue run <issue-number>');
+      if (arg !== undefined) {
+        const n = Number(arg);
+        if (!Number.isInteger(n)) throw new Error('usage: cue run [issue-number]');
+        const issues = await withSpinner(
+          cliSpinner,
+          `looking up issue #${n} on ${ctx.config.repo}`,
+          async () => [
+            ...(await ctx.github.listIssues('agent:ready')),
+            ...(await ctx.github.listIssues('agent:approved')),
+            ...(await ctx.github.listIssues('agent:replan')),
+          ],
+        );
+        const issue = issues.find((i) => i.number === n);
+        if (!issue)
+          throw new Error(
+            `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, or agent:replan)`,
+          );
+        consola.info(`running ${nextAction(issue.labels)} for #${n}`);
+        await runIssue(ctx, issue);
+        break;
+      }
+
+      if (!shouldPrompt([], { stdin: process.stdin.isTTY, stdout: process.stdout.isTTY })) {
+        throw new Error('usage: cue run <issue-number>');
+      }
+
       const issues = await withSpinner(
         cliSpinner,
-        `looking up issue #${n} on ${ctx.config.repo}`,
-        async () => [
-          ...(await ctx.github.listIssues('agent:ready')),
-          ...(await ctx.github.listIssues('agent:approved')),
-          ...(await ctx.github.listIssues('agent:replan')),
-        ],
+        `reading ${ctx.config.repo} actionable issues`,
+        async () => {
+          const byLabel = await ctx.github.listIssuesByLabel([
+            'agent:ready',
+            'agent:approved',
+            'agent:replan',
+          ]);
+          const ready = byLabel.get('agent:ready') ?? [];
+          const approved = byLabel.get('agent:approved') ?? [];
+          const replans = byLabel.get('agent:replan') ?? [];
+          const seen = new Set<number>();
+          const deduped: Issue[] = [];
+          for (const item of [...ready, ...approved, ...replans]) {
+            if (!seen.has(item.number)) {
+              seen.add(item.number);
+              deduped.push(item);
+            }
+          }
+          return deduped;
+        },
       );
-      const issue = issues.find((i) => i.number === n);
-      if (!issue)
-        throw new Error(
-          `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, or agent:replan)`,
+
+      if (issues.length === 0) {
+        consola.info(
+          `no actionable issues found on ${ctx.config.repo} (needs agent:ready, agent:approved, or agent:replan)`,
         );
-      consola.info(`running ${nextAction(issue.labels)} for #${n}`);
-      await runIssue(ctx, issue);
+        break;
+      }
+
+      try {
+        const selected = await promptSelectIssue(issues, clackAsk);
+        if (selected) {
+          consola.info(`running ${nextAction(selected.labels)} for #${selected.number}`);
+          await runIssue(ctx, selected);
+        }
+      } catch (err) {
+        if (err instanceof PromptCancelled) break;
+        throw err;
+      }
       break;
     }
     case 'cleanup':

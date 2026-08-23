@@ -1,7 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 
 import { ADAPTERS } from '@/adapters/registry';
-import { ADAPTER_OPTIONS, type Ask, promptConfig, shouldPrompt } from '@/configure';
+import {
+  ADAPTER_OPTIONS,
+  type Ask,
+  formatIssueOptions,
+  PromptCancelled,
+  promptConfig,
+  promptSelectIssue,
+  shouldPrompt,
+} from '@/configure';
+import type { Issue } from '@/github';
 
 /**
  * Replays scripted answers and records what the wizard offered, so the
@@ -178,5 +187,75 @@ describe('shouldPrompt', () => {
 
   test('unrelated flags do not suppress the questions', () => {
     expect(shouldPrompt(['--no-open'], tty)).toBe(true);
+  });
+});
+
+describe('formatIssueOptions', () => {
+  const issues: Issue[] = [
+    { number: 5, title: 'Old issue', body: '', labels: ['agent:ready'] },
+    { number: 42, title: 'Approved feature', body: '', labels: ['agent:approved', 'backend'] },
+    { number: 20, title: 'Needs replan', body: '', labels: ['agent:replan'] },
+  ];
+
+  test('sorts issues descending by number (newest to oldest)', () => {
+    const options = formatIssueOptions(issues);
+    expect(options.map((o) => o.value)).toEqual(['42', '20', '5']);
+  });
+
+  test('formats option labels with number and title', () => {
+    const options = formatIssueOptions(issues);
+    expect(options.map((o) => o.label)).toEqual([
+      '#42 Approved feature',
+      '#20 Needs replan',
+      '#5 Old issue',
+    ]);
+  });
+
+  test('formats hints with stage label and target action', () => {
+    const options = formatIssueOptions(issues);
+    expect(options.map((o) => o.hint)).toEqual([
+      'agent:approved → dev',
+      'agent:replan → replan',
+      'agent:ready → triage',
+    ]);
+  });
+});
+
+describe('promptSelectIssue', () => {
+  const issues: Issue[] = [
+    { number: 10, title: 'First', body: '', labels: ['agent:ready'] },
+    { number: 25, title: 'Second', body: '', labels: ['agent:approved'] },
+  ];
+
+  test('returns undefined when issues list is empty', async () => {
+    const ask = scriptedAsk([]);
+    const selected = await promptSelectIssue([], ask);
+    expect(selected).toBeUndefined();
+    expect(ask.asked).toHaveLength(0);
+  });
+
+  test('pre-selects the newest issue as initial and returns selected issue', async () => {
+    const ask = scriptedAsk(['10']);
+    const selected = await promptSelectIssue(issues, ask);
+    expect(ask.initials[0]).toBe('25'); // newest issue #25 is initial
+    expect(selected).toEqual(issues[0]); // picked #10
+  });
+
+  test('returns the newest issue when accepting default initial', async () => {
+    const ask = scriptedAsk([]);
+    const selected = await promptSelectIssue(issues, ask);
+    expect(selected).toEqual(issues[1]); // issue #25
+  });
+
+  test('throws PromptCancelled when ask cancels', async () => {
+    const cancelAsk: Ask = {
+      select() {
+        throw new PromptCancelled();
+      },
+      text() {
+        throw new PromptCancelled();
+      },
+    };
+    expect(promptSelectIssue(issues, cancelAsk)).rejects.toThrow(PromptCancelled);
   });
 });

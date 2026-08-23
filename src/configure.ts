@@ -1,6 +1,8 @@
 import { intro, isCancel, outro, select, text } from '@clack/prompts';
 
 import { ADAPTERS, type AdapterName } from '@/adapters/registry';
+import type { Issue } from '@/github';
+import { nextAction } from '@/pipeline';
 
 export interface AskOption {
   value: string;
@@ -132,4 +134,35 @@ export async function promptConfig(
   if (nextGate.lint) summary.push(`lint \`${nextGate.lint}\``);
   ask.end?.(summary.join(' · '));
   return { config, notes };
+}
+
+/**
+ * Formats a list of actionable issues as options for the interactive select prompt.
+ * Issues are sorted newest to oldest by issue number.
+ */
+export function formatIssueOptions(issues: Issue[]): AskOption[] {
+  const sorted = issues.toSorted((a, b) => b.number - a.number);
+  return sorted.map((issue) => {
+    const action = nextAction(issue.labels);
+    const stageLabel = issue.labels.find((l) => l.startsWith('agent:'));
+    const hint = stageLabel ? `${stageLabel} → ${action}` : action;
+    return {
+      value: String(issue.number),
+      label: `#${issue.number} ${issue.title}`,
+      hint,
+    };
+  });
+}
+
+/**
+ * Prompts the user to pick an actionable issue from a list sorted from newest to oldest.
+ * Returns the selected Issue object, or undefined if the issue list is empty.
+ */
+export async function promptSelectIssue(issues: Issue[], ask: Ask): Promise<Issue | undefined> {
+  if (issues.length === 0) return undefined;
+  const sorted = issues.toSorted((a, b) => b.number - a.number);
+  const options = formatIssueOptions(sorted);
+  const picked = await ask.select('Select an issue to run:', options, options[0]!.value);
+  const pickedNum = Number(picked);
+  return sorted.find((i) => i.number === pickedNum);
 }

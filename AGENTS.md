@@ -14,7 +14,7 @@ bun test               # full suite — runs entirely on fakes: no network, no g
 bun run lint           # oxlint (config: .oxlintrc.json)
 bun run format         # oxfmt — always format after editing; format:check verifies
 bun run check          # lint (type-aware via oxlint-tsgolint) + format:check + tests, all in one
-bun run cue <init|poll|run <n>|cleanup|status|ui [port]>   # the CLI (globally: `cue`, run from inside a target repo)
+bun run cue <init|poll|run [n]|cleanup|status|ui [port]>   # the CLI (globally: `cue`, run from inside a target repo)
 ```
 
 Always run `bun run check` before claiming any change works. tsconfig has
