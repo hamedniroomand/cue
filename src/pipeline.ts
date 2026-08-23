@@ -5,6 +5,7 @@ import type { StageContext } from '@/stages/context';
 import { runDev } from '@/stages/dev';
 import { runReplan } from '@/stages/replan';
 import { runReview } from '@/stages/review';
+import { runRevise } from '@/stages/revise';
 import { runTriage } from '@/stages/triage';
 
 export type { Action } from '@/action';
@@ -23,6 +24,9 @@ export async function runIssue(ctx: StageContext, issue: Issue): Promise<Outcome
       await runTriage(ctx, issue);
     } else if (action === 'replan') {
       await runReplan(ctx, issue);
+    } else if (action === 'revise') {
+      await runRevise(ctx, issue);
+      await runReview(ctx, issue);
     } else {
       await runDev(ctx, issue);
       await runReview(ctx, issue);
@@ -36,10 +40,10 @@ export async function runIssue(ctx: StageContext, issue: Issue): Promise<Outcome
       issue.number,
       `⚠️ cue ${action} failed: ${message.slice(0, 1500)}\n\nSee \`.cue/runs/${issue.number}/\` on the runner machine for transcripts. Reset the label to retry.`,
     );
-    // A failed dev must not keep its claim: in-dev + failed renders as two
-    // board columns, and a lingering claim would eventually be stale-reclaimed
-    // back to agent:approved — silently re-running a failed issue.
-    if (action === 'dev') {
+    // A failed dev/revise must not keep its claim: in-dev + failed renders as
+    // two board columns, and a lingering claim would eventually be
+    // stale-reclaimed back to agent:approved — silently re-running a failed issue.
+    if (action === 'dev' || action === 'revise') {
       try {
         await ctx.github.removeLabel(issue.number, 'agent:in-dev');
       } catch {
@@ -58,13 +62,20 @@ export async function poll(ctx: StageContext): Promise<void> {
   await runCleanup(ctx);
   const queue = await ctx.github.listActionable();
   if (queue.length === 0) {
-    emit('done', 'nothing to do — no issues labeled agent:ready, agent:approved, or agent:replan');
+    emit(
+      'done',
+      'nothing to do — no issues labeled agent:ready, agent:approved, agent:replan, or agent:revise',
+    );
     return;
   }
   const triage = queue.filter((i) => nextAction(i.labels) === 'triage').length;
   const dev = queue.filter((i) => nextAction(i.labels) === 'dev').length;
   const replan = queue.filter((i) => nextAction(i.labels) === 'replan').length;
-  emit('progress', `${queue.length} actionable: ${triage} triage, ${dev} dev, ${replan} replan`);
+  const revise = queue.filter((i) => nextAction(i.labels) === 'revise').length;
+  emit(
+    'progress',
+    `${queue.length} actionable: ${triage} triage, ${dev} dev, ${replan} replan, ${revise} revise`,
+  );
   let failed = 0;
   for (const issue of queue) {
     if ((await runIssue(ctx, issue)) === 'failed') failed++;

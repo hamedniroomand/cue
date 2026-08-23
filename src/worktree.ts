@@ -70,6 +70,44 @@ export class WorktreeManager {
     return { path: this.path(issue), branch: this.branch(issue) };
   }
 
+  /**
+   * The revise stage's worktree: reuse it when it is still on disk, otherwise
+   * re-attach one to the already-pushed PR branch (dev may have run on another
+   * machine). Always fast-forwards to origin so commits humans pushed to the PR
+   * are revised, not overwritten — a diverged branch fails loudly.
+   */
+  async ensure(issue: number): Promise<{ path: string; branch: string }> {
+    const path = this.path(issue);
+    const branch = this.branch(issue);
+    await this.git(this.cfg.repoPath, ['fetch', 'origin', branch]);
+    const probe = await this.exec(['git', '-C', path, 'rev-parse', '--git-dir']);
+    if (probe.code !== 0) {
+      const attach = await this.exec([
+        'git',
+        '-C',
+        this.cfg.repoPath,
+        'worktree',
+        'add',
+        path,
+        branch,
+      ]);
+      if (attach.code !== 0) {
+        // No local branch on this machine yet — create one tracking origin's.
+        await this.git(this.cfg.repoPath, [
+          'worktree',
+          'add',
+          '--track',
+          '-b',
+          branch,
+          path,
+          `origin/${branch}`,
+        ]);
+      }
+    }
+    await this.git(path, ['merge', '--ff-only', `origin/${branch}`]);
+    return { path, branch };
+  }
+
   async commitAll(issue: number, message: string): Promise<boolean> {
     await this.git(this.path(issue), ['add', '-A']);
     const r = await this.exec(['git', '-C', this.path(issue), 'commit', '-m', message]);

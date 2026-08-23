@@ -1,0 +1,8 @@
+{
+  "$schema": "https://hamedniroomand.github.io/cue/schema/config.json",
+  "adapter": "antigravity",
+  "gate": {
+    "test": "bun test",
+    "lint": "bun run lint && bun run format:check"
+  }
+}

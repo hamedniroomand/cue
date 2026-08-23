@@ -8,6 +8,14 @@ export interface Issue {
   labels: string[];
 }
 
+/** One piece of human feedback on a PR; path/line only for inline diff comments. */
+export interface PrFeedbackItem {
+  author: string;
+  body: string;
+  path?: string;
+  line?: number;
+}
+
 interface RawIssue {
   number: number;
   title: string;
@@ -185,6 +193,57 @@ export class GitHub {
     if (!last) return null;
     const ts = Date.parse(last);
     return Number.isNaN(ts) ? null : ts;
+  }
+
+  /**
+   * Everything humans said on the PR, in review → conversation → diff order:
+   * review bodies (empty approvals dropped), top-level PR comments, and inline
+   * diff comments (REST, since `gh pr view` does not expose them). Fails loudly
+   * — revising without a PR to read is a real error, not a quiet no-op.
+   */
+  async prFeedback(branch: string): Promise<{ number: number; items: PrFeedbackItem[] }> {
+    const out = await this.gh([
+      'pr',
+      'view',
+      branch,
+      '--repo',
+      this.repo,
+      '--json',
+      'number,comments,reviews',
+    ]);
+    const pr = JSON.parse(out) as {
+      number: number;
+      comments: Array<{ author?: { login?: string }; body: string }>;
+      reviews: Array<{ author?: { login?: string }; body: string }>;
+    };
+    const inline = await this.gh([
+      'api',
+      `repos/${this.repo}/pulls/${pr.number}/comments`,
+      '--paginate',
+      '--jq',
+      '.[] | {author: .user.login, body: .body, path: .path, line: (.line // .original_line)}',
+    ]);
+    const items: PrFeedbackItem[] = [];
+    for (const r of pr.reviews) {
+      if (r.body.trim()) items.push({ author: r.author?.login ?? 'unknown', body: r.body });
+    }
+    for (const c of pr.comments) items.push({ author: c.author?.login ?? 'unknown', body: c.body });
+    for (const line of inline.split('\n')) {
+      if (!line.trim()) continue;
+      const c = JSON.parse(line) as {
+        author?: string | null;
+        body: string;
+        path: string;
+        line?: number | null;
+      };
+      items.push({
+        author: c.author ?? 'unknown',
+        body: c.body,
+        path: c.path,
+        ...(c.line != null && { line: c.line }),
+      });
+    }
+    return { number: pr.number, items };
   }
 
   async createDraftPR(o: {

@@ -56,10 +56,11 @@ export const BOARD_LABELS = [
   'agent:replan',
   'agent:in-dev',
   'agent:in-review',
+  'agent:revise',
   'agent:failed',
 ];
 
-const ACTIONABLE = ['agent:ready', 'agent:approved', 'agent:replan'];
+const ACTIONABLE = ['agent:ready', 'agent:approved', 'agent:replan', 'agent:revise'];
 
 export interface BoardIssue {
   number: number;

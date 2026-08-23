@@ -34,6 +34,11 @@ const LABELS: Array<[name: string, color: string, desc: string]> = [
   ['agent:replan', 'F9D0C4', 'Cue: human requested a revised plan (leave feedback as comments)'],
   ['agent:in-dev', '5319E7', 'Cue: dev stage running'],
   ['agent:in-review', 'D93F0B', 'Cue: draft PR open, awaiting human merge'],
+  [
+    'agent:revise',
+    '1D76DB',
+    'Cue: human requested changes on the draft PR (leave feedback on the PR)',
+  ],
   ['agent:done', 'C5DEF5', 'Cue: PR merged, pipeline complete'],
   ['agent:failed', 'B60205', 'Cue: a stage failed, see issue comments'],
   ['agent:stop', '000000', 'Cue: kill switch, never touch this issue'],
@@ -176,7 +181,8 @@ Flags:
 
 Labels drive the pipeline: agent:ready → triage plans, a human approves
 (agent:approved) → dev implements + review verdicts + draft PR, a human merges.
-agent:replan requests a revised plan; agent:stop freezes an issue.
+agent:replan requests a revised plan; agent:revise sends PR feedback back to the
+agent; agent:stop freezes an issue.
 Full state machine and configuration:
 https://hamedniroomand.github.io/cue/`;
 
@@ -195,7 +201,7 @@ async function runNumbered(ctx: StageContext, arg: string): Promise<void> {
   );
   if (nextAction(issue.labels) === 'skip') {
     throw new Error(
-      `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, or agent:replan)`,
+      `issue #${n} is not in an actionable state (needs agent:ready, agent:approved, agent:replan, or agent:revise)`,
     );
   }
   await runOne(ctx, issue);
@@ -210,7 +216,7 @@ async function runInteractive(ctx: StageContext): Promise<void> {
   );
   if (issues.length === 0) {
     consola.info(
-      `no actionable issues found on ${ctx.config.repo} (needs agent:ready, agent:approved, or agent:replan)`,
+      `no actionable issues found on ${ctx.config.repo} (needs agent:ready, agent:approved, agent:replan, or agent:revise)`,
     );
     return;
   }

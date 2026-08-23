@@ -13,9 +13,17 @@ describe('nextAction', () => {
     expect(nextAction([])).toBe('skip');
   });
 
+  test('agent:revise routes to revise and beats replan, loses only to stop', () => {
+    expect(nextAction(['agent:in-review', 'agent:revise'])).toBe('revise');
+    expect(nextAction(['agent:revise', 'agent:replan'])).toBe('revise');
+    expect(nextAction(['agent:revise', 'agent:ready'])).toBe('revise');
+    expect(nextAction(['agent:revise', 'agent:stop'])).toBe('skip');
+  });
+
   test('actioningLabel is the label nextAction actually selected', () => {
     expect(actioningLabel(['agent:planned', 'agent:replan'])).toBe('agent:replan');
     expect(actioningLabel(['agent:ready', 'agent:approved'])).toBe('agent:ready');
+    expect(actioningLabel(['agent:in-review', 'agent:revise'])).toBe('agent:revise');
     expect(actioningLabel(['agent:planned'])).toBeUndefined();
   });
 });
