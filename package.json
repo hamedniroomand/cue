@@ -40,7 +40,7 @@
     "@types/bun": "latest",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
-    "mermaid": "^11.17.1",
+    "mermaid": "^11.17.2",
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "^7.0.2001",
