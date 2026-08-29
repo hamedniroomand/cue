@@ -31,7 +31,7 @@ You need these on the machine that will run Cue:
 - [`gh`](https://cli.github.com) CLI, authenticated (`gh auth login`) with a token that can read/write issues, contents, and pull requests on the target repos
 - the CLI for the agent that will drive the stages, authenticated: [`codex`](https://developers.openai.com/codex) (the default), [`claude`](https://claude.com/claude-code), or `agy` (Antigravity) — `cue init` asks which one
 
-The release binaries do **not** require Bun or Node. You only need [Bun](https://bun.com) ≥ 1.1 if you [clone this repo to develop Cue itself](/develop/setup).
+The release binaries do **not** require Bun or Node. You only need [Bun](https://bun.com) ≥ 1.1 if you install [from npm](#from-npm-requires-bun) or [clone this repo to develop Cue itself](/develop/setup).
 
 ## Install the CLI
 
@@ -64,6 +64,22 @@ cue --version
 ```
 
 If the install directory is not on your `PATH`: the Windows installer adds it to your user `PATH` for you (open a new terminal afterwards); the macOS/Linux installer prints the line to add to your shell profile.
+
+### From npm (requires Bun)
+
+Cue is also published to npm as [`cue-agent`](https://www.npmjs.com/package/cue-agent). The package ships TypeScript source and runs on Bun, so this route needs [Bun](https://bun.com) ≥ 1.1 installed — plain `npx` will not work.
+
+```bash
+bun install -g cue-agent
+```
+
+Or without installing:
+
+```bash
+bunx cue-agent status
+```
+
+The binary is still called `cue`. Update with `bun update -g cue-agent`; `cue upgrade` is for release-binary installs only.
 
 ### Windows notes
 

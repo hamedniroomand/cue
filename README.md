@@ -26,6 +26,12 @@ Instead of babysitting interactive agent sessions in your terminal, Cue runs cod
 curl -fsSL https://raw.githubusercontent.com/hamedniroomand/cue/main/install.sh | bash
 ```
 
+Or, if you already have [Bun](https://bun.com) ≥ 1.1:
+
+```bash
+bun install -g cue-agent
+```
+
 Requires authenticated `gh` and `codex` CLIs (or Claude / Antigravity). Then, inside any project repository:
 
 ```bash

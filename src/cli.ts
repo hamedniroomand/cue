@@ -264,12 +264,19 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'upgrade') {
-    // Only a compiled release binary can replace itself; a source checkout
-    // (bun run src/cli.ts) would point execPath at bun, not cue.
-    const compiled = import.meta.dir.includes('$bunfs') || import.meta.dir.includes('~BUN');
+    // Only a compiled release binary can replace itself; a source checkout or an
+    // npm install (bun run src/cli.ts) would point execPath at bun, not cue.
+    // Bun.isStandaloneExecutable is authoritative but needs Bun >= 1.4, so older
+    // runtimes fall back to the bunfs virtual-path heuristic.
+    // The fallback matches only the virtual roots ("/$bunfs/…", "B:\~BUN\…"),
+    // never a real checkout that merely contains those names somewhere.
+    const { isStandaloneExecutable } = Bun as { isStandaloneExecutable?: boolean };
+    const compiled =
+      isStandaloneExecutable ?? /^(\/\$bunfs\/|[a-z]:[\\/]~bun[\\/])/i.test(import.meta.dir);
     if (!compiled) {
       throw new Error(
-        'cue upgrade only works for release installs — use git pull on a source checkout',
+        'cue upgrade only works for release binaries — update an npm install with ' +
+          'bun update -g cue-agent, or a source checkout with git pull',
       );
     }
     const { runUpgrade } = await import('@/upgrade');
