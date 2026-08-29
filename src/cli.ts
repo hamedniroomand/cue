@@ -266,7 +266,12 @@ async function main(): Promise<void> {
   if (command === 'upgrade') {
     // Only a compiled release binary can replace itself; a source checkout or an
     // npm install (bun run src/cli.ts) would point execPath at bun, not cue.
-    const compiled = import.meta.dir.includes('$bunfs') || import.meta.dir.includes('~BUN');
+    // Bun.isStandaloneExecutable is authoritative but needs Bun >= 1.4, so older
+    // runtimes fall back to the bunfs virtual-path heuristic.
+    const { isStandaloneExecutable } = Bun as { isStandaloneExecutable?: boolean };
+    const compiled =
+      isStandaloneExecutable ??
+      (import.meta.dir.includes('$bunfs') || import.meta.dir.includes('~BUN'));
     if (!compiled) {
       throw new Error(
         'cue upgrade only works for release binaries — update an npm install with ' +

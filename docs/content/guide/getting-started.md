@@ -31,7 +31,7 @@ You need these on the machine that will run Cue:
 - [`gh`](https://cli.github.com) CLI, authenticated (`gh auth login`) with a token that can read/write issues, contents, and pull requests on the target repos
 - the CLI for the agent that will drive the stages, authenticated: [`codex`](https://developers.openai.com/codex) (the default), [`claude`](https://claude.com/claude-code), or `agy` (Antigravity) — `cue init` asks which one
 
-The release binaries do **not** require Bun or Node. You only need [Bun](https://bun.com) ≥ 1.1 if you [clone this repo to develop Cue itself](/develop/setup).
+The release binaries do **not** require Bun or Node. You only need [Bun](https://bun.com) ≥ 1.1 if you install [from npm](#from-npm-requires-bun) or [clone this repo to develop Cue itself](/develop/setup).
 
 ## Install the CLI
 
