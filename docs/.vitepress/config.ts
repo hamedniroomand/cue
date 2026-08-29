@@ -78,5 +78,8 @@ export default withMermaid({
   }),
   mermaid: {
     theme: "neutral",
+    // Render diagrams at natural size so node text stays legible; the
+    // .mermaid wrapper scrolls horizontally instead (theme/custom.css).
+    flowchart: { useMaxWidth: false },
   },
 });
