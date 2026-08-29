@@ -328,3 +328,16 @@
 .mermaid svg {
   flex-shrink: 0;
 }
+
+/* VitePress gives .vp-doc <p> a 28px line-height, margins, and code chips
+   vertical padding — all applied AFTER mermaid has measured its HTML labels
+   at 24px, which clips the bottom of every label line. Render labels with
+   the metrics mermaid measured. */
+.vp-doc .mermaid p {
+  margin: 0;
+  line-height: inherit;
+}
+
+.vp-doc .mermaid code {
+  padding: 0 4px;
+}
