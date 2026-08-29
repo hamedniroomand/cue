@@ -68,7 +68,11 @@ Cue does the same at the pipeline level. You can set a different model for each 
 
 A small model makes the plan, because triage is a small task. A strong model writes the code. This is the default configuration. See [Configuration](/guide/config).
 
-There is a second cost benefit. An orchestrator model stays in the session for the full time. It uses tokens for coordination. In Cue, plain TypeScript does the coordination between stages. Code that is not a model costs zero tokens.
+There is a second cost benefit. One session keeps all steps in one context window. The context grows with each step, and the model reads the full history again at each step. In Cue, each stage starts with a new, small context. Each stage receives only the data that it needs. The triage stage receives the issue. The dev stage receives the approved plan. The review stage receives the diff. A small context costs less, and it gives better model performance.
+
+There is a third cost benefit. An orchestrator model stays in the session for the full time. It uses tokens for coordination. In Cue, plain TypeScript does the coordination between stages. Code that is not a model costs zero tokens.
+
+There is also a benefit in your time. In one session, you must give the orchestrator the full procedure: the tasks, the tests, and the review steps. In Cue, the procedure is fixed in the pipeline and the role prompts. You only write the issue and approve the plan.
 
 ## When you do not need Cue
 
