@@ -65,6 +65,22 @@ cue --version
 
 If the install directory is not on your `PATH`: the Windows installer adds it to your user `PATH` for you (open a new terminal afterwards); the macOS/Linux installer prints the line to add to your shell profile.
 
+### From npm (requires Bun)
+
+Cue is also published to npm as [`cue-agent`](https://www.npmjs.com/package/cue-agent). The package ships TypeScript source and runs on Bun, so this route needs [Bun](https://bun.com) ≥ 1.1 installed — plain `npx` will not work.
+
+```bash
+bun install -g cue-agent
+```
+
+Or without installing:
+
+```bash
+bunx cue-agent status
+```
+
+The binary is still called `cue`. Update with `bun update -g cue-agent`; `cue upgrade` is for release-binary installs only.
+
 ### Windows notes
 
 Cue runs natively on Windows (WSL also works). Two extra prerequisites:

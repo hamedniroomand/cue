@@ -4,12 +4,11 @@ on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write
-
 jobs:
-  release:
+  binaries:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -22,3 +21,33 @@ jobs:
             dist/cue-*
             dist/checksums.txt
           generate_release_notes: true
+
+  npm:
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Verify tag matches package.json version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(bun --print "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag v$tag does not match package.json version $pkg" >&2
+            exit 1
+          fi
+
+      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile
+        working-directory: ui
+
+      - run: bun run ui:build
+
+      - run: npm install -g npm@latest
+      - run: npm publish

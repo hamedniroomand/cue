@@ -1,0 +1,2 @@
+# intentionally empty: neutralizes ui/.gitignore for npm packing
+# (ui/build/client is published; see the `files` field in package.json)

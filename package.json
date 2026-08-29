@@ -1,9 +1,30 @@
 {
-  "name": "cue",
+  "name": "cue-agent",
   "version": "0.7.1",
+  "description": "Deterministic runner that drives headless coding agents through a GitHub-issue pipeline: triage, human plan approval, dev, test gate, review loop, draft PR.",
+  "keywords": [
+    "ai-agent",
+    "automation",
+    "bun",
+    "claude-code",
+    "cli",
+    "codex",
+    "coding-agent",
+    "github",
+    "pull-request"
+  ],
+  "homepage": "https://hamedniroomand.github.io/cue/",
+  "bugs": {
+    "url": "https://github.com/hamedniroomand/cue/issues"
+  },
   "license": "MIT",
+  "author": "Hamed Niroomand",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hamedniroomand/cue.git"
+  },
   "bin": {
-    "cue": "./src/cli.ts"
+    "cue": "src/cli.ts"
   },
   "files": [
     "src",
@@ -12,6 +33,9 @@
     "ui/build/client"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "cue": "bun run src/cli.ts",
     "test": "bun test",
@@ -25,10 +49,11 @@
     "format": "oxfmt --disable-nested-config",
     "format:check": "oxfmt --disable-nested-config --check",
     "check": "bun run lint && bun run format:check && bun test",
+    "prepublishOnly": "bun run ui:build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
@@ -51,5 +76,8 @@
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
       "oxlint --fix"
     ]
+  },
+  "engines": {
+    "bun": ">=1.1.0"
   }
 }

@@ -264,12 +264,13 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'upgrade') {
-    // Only a compiled release binary can replace itself; a source checkout
-    // (bun run src/cli.ts) would point execPath at bun, not cue.
+    // Only a compiled release binary can replace itself; a source checkout or an
+    // npm install (bun run src/cli.ts) would point execPath at bun, not cue.
     const compiled = import.meta.dir.includes('$bunfs') || import.meta.dir.includes('~BUN');
     if (!compiled) {
       throw new Error(
-        'cue upgrade only works for release installs — use git pull on a source checkout',
+        'cue upgrade only works for release binaries — update an npm install with ' +
+          'bun update -g cue-agent, or a source checkout with git pull',
       );
     }
     const { runUpgrade } = await import('@/upgrade');
