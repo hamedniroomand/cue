@@ -44,17 +44,27 @@ features:
 Cue turns interactive coding agents into an asynchronous PR factory. Instead of watching an agent type in your terminal, you interact entirely through GitHub issues and pull requests.
 
 ```mermaid
-flowchart LR
-  ready[1. Issue labeled agent:ready] --> triage[2. Headless Agent drafts Plan]
-  triage --> plan[3. You review & approve plan]
-  plan --> dev[4. Agent implements in Worktree]
-  dev --> gate[5. Deterministic Test & Lint Gate]
-  gate --> review[6. Automated Code Review Loop]
-  review --> pr[7. Draft PR created]
-  pr --> merge[8. You review & merge PR]
-  merge -.->|"leave feedback, label agent:revise"| revise[Agent revises the PR]
-  revise -.-> review
+flowchart TD
+  ready["1 · You label an issue <code>agent:ready</code>"]:::human
+  triage["2 · A headless agent drafts an implementation plan"]:::agent
+  approve["3 · You review and approve the plan"]:::human
+  dev["4 · The agent implements in an isolated worktree"]:::agent
+  gate["5 · Real test and lint commands gate the change"]:::gate
+  review["6 · A review agent verifies the diff and fixes issues"]:::agent
+  pr["7 · Cue opens a draft PR"]:::agent
+  merge["8 · You review and merge"]:::human
+
+  ready --> triage --> approve --> dev --> gate --> review --> pr --> merge
+  merge -.->|"feedback + <code>agent:revise</code>"| review
+
+  classDef human fill:#fff3e0,stroke:#e8963d,stroke-width:2px,color:#4a2d00
+  classDef agent fill:#eef2ff,stroke:#7c86f8,stroke-width:1.5px,color:#1e1b4b
+  classDef gate fill:#e6f9f0,stroke:#2fb380,stroke-width:1.5px,color:#0b4a32
 ```
+
+<p style="text-align: center; font-size: 0.875rem; color: var(--vp-c-text-2);">
+  <strong style="color: #e8963d;">Orange</strong> steps are yours — everything in between runs headless.
+</p>
 
 ### Why Cue?
 

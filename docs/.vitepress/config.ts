@@ -38,6 +38,7 @@ export default withMermaid({
         {
           text: "Guide",
           items: [
+            { text: "Why Cue", link: "/guide/why-cue" },
             { text: "Getting started", link: "/guide/getting-started" },
             { text: "Pipeline", link: "/guide/pipeline" },
             { text: "Commands", link: "/guide/commands" },
@@ -77,5 +78,8 @@ export default withMermaid({
   }),
   mermaid: {
     theme: "neutral",
+    // Render diagrams at natural size so node text stays legible; the
+    // .mermaid wrapper scrolls horizontally instead (theme/custom.css).
+    flowchart: { useMaxWidth: false },
   },
 });

@@ -11,6 +11,17 @@
         "dev"
       ],
       "port": 5173
+    },
+    {
+      "name": "cue-docs",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "docs:dev",
+        "--port",
+        "5174"
+      ],
+      "port": 5174
     }
   ]
 }

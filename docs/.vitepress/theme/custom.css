@@ -310,13 +310,34 @@
   background: var(--vp-c-brand-1);
 }
 
-/* Mermaid Diagrams Container */
+/* Mermaid Diagrams Container.
+   Diagrams render at natural size (mermaid flowchart.useMaxWidth: false) so
+   their text stays legible; narrow screens scroll the diagram instead of
+   shrinking it. `safe center` keeps the left edge reachable on overflow. */
 .mermaid {
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
+  overflow-x: auto;
   margin: 24px 0;
   padding: 20px;
   border-radius: 12px;
   background: var(--vp-c-bg-alt);
   border: 1px solid var(--vp-c-border);
+}
+
+.mermaid svg {
+  flex-shrink: 0;
+}
+
+/* VitePress gives .vp-doc <p> a 28px line-height, margins, and code chips
+   vertical padding — all applied AFTER mermaid has measured its HTML labels
+   at 24px, which clips the bottom of every label line. Render labels with
+   the metrics mermaid measured. */
+.vp-doc .mermaid p {
+  margin: 0;
+  line-height: inherit;
+}
+
+.vp-doc .mermaid code {
+  padding: 0 4px;
 }
