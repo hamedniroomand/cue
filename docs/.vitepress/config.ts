@@ -38,6 +38,7 @@ export default withMermaid({
         {
           text: "Guide",
           items: [
+            { text: "Why Cue", link: "/guide/why-cue" },
             { text: "Getting started", link: "/guide/getting-started" },
             { text: "Pipeline", link: "/guide/pipeline" },
             { text: "Commands", link: "/guide/commands" },
