@@ -268,10 +268,11 @@ async function main(): Promise<void> {
     // npm install (bun run src/cli.ts) would point execPath at bun, not cue.
     // Bun.isStandaloneExecutable is authoritative but needs Bun >= 1.4, so older
     // runtimes fall back to the bunfs virtual-path heuristic.
+    // The fallback matches only the virtual roots ("/$bunfs/…", "B:\~BUN\…"),
+    // never a real checkout that merely contains those names somewhere.
     const { isStandaloneExecutable } = Bun as { isStandaloneExecutable?: boolean };
     const compiled =
-      isStandaloneExecutable ??
-      (import.meta.dir.includes('$bunfs') || import.meta.dir.includes('~BUN'));
+      isStandaloneExecutable ?? /^(\/\$bunfs\/|[a-z]:[\\/]~bun[\\/])/i.test(import.meta.dir);
     if (!compiled) {
       throw new Error(
         'cue upgrade only works for release binaries — update an npm install with ' +
