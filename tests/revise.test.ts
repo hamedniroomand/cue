@@ -193,6 +193,63 @@ describe('runRevise', () => {
     expect(runs[1]!.prompt).toContain('2 tests failed');
   });
 
+  test('runs the configured setup command in the re-attached worktree', async () => {
+    const { ctx, runs, events } = await makeCtx(
+      [
+        CLAIM,
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: prViewResult() },
+        { match: ['gh', 'api', 'repos/acme/widgets/pulls/9/comments'], result: { stdout: '' } },
+        ...ENSURE,
+        { match: ['sh', '-c', 'bun install'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'] },
+        RELEASE,
+      ],
+      ['addressed the feedback'],
+    );
+    ctx.config.setup = 'bun install';
+    await runRevise(ctx, ISSUE);
+    expect(runs).toHaveLength(1);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        stage: 'revise',
+        kind: 'progress',
+        message: expect.stringContaining('bun install'),
+      }),
+    );
+  });
+
+  test('a rejected push runs the fix agent and pushes again', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        CLAIM,
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: prViewResult() },
+        { match: ['gh', 'api', 'repos/acme/widgets/pulls/9/comments'], result: { stdout: '' } },
+        ...ENSURE,
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook declined' },
+        },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'] },
+        RELEASE,
+      ],
+      ['revised', 'fixed the hook failure'],
+    );
+    await runRevise(ctx, ISSUE);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.prompt).toContain('pre-push hook declined');
+  });
+
   test('gate failure after fix throws', async () => {
     const { ctx } = await makeCtx(
       [

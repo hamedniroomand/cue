@@ -71,6 +71,12 @@
         }
       }
     },
+    "setup": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Shell command run once in every fresh or re-attached worktree before the agent starts — dependency install and similar bootstrap. Executed through the OS shell (sh -c, cmd /c on Windows) like the gate commands. A non-zero exit fails the stage before any agent tokens are spent. Unset skips it.",
+      "examples": ["bun install", "npm ci", "bun install && bun install --cwd ui"]
+    },
     "devBashAllowlist": {
       "type": "array",
       "description": "Shell command patterns the dev and fix agents may run (Claude permission syntax). Unset means Bash is unrestricted. Enforced by the claude adapter only — codex and antigravity get a full shell inside their sandbox.",

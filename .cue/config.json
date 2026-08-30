@@ -1,6 +1,7 @@
 {
   "$schema": "https://hamedniroomand.github.io/cue/schema/config.json",
   "adapter": "claude",
+  "setup": "bun install && bun install --cwd ui",
   "gate": {
     "test": "bun test",
     "lint": "bun run lint && bun run format:check"

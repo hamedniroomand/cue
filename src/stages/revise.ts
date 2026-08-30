@@ -1,9 +1,9 @@
-import { runGate } from '@/gates';
+import { runGate, runSetup } from '@/gates';
 import type { Issue } from '@/github';
 import { fenceUntrusted, loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsDevGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
-import { runFix } from '@/stages/dev';
+import { pushWithRepair, runFix } from '@/stages/dev';
 import { loggedRun } from '@/stages/run';
 import { PLAN_MARKER } from '@/stages/triage';
 
@@ -29,6 +29,16 @@ export async function runRevise(ctx: StageContext, issue: Issue): Promise<void> 
     '(no PR feedback found — re-read the plan and the current code, and improve the change where it clearly falls short)';
 
   const wt = await ctx.worktrees.ensure(issue.number);
+  if (ctx.config.setup) {
+    ctx.onEvent({
+      ts: Date.now(),
+      issue: issue.number,
+      stage: 'revise',
+      kind: 'progress',
+      message: `worktree setup: ${ctx.config.setup}`,
+    });
+    await runSetup(ctx.exec, wt.path, ctx.config.setup, ctx.platform);
+  }
   const template = await loadPrompt(ctx.promptsDirs, 'revise');
   // The feedback is deliberately NOT fenced: a human read the PR thread and
   // applied agent:revise — that label is the gate that makes it instructions.
@@ -72,7 +82,7 @@ export async function runRevise(ctx: StageContext, issue: Issue): Promise<void> 
     `fix: address PR feedback on #${issue.number}`,
   );
   if (committed) {
-    await ctx.worktrees.push(issue.number);
+    await pushWithRepair(ctx, wt.path, issue.number);
   } else {
     // A revise that changes nothing is a legitimate outcome (feedback already
     // addressed) — say so on the PR instead of failing the stage.

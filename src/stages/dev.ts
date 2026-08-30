@@ -1,4 +1,4 @@
-import { runGate } from '@/gates';
+import { runGate, runSetup } from '@/gates';
 import type { Issue } from '@/github';
 import { fenceUntrusted, loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsDevGuidance } from '@/specs';
@@ -29,12 +29,65 @@ export async function runFix(
   });
 }
 
+/**
+ * Push failures the fix agent cannot repair (credentials, network, a diverged
+ * or protected branch). A local pre-push hook has no reliable marker — git
+ * prints only the hook's own output — so these are excluded rather than hooks
+ * detected.
+ */
+const UNREPAIRABLE_PUSH = [
+  /authentication failed/i,
+  /permission denied/i,
+  /could not read username/i,
+  /unable to access/i,
+  /could not resolve host/i,
+  /updates were rejected because/i,
+  /non-fast-forward/i,
+  /\[remote rejected\]/i,
+];
+
+/**
+ * Push, and on rejection give the fix agent one shot at whatever the target
+ * repo's pre-push hooks complained about, then push again. The second
+ * rejection propagates, and failures no agent can fix rethrow immediately.
+ */
+export async function pushWithRepair(ctx: StageContext, cwd: string, issue: number): Promise<void> {
+  try {
+    await ctx.worktrees.push(issue);
+  } catch (err) {
+    const output = err instanceof Error ? err.message : String(err);
+    if (UNREPAIRABLE_PUSH.some((re) => re.test(output))) throw err;
+    await runFix(
+      ctx,
+      cwd,
+      issue,
+      `git push was rejected — most likely the repo's pre-push hook. Make its checks pass in this worktree.\n\n${output}`,
+    );
+    const gate = await runGate(ctx.exec, cwd, ctx.config.gate, ctx.platform);
+    if (!gate.ok) throw new Error(`gate failed after push repair:\n${gate.output}`, { cause: err });
+    // An environment-only repair (e.g. installing deps) commits nothing; the
+    // retry still runs.
+    await ctx.worktrees.commitAll(issue, `fix: make pre-push checks pass for #${issue}`);
+    await ctx.worktrees.push(issue);
+  }
+}
+
 export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
   await ctx.github.swapLabel(issue.number, 'agent:approved', 'agent:in-dev');
   const plan = await ctx.github.findComment(issue.number, PLAN_MARKER);
   if (!plan) throw new Error('no plan comment found');
 
   const wt = await ctx.worktrees.create(issue.number);
+  if (ctx.config.setup) {
+    ctx.onEvent({
+      ts: Date.now(),
+      issue: issue.number,
+      stage: 'dev',
+      kind: 'progress',
+      message: `worktree setup: ${ctx.config.setup}`,
+    });
+    await runSetup(ctx.exec, wt.path, ctx.config.setup, ctx.platform);
+  }
   const template = await loadPrompt(ctx.promptsDirs, 'dev');
   const prompt = renderPrompt(
     template,
@@ -77,7 +130,7 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
     `feat: issue #${issue.number} — ${issue.title}`,
   );
   if (!committed) throw new Error('dev stage produced no changes');
-  await ctx.worktrees.push(issue.number);
+  await pushWithRepair(ctx, wt.path, issue.number);
   const prUrl = await ctx.github.createDraftPR({
     branch: wt.branch,
     base: ctx.config.baseBranch,

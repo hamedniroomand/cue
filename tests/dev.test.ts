@@ -191,6 +191,146 @@ describe('runDev', () => {
     expect(runs[0]!.bashAllowlist).toEqual(['bun *', 'git status']);
   });
 
+  test('runs the configured setup command in the fresh worktree before the agent', async () => {
+    const { ctx, runs, events } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        // The strict call order proves setup runs after the worktree exists
+        // and before the gate.
+        { match: ['sh', '-c', 'bun install --frozen-lockfile'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'] },
+        { match: ['gh', 'pr', 'create'], result: { stdout: 'url' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      ['implemented the feature'],
+    );
+    ctx.config.setup = 'bun install --frozen-lockfile';
+    await runDev(ctx, ISSUE);
+    expect(runs).toHaveLength(1);
+    // An install can take minutes — the CLI must show why cue looks idle.
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        stage: 'dev',
+        kind: 'progress',
+        message: expect.stringContaining('bun install --frozen-lockfile'),
+      }),
+    );
+  });
+
+  test('a failing setup throws before the agent runs', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        {
+          match: ['sh', '-c', 'bun install'],
+          result: { code: 1, stderr: 'registry unreachable' },
+        },
+      ],
+      [],
+    );
+    ctx.config.setup = 'bun install';
+    await expect(runDev(ctx, ISSUE)).rejects.toThrow('registry unreachable');
+    expect(runs).toHaveLength(0);
+  });
+
+  test('a rejected push runs the fix agent, re-gates, and pushes again', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook: tsc not found' },
+        },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        // An environment-only repair (e.g. installing deps) commits nothing —
+        // the retry must still push.
+        {
+          match: ['git', '-C', wt(7), 'commit', '-m'],
+          result: { code: 1, stdout: 'nothing to commit' },
+        },
+        { match: ['git', '-C', wt(7), 'push'] },
+        { match: ['gh', 'pr', 'create'], result: { stdout: 'url' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      ['implemented', 'installed the missing deps'],
+    );
+    await runDev(ctx, ISSUE);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.prompt).toContain('tsc not found');
+  });
+
+  // The fix agent cannot repair credentials, DNS, or a diverged branch — those
+  // failures must stay loud and cost no agent tokens.
+  test.each([
+    'remote: Support for password authentication was removed. Authentication failed',
+    'Permission denied (publickey)',
+    'fatal: unable to access https://github.com/: Could not resolve host: github.com',
+    'hint: Updates were rejected because the remote contains work you do not have locally',
+    '! [rejected] agent/issue-7 -> agent/issue-7 (non-fast-forward)',
+    '! [remote rejected] agent/issue-7 -> agent/issue-7 (pre-receive hook declined)',
+  ])('an unrepairable push failure rethrows without a fix run: %s', async (stderr) => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'], result: { code: 1, stderr } },
+      ],
+      ['implemented'],
+    );
+    await expect(runDev(ctx, ISSUE)).rejects.toThrow('git push failed');
+    expect(runs).toHaveLength(1); // the dev run only — no repair agent
+  });
+
+  test('a push still rejected after repair fails the stage', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook declined' },
+        },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook declined again' },
+        },
+      ],
+      ['implemented', 'tried to fix the hook'],
+    );
+    // "declined again" proves the failure came from the retry, not the first push.
+    await expect(runDev(ctx, ISSUE)).rejects.toThrow('pre-push hook declined again');
+    expect(runs).toHaveLength(2);
+  });
+
   test('gate failure triggers one fix run, then succeeds', async () => {
     const { ctx, runs } = await makeCtx(
       [
