@@ -1,6 +1,6 @@
 import { runGate } from '@/gates';
 import type { Issue } from '@/github';
-import { loadPrompt, renderPrompt } from '@/prompt';
+import { fenceUntrusted, loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsDevGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
 import { runFix } from '@/stages/dev';
@@ -30,12 +30,18 @@ export async function runRevise(ctx: StageContext, issue: Issue): Promise<void> 
 
   const wt = await ctx.worktrees.ensure(issue.number);
   const template = await loadPrompt(ctx.promptsDirs, 'revise');
-  const prompt = renderPrompt(template, {
-    issue_title: issue.title,
-    plan,
-    feedback,
-    ...(await knowledgeVars(wt.path, specsDevGuidance)),
-  });
+  // The feedback is deliberately NOT fenced: a human read the PR thread and
+  // applied agent:revise — that label is the gate that makes it instructions.
+  const prompt = renderPrompt(
+    template,
+    {
+      issue_title: fenceUntrusted(issue.title),
+      plan,
+      feedback,
+      ...(await knowledgeVars(wt.path, specsDevGuidance)),
+    },
+    ['plan', 'feedback'],
+  );
   await loggedRun(ctx, issue.number, 'revise', {
     prompt,
     cwd: wt.path,

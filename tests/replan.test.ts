@@ -46,6 +46,9 @@ describe('runReplan', () => {
     expect(run.prompt).toContain('old plan: use express');
     expect(run.prompt).toContain('find a better solution, no heavy frameworks');
     expect(run.prompt).not.toContain('dev failed');
+    // Issue title and body are fenced as data; the human-gated feedback is not.
+    // (The tag-plus-newline form is the fence; the preamble mentions the tag inline.)
+    expect(run.prompt.match(/<untrusted-data>\n/g)).toHaveLength(2);
     expect(run.access).toBe('read-only');
     expect(run.webSearch).toBe(true);
     expect(run.model).toBe('haiku');

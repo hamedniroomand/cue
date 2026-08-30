@@ -82,6 +82,9 @@ describe('runTriage', () => {
     expect(run.access).toBe('read-only');
     expect(run.webSearch).toBeUndefined();
     expect(run.prompt).toContain('Fix login');
+    // Issue title and body arrive fenced as data — one pair each. (The
+    // tag-plus-newline form is the fence; the preamble mentions the tag inline.)
+    expect(run.prompt.match(/<untrusted-data>\n/g)).toHaveLength(2);
     // No specs dir, no learnings file → the knowledge layer stays fully out of the prompt.
     expect(run.prompt).not.toContain('## Spec changes');
     expect(run.prompt).not.toContain('Repo learnings');

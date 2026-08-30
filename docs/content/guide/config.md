@@ -71,17 +71,18 @@ Example:
 
 ## Prompt overrides
 
-Packaged role prompts live with the CLI. A file of the same name under `.cue/prompts/` wins:
+Packaged role prompts live with the CLI. A file of the same name under `.cue/prompts/` wins. An override replaces the whole template, but each stage refuses to run a template that lost its essential placeholders:
 
-| File | Stage |
-| --- | --- |
-| `triage.md` | Plan generation |
-| `replan.md` | Plan revision from comments |
-| `dev.md` | Implementation |
-| `review.md` | Verdict |
-| `fix.md` | Review-loop repair |
+| File | Stage | Required placeholders |
+| --- | --- | --- |
+| `triage.md` | Plan generation | `{{issue_title}}`, `{{issue_body}}` |
+| `replan.md` | Plan revision from comments | `{{previous_plan}}`, `{{feedback}}` |
+| `dev.md` | Implementation | `{{plan}}` |
+| `review.md` | Verdict | `{{plan}}`, `{{diff}}` |
+| `revise.md` | PR-feedback revision | `{{plan}}`, `{{feedback}}` |
+| `fix.md` | Review-loop repair | `{{failure_output}}` |
 
-Issue bodies and comments are untrusted input. Keep the security preamble if you edit a prompt.
+Issue bodies and comments are untrusted input. The runner automatically fences only `{{issue_title}}` and `{{issue_body}}` in `<untrusted-data>` tags before rendering (escaping any fence lookalikes inside them). `{{feedback}}` in replan/revise is deliberately not fenced: a human reads the thread and applies the `agent:replan`/`agent:revise` label, and that gate is what makes those comments instructions. Still keep the security preamble if you edit a prompt.
 
 ## Worktrees
 
