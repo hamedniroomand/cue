@@ -313,7 +313,7 @@ describe('listIssueBranches', () => {
           'agent/issue-*',
           '--format=%(refname:short)',
         ],
-        result: { stdout: 'agent/issue-7\nagent/issue-12\n' },
+        result: { stdout: 'agent/issue-12\nagent/issue-7\n' },
       },
     ]);
     const logger: RunIndexSource = {
@@ -363,12 +363,6 @@ describe('formatBranchOptions', () => {
 });
 
 describe('pickIssueBranch', () => {
-  test('returns undefined when there are no choices', async () => {
-    const ask = scriptedAsk([]);
-    expect(await pickIssueBranch([], ask)).toBeUndefined();
-    expect(ask.asked).toHaveLength(0);
-  });
-
   test('returns the picked branch choice', async () => {
     const choices: BranchChoice[] = [
       { issue: 7, branch: 'agent/issue-7', title: 'Add widgets' },
@@ -376,6 +370,19 @@ describe('pickIssueBranch', () => {
     ];
     const ask = scriptedAsk(['12']);
     expect(await pickIssueBranch(choices, ask)).toEqual({ issue: 12, branch: 'agent/issue-12' });
+  });
+
+  test('falls back to the first choice if the pick does not match any option', async () => {
+    const choices: BranchChoice[] = [
+      { issue: 7, branch: 'agent/issue-7', title: 'Add widgets' },
+      { issue: 12, branch: 'agent/issue-12' },
+    ];
+    const ask = scriptedAsk(['999']);
+    expect(await pickIssueBranch(choices, ask)).toEqual({
+      issue: 7,
+      branch: 'agent/issue-7',
+      title: 'Add widgets',
+    });
   });
 });
 
@@ -399,6 +406,7 @@ describe('checkoutInteractive', () => {
         match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'],
         result: { stdout: 'main\n' },
       },
+      { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
       {
         match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'],
         result: { stdout: 'main\n' },
@@ -419,12 +427,27 @@ describe('checkoutInteractive', () => {
         match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'],
         result: { stdout: 'main\n' },
       },
+      { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
     ]);
     const logger: RunIndexSource = { index: () => Promise.resolve([]) };
     const ask = scriptedAsk(['no']);
     const result = await checkoutInteractive(exec, REPO, logger, ask);
     expect(result).toEqual({ action: 'none' });
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
+  });
+
+  test('fails fast on a dirty tree without prompting to exit', async () => {
+    const { exec } = makeFakeExec([
+      {
+        match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'],
+        result: { stdout: 'main\n' },
+      },
+      { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: ' M file.ts' } },
+    ]);
+    const logger: RunIndexSource = { index: () => Promise.resolve([]) };
+    const ask = scriptedAsk([]);
+    await expect(checkoutInteractive(exec, REPO, logger, ask)).rejects.toThrow('dirty');
+    expect(ask.asked).toHaveLength(0);
   });
 
   test('reports no branches when none are found', async () => {

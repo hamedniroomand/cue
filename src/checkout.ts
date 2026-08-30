@@ -19,6 +19,12 @@ export async function isDirty(exec: Exec, repoPath: string): Promise<boolean> {
   return r.stdout.trim().length > 0;
 }
 
+async function assertClean(exec: Exec, repoPath: string, context: string): Promise<void> {
+  if (await isDirty(exec, repoPath)) {
+    throw new Error(`working tree is dirty — commit or stash changes ${context}`);
+  }
+}
+
 /** Null on a detached HEAD — `symbolic-ref` only resolves a branch ref. */
 export async function currentBranch(exec: Exec, repoPath: string): Promise<string | null> {
   const r = await git(exec, repoPath, ['symbolic-ref', '--short', '-q', 'HEAD']);
@@ -62,9 +68,7 @@ export async function enterReview(
   repoPath: string,
   branch: string,
 ): Promise<CheckoutResult> {
-  if (await isDirty(exec, repoPath)) {
-    throw new Error('working tree is dirty — commit or stash changes before checkout');
-  }
+  await assertClean(exec, repoPath, 'before checkout');
   if (await reviewPrevBranch(exec, repoPath)) {
     throw new Error('already in review mode — run `cue checkout exit` first');
   }
@@ -93,9 +97,7 @@ export async function enterReview(
 export async function exitReview(exec: Exec, repoPath: string): Promise<{ prev: string }> {
   const prev = await reviewPrevBranch(exec, repoPath);
   if (!prev) throw new Error('not in review mode');
-  if (await isDirty(exec, repoPath)) {
-    throw new Error('working tree is dirty — commit or stash changes before exiting review mode');
-  }
+  await assertClean(exec, repoPath, 'before exiting review mode');
   const r = await git(exec, repoPath, ['checkout', prev]);
   if (r.code !== 0) throw new Error(`git checkout failed: ${r.stderr.trim()}`);
   await unsetReviewPrev(exec, repoPath);
@@ -141,14 +143,11 @@ export function formatBranchOptions(choices: BranchChoice[]): AskOption[] {
   }));
 }
 
-export async function pickIssueBranch(
-  choices: BranchChoice[],
-  ask: Ask,
-): Promise<BranchChoice | undefined> {
-  if (choices.length === 0) return undefined;
+/** Precondition: `choices` is non-empty — callers must handle the empty case first. */
+export async function pickIssueBranch(choices: BranchChoice[], ask: Ask): Promise<BranchChoice> {
   const options = formatBranchOptions(choices);
   const picked = await ask.select('Select an issue branch to review:', options, options[0]!.value);
-  return choices.find((c) => String(c.issue) === picked);
+  return choices.find((c) => String(c.issue) === picked) ?? choices[0]!;
 }
 
 const CONFIRM_EXIT_OPTIONS: AskOption[] = [
@@ -183,6 +182,9 @@ export async function checkoutInteractive(
 ): Promise<CheckoutOutcome> {
   const prev = await reviewPrevBranch(exec, repoPath);
   if (prev) {
+    // Checked before prompting so a dirty tree fails fast instead of asking
+    // the user to confirm an exit that `exitReview` cannot then perform.
+    await assertClean(exec, repoPath, 'before exiting review mode');
     const doExit = await confirmExitReviewMode(ask, prev);
     if (!doExit) return { action: 'none' };
     const r = await exitReview(exec, repoPath);
@@ -191,7 +193,6 @@ export async function checkoutInteractive(
   const choices = await listIssueBranches(exec, repoPath, logger);
   if (choices.length === 0) return { action: 'no-branches' };
   const choice = await pickIssueBranch(choices, ask);
-  if (choice === undefined) return { action: 'none' };
   const r = await enterReview(exec, repoPath, choice.branch);
   return { action: 'entered', branch: r.branch, prev: r.prev };
 }
