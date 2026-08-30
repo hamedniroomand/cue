@@ -19,6 +19,12 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run check
+        if: runner.os != 'Windows'
+      # Bun cannot listen() on the Windows runners (see tests/server.test.ts),
+      # so the dashboard suite is skipped there and server.ts cannot meet the
+      # per-file coverage thresholds — same gate, minus coverage enforcement.
+      - run: bun run check:no-cov
+        if: runner.os == 'Windows'
       - name: Upload coverage artifact
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
