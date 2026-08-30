@@ -19,13 +19,13 @@ Cue (pronounced _kyoo_, like “cue the lights”) is a CLI that drives coding a
 
 ```mermaid
 flowchart LR
-  issue["Issue (agent:ready)"] --> plan["Triage Plan"]
-  plan --> approve{"You Approve (agent:approved)"}
-  approve --> dev["Dev & Test Gate"]
-  dev --> review["Code Review"]
-  review --> pr["Draft PR"]
-  pr --> merge["You Merge"]
-  pr -.->|"agent:revise"| review
+    A["Issue<br/>agent:ready"] --> B["Triage Plan"]
+    B --> C["You Approve<br/>agent:approved"]
+    C --> D["Dev & Test Gate"]
+    D --> E["Code Review"]
+    E --> F["Draft PR"]
+    F --> G["You Merge"]
+    F -. "agent:revise" .-> E
 ```
 
 Instead of babysitting interactive agent sessions in your terminal, Cue runs coding agents through a deterministic pipeline where GitHub acts as the state store: labels drive the state machine, issue comments carry implementation plans, and draft PRs deliver the finished code.
