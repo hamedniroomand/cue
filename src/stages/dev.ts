@@ -30,15 +30,33 @@ export async function runFix(
 }
 
 /**
+ * Push failures the fix agent cannot repair (credentials, network, a diverged
+ * or protected branch). A local pre-push hook has no reliable marker — git
+ * prints only the hook's own output — so these are excluded rather than hooks
+ * detected.
+ */
+const UNREPAIRABLE_PUSH = [
+  /authentication failed/i,
+  /permission denied/i,
+  /could not read username/i,
+  /unable to access/i,
+  /could not resolve host/i,
+  /updates were rejected because/i,
+  /non-fast-forward/i,
+  /\[remote rejected\]/i,
+];
+
+/**
  * Push, and on rejection give the fix agent one shot at whatever the target
  * repo's pre-push hooks complained about, then push again. The second
- * rejection propagates — auth and diverged-branch failures must stay loud.
+ * rejection propagates, and failures no agent can fix rethrow immediately.
  */
 export async function pushWithRepair(ctx: StageContext, cwd: string, issue: number): Promise<void> {
   try {
     await ctx.worktrees.push(issue);
   } catch (err) {
     const output = err instanceof Error ? err.message : String(err);
+    if (UNREPAIRABLE_PUSH.some((re) => re.test(output))) throw err;
     await runFix(
       ctx,
       cwd,

@@ -219,6 +219,33 @@ describe('runDev', () => {
     expect(runs[1]!.prompt).toContain('tsc not found');
   });
 
+  // The fix agent cannot repair credentials, DNS, or a diverged branch — those
+  // failures must stay loud and cost no agent tokens.
+  test.each([
+    'remote: Support for password authentication was removed. Authentication failed',
+    'Permission denied (publickey)',
+    'fatal: unable to access https://github.com/: Could not resolve host: github.com',
+    'hint: Updates were rejected because the remote contains work you do not have locally',
+    '! [rejected] agent/issue-7 -> agent/issue-7 (non-fast-forward)',
+    '! [remote rejected] agent/issue-7 -> agent/issue-7 (pre-receive hook declined)',
+  ])('an unrepairable push failure rethrows without a fix run: %s', async (stderr) => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'], result: { code: 1, stderr } },
+      ],
+      ['implemented'],
+    );
+    await expect(runDev(ctx, ISSUE)).rejects.toThrow('git push failed');
+    expect(runs).toHaveLength(1); // the dev run only — no repair agent
+  });
+
   test('a push still rejected after repair fails the stage', async () => {
     const { ctx, runs } = await makeCtx(
       [
