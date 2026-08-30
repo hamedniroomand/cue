@@ -186,6 +186,68 @@ describe('runDev', () => {
     expect(runs).toHaveLength(0);
   });
 
+  test('a rejected push runs the fix agent, re-gates, and pushes again', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook: tsc not found' },
+        },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        // An environment-only repair (e.g. installing deps) commits nothing —
+        // the retry must still push.
+        {
+          match: ['git', '-C', wt(7), 'commit', '-m'],
+          result: { code: 1, stdout: 'nothing to commit' },
+        },
+        { match: ['git', '-C', wt(7), 'push'] },
+        { match: ['gh', 'pr', 'create'], result: { stdout: 'url' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      ['implemented', 'installed the missing deps'],
+    );
+    await runDev(ctx, ISSUE);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.prompt).toContain('tsc not found');
+  });
+
+  test('a push still rejected after repair fails the stage', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook declined' },
+        },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook declined again' },
+        },
+      ],
+      ['implemented', 'tried to fix the hook'],
+    );
+    // "declined again" proves the failure came from the retry, not the first push.
+    await expect(runDev(ctx, ISSUE)).rejects.toThrow('pre-push hook declined again');
+    expect(runs).toHaveLength(2);
+  });
+
   test('gate failure triggers one fix run, then succeeds', async () => {
     const { ctx, runs } = await makeCtx(
       [

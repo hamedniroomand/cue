@@ -219,6 +219,34 @@ describe('runRevise', () => {
     );
   });
 
+  test('a rejected push runs the fix agent and pushes again', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        CLAIM,
+        { match: ['gh', 'issue', 'view', '7'], result: PLAN_VIEW },
+        { match: ['gh', 'pr', 'view', 'agent/issue-7'], result: prViewResult() },
+        { match: ['gh', 'api', 'repos/acme/widgets/pulls/9/comments'], result: { stdout: '' } },
+        ...ENSURE,
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        {
+          match: ['git', '-C', wt(7), 'push'],
+          result: { code: 1, stderr: 'pre-push hook declined' },
+        },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'] },
+        RELEASE,
+      ],
+      ['revised', 'fixed the hook failure'],
+    );
+    await runRevise(ctx, ISSUE);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.prompt).toContain('pre-push hook declined');
+  });
+
   test('gate failure after fix throws', async () => {
     const { ctx } = await makeCtx(
       [

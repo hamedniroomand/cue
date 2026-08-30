@@ -3,7 +3,7 @@ import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsDevGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
-import { runFix } from '@/stages/dev';
+import { pushWithRepair, runFix } from '@/stages/dev';
 import { loggedRun } from '@/stages/run';
 import { PLAN_MARKER } from '@/stages/triage';
 
@@ -76,7 +76,7 @@ export async function runRevise(ctx: StageContext, issue: Issue): Promise<void> 
     `fix: address PR feedback on #${issue.number}`,
   );
   if (committed) {
-    await ctx.worktrees.push(issue.number);
+    await pushWithRepair(ctx, wt.path, issue.number);
   } else {
     // A revise that changes nothing is a legitimate outcome (feedback already
     // addressed) — say so on the PR instead of failing the stage.

@@ -29,6 +29,31 @@ export async function runFix(
   });
 }
 
+/**
+ * Push, and on rejection give the fix agent one shot at whatever the target
+ * repo's pre-push hooks complained about, then push again. The second
+ * rejection propagates — auth and diverged-branch failures must stay loud.
+ */
+export async function pushWithRepair(ctx: StageContext, cwd: string, issue: number): Promise<void> {
+  try {
+    await ctx.worktrees.push(issue);
+  } catch (err) {
+    const output = err instanceof Error ? err.message : String(err);
+    await runFix(
+      ctx,
+      cwd,
+      issue,
+      `git push was rejected — most likely the repo's pre-push hook. Make its checks pass in this worktree.\n\n${output}`,
+    );
+    const gate = await runGate(ctx.exec, cwd, ctx.config.gate, ctx.platform);
+    if (!gate.ok) throw new Error(`gate failed after push repair:\n${gate.output}`, { cause: err });
+    // An environment-only repair (e.g. installing deps) commits nothing; the
+    // retry still runs.
+    await ctx.worktrees.commitAll(issue, `fix: make pre-push checks pass for #${issue}`);
+    await ctx.worktrees.push(issue);
+  }
+}
+
 export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
   await ctx.github.swapLabel(issue.number, 'agent:approved', 'agent:in-dev');
   const plan = await ctx.github.findComment(issue.number, PLAN_MARKER);
@@ -82,7 +107,7 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
     `feat: issue #${issue.number} — ${issue.title}`,
   );
   if (!committed) throw new Error('dev stage produced no changes');
-  await ctx.worktrees.push(issue.number);
+  await pushWithRepair(ctx, wt.path, issue.number);
   const prUrl = await ctx.github.createDraftPR({
     branch: wt.branch,
     base: ctx.config.baseBranch,
