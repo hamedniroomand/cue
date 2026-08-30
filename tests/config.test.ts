@@ -132,7 +132,7 @@ describe('resolveConfig', () => {
     const cwd = await tmpRepo({ repo: 'acme/other', adapter: 'claude' });
     const { exec } = makeFakeExec([]);
     const cfg = await resolveConfig(exec, cwd);
-    expect(cfg.models).toEqual({ triage: 'haiku', dev: 'sonnet', review: 'sonnet' });
+    expect(cfg.models).toEqual({ triage: 'haiku', dev: 'sonnet', review: 'opus' });
   });
 
   test('throws a clear error when repo cannot be determined', async () => {

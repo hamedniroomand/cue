@@ -33,7 +33,7 @@ The schema is deliberately a little stricter than the parser: it rejects unknown
 | `$schema` | written by `cue init` | Editor autocompletion only; Cue ignores it |
 | `repo` | from the `origin` remote | `owner/name` |
 | `adapter` | `"codex"` | Options: `"codex"`, `"antigravity"` (or `"agy"`), `"claude"` |
-| `models` | Codex: `gpt-5.3-codex`; Antigravity: triage `gemini-3.7-flash-medium`, dev/review `gemini-3.7-flash-high`; Claude: triage `haiku`, dev/review `sonnet` | Passed to the selected CLI. Model names are adapter-specific, so setting `models` requires setting `adapter` explicitly too — Cue refuses the combination of explicit models with a defaulted adapter. |
+| `models` | Codex: `gpt-5.3-codex`; Antigravity: triage `gemini-3.7-flash-medium`, dev/review `gemini-3.7-flash-high`; Claude: triage/dev `haiku`, review `opus` | Passed to the selected CLI. Model names are adapter-specific, so setting `models` requires setting `adapter` explicitly too — Cue refuses the combination of explicit models with a defaulted adapter. |
 | `maxTurns` | triage 15, dev 60, review 25 | Per-stage turn cap, enforced by Claude (`--max-turns`) only. Codex and Antigravity have no turn cap — the stage timeout is their only bound. |
 | `gate` | `{ "test": "bun test" }` | Optional `lint` string. Run in the worktree via the OS shell (`sh -c`; `cmd /c` on Windows) — keep commands shell-portable |
 | `setup` | unset | Shell command run once in every fresh or re-attached worktree **before** the agent starts — dependency install and similar bootstrap, e.g. `"bun install"` (or `"bun install && bun install --cwd ui"` for a repo with a second package). Same shell rules as `gate`. A non-zero exit fails the stage before any agent tokens are spent |

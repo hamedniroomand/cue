@@ -20,7 +20,7 @@ export interface AdapterInfo {
 export const ADAPTERS: Record<AdapterName, AdapterInfo> = {
   claude: {
     make: (exec, platform) => new ClaudeAdapter(exec, platform),
-    defaultModels: { triage: 'haiku', dev: 'sonnet', review: 'sonnet' },
+    defaultModels: { triage: 'haiku', dev: 'sonnet', review: 'opus' },
   },
   codex: {
     make: (exec, platform) => new CodexAdapter(exec, platform),

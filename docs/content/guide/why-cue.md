@@ -62,11 +62,11 @@ Cue does the same at the pipeline level. You can set a different model for each 
 ```json
 {
   "adapter": "claude",
-  "models": { "triage": "haiku", "dev": "sonnet", "review": "sonnet" }
+  "models": { "triage": "haiku", "dev": "sonnet", "review": "opus" }
 }
 ```
 
-A small model makes the plan, because triage is a small task. A strong model writes the code. This is the default configuration. See [Configuration](/guide/config).
+A small model makes the plan, because triage is a small task. A strong model writes the code. The strongest model reviews the diff, because the review verdict guards the merge. This is the default configuration. See [Configuration](/guide/config).
 
 There is a second cost benefit. One session keeps all steps in one context window. The context grows with each step, and the model reads the full history again at each step. In Cue, each stage starts with a new, small context. Each stage receives only the data that it needs. The triage stage receives the issue. The dev stage receives the approved plan. The review stage receives the diff. A small context costs less, and it gives better model performance.
 
