@@ -1,6 +1,21 @@
-# Cue
+<p align="center">
+  <img src="docs/content/public/logo.svg" width="140" alt="Cue logo" />
+</p>
 
-Cue (pronounced _kyoo_, like “cue the lights”) is a CLI that turns GitHub issues into tested, reviewed draft pull requests using headless coding agents.
+<h1 align="center">Cue</h1>
+
+<p align="center">
+  <a href="https://github.com/hamedniroomand/cue/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/hamedniroomand/cue/tests.yml?branch=main&label=tests" alt="Tests" /></a>
+  <a href="https://github.com/hamedniroomand/cue/releases"><img src="https://img.shields.io/github/v/release/hamedniroomand/cue" alt="Release" /></a>
+  <a href="https://codecov.io/gh/hamedniroomand/cue"><img src="https://codecov.io/github/hamedniroomand/cue/graph/badge.svg?token=LMETC0IP4O" alt="Coverage" /></a>
+  <img src="https://img.shields.io/github/license/hamedniroomand/cue" alt="License" />
+</p>
+
+<p align="center">
+  Turn GitHub issues into tested, reviewed draft pull requests — using headless coding agents.
+</p>
+
+Cue (pronounced _kyoo_, like “cue the lights”) is a CLI that drives coding agents through a deterministic issue pipeline:
 
 ```
 Issue (agent:ready) ──> Triage Plan ──> You Approve (agent:approved) ──> Dev & Test Gate ──> Code Review ──> Draft PR ──> You Merge
