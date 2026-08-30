@@ -244,6 +244,9 @@ async function runInteractive(ctx: StageContext): Promise<void> {
 
 const CHECKOUT_USAGE = 'usage: cue checkout [issue-number|exit]';
 
+const enteredReviewMessage = (branch: string, prev: string) =>
+  `entered review mode on ${branch} — run \`cue checkout exit\` to return to ${prev}`;
+
 async function checkoutNumbered(ctx: StageContext, arg: string): Promise<void> {
   const n = Number(arg);
   if (!Number.isInteger(n)) throw new Error(CHECKOUT_USAGE);
@@ -252,9 +255,7 @@ async function checkoutNumbered(ctx: StageContext, arg: string): Promise<void> {
     ctx.config.repoPath,
     ctx.worktrees.branch(n),
   );
-  consola.success(
-    `entered review mode on ${branch} — run \`cue checkout exit\` to return to ${prev}`,
-  );
+  consola.success(enteredReviewMessage(branch, prev));
 }
 
 async function checkoutExit(ctx: StageContext): Promise<void> {
@@ -270,9 +271,7 @@ async function checkoutInteractiveCli(ctx: StageContext): Promise<void> {
     const outcome = await checkoutInteractive(ctx.exec, ctx.config.repoPath, ctx.logger, clackAsk);
     switch (outcome.action) {
       case 'entered':
-        consola.success(
-          `entered review mode on ${outcome.branch} — run \`cue checkout exit\` to return to ${outcome.prev}`,
-        );
+        consola.success(enteredReviewMessage(outcome.branch, outcome.prev));
         break;
       case 'exited':
         consola.success(`exited review mode — back on ${outcome.prev}`);

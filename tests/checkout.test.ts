@@ -105,7 +105,7 @@ describe('reviewPrevBranch', () => {
 });
 
 describe('enterReview', () => {
-  test('detaches onto a local branch and records the previous branch', async () => {
+  test('fetches and detaches onto FETCH_HEAD so a stale local branch is never reviewed', async () => {
     const { exec, calls } = makeFakeExec([
       { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
       { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
@@ -113,18 +113,16 @@ describe('enterReview', () => {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      {
-        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
-      },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'] },
     ]);
     const result = await enterReview(exec, REPO, 'agent/issue-7');
     expect(result).toEqual({ branch: 'agent/issue-7', prev: 'main' });
     expect(calls).toHaveLength(6);
   });
 
-  test('fetches and detaches onto origin when the local branch is missing', async () => {
+  test('falls back to the local branch when the fetch fails', async () => {
     const { exec, calls } = makeFakeExec([
       { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
       { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
@@ -133,12 +131,14 @@ describe('enterReview', () => {
         result: { stdout: 'main\n' },
       },
       {
-        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
-        result: { code: 1 },
+        match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'],
+        result: { code: 128, stderr: 'fatal: unable to access remote' },
       },
-      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
+      {
+        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
+      },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'origin/agent/issue-7'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'] },
     ]);
     const result = await enterReview(exec, REPO, 'agent/issue-7');
     expect(result).toEqual({ branch: 'agent/issue-7', prev: 'main' });
@@ -185,12 +185,10 @@ describe('enterReview', () => {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      {
-        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
-      },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
       {
-        match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'],
+        match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'],
         result: { code: 1, stderr: 'error: pathspec did not match' },
       },
       { match: ['git', '-C', REPO, 'config', '--unset', 'cue.review.prev'] },
@@ -209,12 +207,10 @@ describe('enterReview', () => {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      {
-        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
-      },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
       {
-        match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'],
+        match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'],
         result: { code: 1, stderr: 'error: pathspec did not match' },
       },
       {
@@ -236,12 +232,12 @@ describe('enterReview', () => {
         result: { stdout: 'main\n' },
       },
       {
-        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
-        result: { code: 1 },
-      },
-      {
         match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'],
         result: { code: 128, stderr: "fatal: couldn't find remote ref agent/issue-7" },
+      },
+      {
+        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
+        result: { code: 1 },
       },
     ]);
     await expect(enterReview(exec, REPO, 'agent/issue-7')).rejects.toThrow(
@@ -284,7 +280,7 @@ describe('exitReview', () => {
     await expect(exitReview(exec, REPO)).rejects.toThrow('dirty');
   });
 
-  test('surfaces a checkout failure', async () => {
+  test('surfaces a checkout failure with a manual-recovery hint', async () => {
     const { exec } = makeFakeExec([
       {
         match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'],
@@ -296,7 +292,9 @@ describe('exitReview', () => {
         result: { code: 1, stderr: 'error: pathspec did not match' },
       },
     ]);
-    await expect(exitReview(exec, REPO)).rejects.toThrow('pathspec did not match');
+    const err = exitReview(exec, REPO);
+    await expect(err).rejects.toThrow('pathspec did not match');
+    await expect(err).rejects.toThrow('git config --unset cue.review.prev');
   });
 });
 
@@ -372,17 +370,15 @@ describe('pickIssueBranch', () => {
     expect(await pickIssueBranch(choices, ask)).toEqual({ issue: 12, branch: 'agent/issue-12' });
   });
 
-  test('falls back to the first choice if the pick does not match any option', async () => {
+  test('throws on a selection that matches no option instead of silently substituting', async () => {
     const choices: BranchChoice[] = [
       { issue: 7, branch: 'agent/issue-7', title: 'Add widgets' },
       { issue: 12, branch: 'agent/issue-12' },
     ];
     const ask = scriptedAsk(['999']);
-    expect(await pickIssueBranch(choices, ask)).toEqual({
-      issue: 7,
-      branch: 'agent/issue-7',
-      title: 'Add widgets',
-    });
+    await expect(pickIssueBranch(choices, ask)).rejects.toThrow(
+      'selection "999" matches no issue branch',
+    );
   });
 });
 
@@ -488,16 +484,15 @@ describe('checkoutInteractive', () => {
         result: { stdout: 'agent/issue-7\n' },
       },
       { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
+      { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
       { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
       {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      {
-        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
-      },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'] },
     ]);
     const logger: RunIndexSource = {
       index: () => Promise.resolve([{ issue: 7, runs: 1, costUsd: 0, tokens: 0, lastTs: 1 }]),
@@ -505,5 +500,30 @@ describe('checkoutInteractive', () => {
     const ask = scriptedAsk(['7']);
     const result = await checkoutInteractive(exec, REPO, logger, ask);
     expect(result).toEqual({ action: 'entered', branch: 'agent/issue-7', prev: 'main' });
+  });
+
+  test('fails fast on a dirty tree before prompting for a branch', async () => {
+    const { exec } = makeFakeExec([
+      { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
+      {
+        match: [
+          'git',
+          '-C',
+          REPO,
+          'branch',
+          '--list',
+          'agent/issue-*',
+          '--format=%(refname:short)',
+        ],
+        result: { stdout: 'agent/issue-7\n' },
+      },
+      { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: ' M file.ts' } },
+    ]);
+    const logger: RunIndexSource = {
+      index: () => Promise.resolve([{ issue: 7, runs: 1, costUsd: 0, tokens: 0, lastTs: 1 }]),
+    };
+    const ask = scriptedAsk([]);
+    await expect(checkoutInteractive(exec, REPO, logger, ask)).rejects.toThrow('dirty');
+    expect(ask.asked).toHaveLength(0);
   });
 });

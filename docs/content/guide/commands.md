@@ -113,7 +113,7 @@ cue checkout        # interactive picker (TTY only)
 cue checkout exit   # leave review mode, restore the previous branch
 ```
 
-`cue checkout <n>` refuses if the working tree is dirty, if you are already in review mode, or if HEAD is already detached. It records the branch you were on in the local git config (`cue.review.prev`) — no state file, nothing to gitignore. If `agent/issue-<n>` does not exist locally yet, it fetches `origin/agent/issue-<n>` and detaches onto that instead.
+`cue checkout <n>` refuses if the working tree is dirty, if you are already in review mode, or if HEAD is already detached. It records the branch you were on in the local git config (`cue.review.prev`) — no state file, nothing to gitignore. It always fetches `origin/agent/issue-<n>` first and detaches onto the fetched tip, so you review the branch's latest pushed state even when a stale local copy exists; when the fetch fails (offline, or the branch was never pushed) it falls back to the local branch.
 
 `cue checkout` with no argument opens an interactive list of local `agent/issue-*` branches, with issue titles recovered from `.cue/runs/` (no `gh` call needed). If you are already in review mode, it offers to exit instead of listing branches.
 
