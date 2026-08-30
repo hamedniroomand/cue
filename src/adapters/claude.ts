@@ -1,6 +1,8 @@
 import { JsonlAdapter } from '@/adapters/base';
 import { summarizeToolInput } from '@/adapters/summarize';
 import type { AgentResult, AgentRunOptions } from '@/adapters/types';
+import type { Exec } from '@/exec';
+import type { Platform } from '@/platform';
 
 interface StreamEvent {
   type?: string;
@@ -35,6 +37,11 @@ export class ClaudeAdapter extends JsonlAdapter<StreamEvent> {
   protected readonly bin = 'claude';
   protected readonly envKeys = ['ANTHROPIC_API_KEY'];
   protected readonly supportsWebSearch = true;
+
+  // oxlint-disable-next-line no-useless-constructor -- bun's function coverage counts an implicit derived constructor as a function that can never be hit
+  constructor(exec: Exec, platform?: Platform) {
+    super(exec, platform);
+  }
 
   protected command(opts: AgentRunOptions): string[] {
     return [

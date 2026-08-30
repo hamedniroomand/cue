@@ -95,6 +95,16 @@ describe('createSpinner (enabled)', () => {
     expect(spinner.spinning).toBe(false);
   });
 
+  test('without a make override the default constructs a real ora frame', () => {
+    // No fake `make`: exercises the default ora factory, which otherwise only
+    // runs when the suite happens to execute in a TTY (via cliSpinner).
+    const spinner = createSpinner({ enabled: true });
+    spinner.start('real frame');
+    expect(spinner.spinning).toBe(true);
+    spinner.succeed('real frame');
+    expect(spinner.spinning).toBe(false);
+  });
+
   test('a second start replaces the first instead of stacking frames', () => {
     const { ora, spinner } = harness();
     spinner.start('first');
