@@ -14,9 +14,11 @@ const FENCE = 'untrusted-data';
 export function fenceUntrusted(text: string): string {
   // Escape the `<` of anything that could read as a fence tag — closing or
   // opening, any case, with whitespace or attribute junk (`</untrusted-data >`
-  // is a valid XML end tag). Without its `<` no variant parses as a tag, and
-  // the content stays otherwise verbatim.
-  const safe = text.replace(new RegExp(`<(?=\\s*/?\\s*${FENCE})`, 'gi'), '&lt;');
+  // is a valid XML end tag). The name must end at a tag boundary (whitespace,
+  // `/` or `>`) so longer names like `<untrusted-data-widget>` stay verbatim.
+  // Without its `<` no variant parses as a tag, and the content stays
+  // otherwise verbatim.
+  const safe = text.replace(new RegExp(`<(?=\\s*/?\\s*${FENCE}[\\s/>])`, 'gi'), '&lt;');
   return `<${FENCE}>\n${safe}\n</${FENCE}>`;
 }
 

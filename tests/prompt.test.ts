@@ -56,6 +56,15 @@ describe('fenceUntrusted', () => {
     expect(fenced.startsWith('<untrusted-data>\n')).toBe(true);
     expect(fenced.endsWith('\n</untrusted-data>')).toBe(true);
   });
+
+  test('leaves longer near-matches that are not fence tags untouched', () => {
+    // Only a tag boundary after the name makes it a fence tag — ordinary
+    // content mentioning similarly-named elements must survive verbatim.
+    const text = 'renders <untrusted-data-widget> and <untrusted-datapoint /> fine';
+    const fenced = fenceUntrusted(text);
+    expect(fenced).toContain('<untrusted-data-widget>');
+    expect(fenced).toContain('<untrusted-datapoint />');
+  });
 });
 
 describe('loadPrompt', () => {
