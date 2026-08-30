@@ -103,6 +103,24 @@ Prints issues in each active pipeline state, local spend per issue (from `.cue/r
 
 Stale `agent:in-dev` claims (crashed runs) are reset automatically by [`cleanup`](#cleanup) after `staleClaimMinutes`.
 
+## checkout
+
+Issue branches live in worktrees under `worktreeRoot`, so a plain `git checkout agent/issue-<n>` in the target repo fails with "already used by worktree". `cue checkout` reviews a branch in the target repo itself by detaching HEAD onto it, then restores your previous branch when you are done.
+
+```bash
+cue checkout 42     # detach onto agent/issue-42 to review it
+cue checkout        # interactive picker (TTY only)
+cue checkout exit   # leave review mode, restore the previous branch
+```
+
+`cue checkout <n>` refuses if the working tree is dirty, if you are already in review mode, or if HEAD is already detached. It records the branch you were on in the local git config (`cue.review.prev`) — no state file, nothing to gitignore. If `agent/issue-<n>` does not exist locally yet, it fetches `origin/agent/issue-<n>` and detaches onto that instead.
+
+`cue checkout` with no argument opens an interactive list of local `agent/issue-*` branches, with issue titles recovered from `.cue/runs/` (no `gh` call needed). If you are already in review mode, it offers to exit instead of listing branches.
+
+`cue checkout exit` restores the branch recorded in `cue.review.prev` and clears it. It refuses if the working tree is dirty, so review-time edits are never silently lost, and errors if you are not in review mode.
+
+**Non-interactive runs never prompt.** When stdin or stdout is not a TTY, `cue checkout` without an argument errors with the usage line — pass an issue number or `exit` instead.
+
 ## ui
 
 ```bash

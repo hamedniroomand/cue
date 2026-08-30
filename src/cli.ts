@@ -5,6 +5,7 @@ import { consola } from 'consola';
 
 import { ADAPTERS } from '@/adapters/registry';
 import { formatTokens } from '@/adapters/usage';
+import { checkoutInteractive, enterReview, exitReview } from '@/checkout';
 import { runCleanup } from '@/cleanup';
 import { resolveConfig } from '@/config';
 import {
@@ -178,6 +179,10 @@ Commands:
   run [n]      run the next pipeline stage for issue #n (interactive list if omitted)
   cleanup      reconcile merged/closed PRs: labels, worktrees, local branches
   status       issues per pipeline state, local spend, worktree root
+  checkout [n] review an issue branch in this repo (detached HEAD); no
+               argument opens an interactive picker (or offers to exit if
+               already in review mode); "cue checkout exit" returns to the
+               branch you were on
   upgrade      update cue to the latest GitHub release (release installs only)
   ui [port]    web dashboard on http://127.0.0.1:<port> (default 4224); opens your
                browser automatically — pass --no-open to skip
@@ -231,6 +236,49 @@ async function runInteractive(ctx: StageContext): Promise<void> {
   try {
     const selected = await promptSelectIssue(issues, clackAsk);
     if (selected) await runOne(ctx, selected);
+  } catch (err) {
+    if (err instanceof PromptCancelled) return;
+    throw err;
+  }
+}
+
+const CHECKOUT_USAGE = 'usage: cue checkout [issue-number|exit]';
+
+async function checkoutNumbered(ctx: StageContext, arg: string): Promise<void> {
+  const n = Number(arg);
+  if (!Number.isInteger(n)) throw new Error(CHECKOUT_USAGE);
+  const { branch, prev } = await enterReview(ctx.exec, ctx.config.repoPath, n);
+  consola.success(
+    `entered review mode on ${branch} — run \`cue checkout exit\` to return to ${prev}`,
+  );
+}
+
+async function checkoutExit(ctx: StageContext): Promise<void> {
+  const { prev } = await exitReview(ctx.exec, ctx.config.repoPath);
+  consola.success(`exited review mode — back on ${prev}`);
+}
+
+async function checkoutInteractiveCli(ctx: StageContext): Promise<void> {
+  if (!shouldPrompt([], { stdin: process.stdin.isTTY, stdout: process.stdout.isTTY })) {
+    throw new Error(CHECKOUT_USAGE);
+  }
+  try {
+    const outcome = await checkoutInteractive(ctx.exec, ctx.config.repoPath, ctx.logger, clackAsk);
+    switch (outcome.action) {
+      case 'entered':
+        consola.success(
+          `entered review mode on ${outcome.branch} — run \`cue checkout exit\` to return to ${outcome.prev}`,
+        );
+        break;
+      case 'exited':
+        consola.success(`exited review mode — back on ${outcome.prev}`);
+        break;
+      case 'no-branches':
+        consola.info('no agent/issue-* branches found locally');
+        break;
+      case 'none':
+        break;
+    }
   } catch (err) {
     if (err instanceof PromptCancelled) return;
     throw err;
@@ -291,7 +339,17 @@ async function main(): Promise<void> {
     });
     return;
   }
-  const known = ['init', 'process', 'poll', 'run', 'cleanup', 'status', 'ui', 'upgrade'];
+  const known = [
+    'init',
+    'process',
+    'poll',
+    'run',
+    'cleanup',
+    'status',
+    'ui',
+    'upgrade',
+    'checkout',
+  ];
   if (!command || !known.includes(command)) {
     if (command) consola.error(`unknown command: ${command}\n`);
     // oxlint-disable-next-line no-console -- plain stdout so --help pipes cleanly
@@ -335,6 +393,18 @@ async function main(): Promise<void> {
     case 'status':
       await status(ctx);
       break;
+    case 'checkout': {
+      if (arg === 'exit') {
+        await checkoutExit(ctx);
+        break;
+      }
+      if (arg !== undefined) {
+        await checkoutNumbered(ctx, arg);
+        break;
+      }
+      await checkoutInteractiveCli(ctx);
+      break;
+    }
   }
 }
 
