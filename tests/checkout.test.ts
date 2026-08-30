@@ -9,13 +9,12 @@ import {
   exitReview,
   formatBranchOptions,
   isDirty,
-  issueBranch,
   listIssueBranches,
   pickIssueBranch,
   reviewPrevBranch,
+  type RunIndexSource,
 } from '@/checkout';
 import type { Ask } from '@/configure';
-import { RunLogger } from '@/log';
 
 import { makeFakeExec } from './helpers/fakeExec';
 
@@ -37,12 +36,6 @@ function scriptedAsk(answers: string[]): Ask & { asked: string[] } {
     },
   };
 }
-
-describe('issueBranch', () => {
-  test('formats the agent/issue-<n> branch name', () => {
-    expect(issueBranch(7)).toBe('agent/issue-7');
-  });
-});
 
 describe('isDirty', () => {
   test('false when status is clean', async () => {
@@ -123,10 +116,10 @@ describe('enterReview', () => {
       {
         match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
       },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'] },
     ]);
-    const result = await enterReview(exec, REPO, 7);
+    const result = await enterReview(exec, REPO, 'agent/issue-7');
     expect(result).toEqual({ branch: 'agent/issue-7', prev: 'main' });
     expect(calls).toHaveLength(6);
   });
@@ -144,10 +137,10 @@ describe('enterReview', () => {
         result: { code: 1 },
       },
       { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'origin/agent/issue-7'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'origin/agent/issue-7'] },
     ]);
-    const result = await enterReview(exec, REPO, 7);
+    const result = await enterReview(exec, REPO, 'agent/issue-7');
     expect(result).toEqual({ branch: 'agent/issue-7', prev: 'main' });
     expect(calls).toHaveLength(7);
   });
@@ -156,7 +149,7 @@ describe('enterReview', () => {
     const { exec } = makeFakeExec([
       { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: ' M file.ts' } },
     ]);
-    await expect(enterReview(exec, REPO, 7)).rejects.toThrow('dirty');
+    await expect(enterReview(exec, REPO, 'agent/issue-7')).rejects.toThrow('dirty');
   });
 
   test('refuses when already in review mode', async () => {
@@ -167,7 +160,9 @@ describe('enterReview', () => {
         result: { stdout: 'main\n' },
       },
     ]);
-    await expect(enterReview(exec, REPO, 7)).rejects.toThrow('already in review mode');
+    await expect(enterReview(exec, REPO, 'agent/issue-7')).rejects.toThrow(
+      'already in review mode',
+    );
   });
 
   test('refuses a detached HEAD', async () => {
@@ -179,10 +174,34 @@ describe('enterReview', () => {
         result: { code: 1, stderr: 'fatal: ref HEAD is not a symbolic ref' },
       },
     ]);
-    await expect(enterReview(exec, REPO, 7)).rejects.toThrow('detached');
+    await expect(enterReview(exec, REPO, 'agent/issue-7')).rejects.toThrow('detached');
   });
 
-  test('surfaces a checkout failure', async () => {
+  test('surfaces a checkout failure and rolls back the recorded previous branch', async () => {
+    const { exec, calls } = makeFakeExec([
+      { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
+      { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
+      {
+        match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
+        result: { stdout: 'main\n' },
+      },
+      {
+        match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
+      },
+      { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
+      {
+        match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'],
+        result: { code: 1, stderr: 'error: pathspec did not match' },
+      },
+      { match: ['git', '-C', REPO, 'config', '--unset', 'cue.review.prev'] },
+    ]);
+    await expect(enterReview(exec, REPO, 'agent/issue-7')).rejects.toThrow(
+      'pathspec did not match',
+    );
+    expect(calls).toHaveLength(7);
+  });
+
+  test('still surfaces the checkout error when the rollback unset also fails', async () => {
     const { exec } = makeFakeExec([
       { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
       { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
@@ -193,12 +212,19 @@ describe('enterReview', () => {
       {
         match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
       },
+      { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
       {
         match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'],
         result: { code: 1, stderr: 'error: pathspec did not match' },
       },
+      {
+        match: ['git', '-C', REPO, 'config', '--unset', 'cue.review.prev'],
+        result: { code: 1, stderr: 'error: could not unset config' },
+      },
     ]);
-    await expect(enterReview(exec, REPO, 7)).rejects.toThrow('pathspec did not match');
+    await expect(enterReview(exec, REPO, 'agent/issue-7')).rejects.toThrow(
+      'pathspec did not match',
+    );
   });
 
   test('surfaces a failed fetch when the branch is missing everywhere', async () => {
@@ -218,7 +244,9 @@ describe('enterReview', () => {
         result: { code: 128, stderr: "fatal: couldn't find remote ref agent/issue-7" },
       },
     ]);
-    await expect(enterReview(exec, REPO, 7)).rejects.toThrow("couldn't find remote ref");
+    await expect(enterReview(exec, REPO, 'agent/issue-7')).rejects.toThrow(
+      "couldn't find remote ref",
+    );
   });
 });
 
@@ -288,13 +316,13 @@ describe('listIssueBranches', () => {
         result: { stdout: 'agent/issue-7\nagent/issue-12\n' },
       },
     ]);
-    const logger = {
+    const logger: RunIndexSource = {
       index: () =>
         Promise.resolve([
           { issue: 7, runs: 1, costUsd: 0, tokens: 0, lastTs: 1, title: 'Add widgets' },
           { issue: 12, runs: 1, costUsd: 0, tokens: 0, lastTs: 2 },
         ]),
-    } as unknown as RunLogger;
+    };
     const choices = await listIssueBranches(exec, REPO, logger);
     expect(choices).toEqual([
       { issue: 7, branch: 'agent/issue-7', title: 'Add widgets' },
@@ -317,7 +345,7 @@ describe('listIssueBranches', () => {
         result: { stdout: '' },
       },
     ]);
-    const logger = { index: () => Promise.resolve([]) } as unknown as RunLogger;
+    const logger: RunIndexSource = { index: () => Promise.resolve([]) };
     expect(await listIssueBranches(exec, REPO, logger)).toEqual([]);
   });
 });
@@ -341,13 +369,13 @@ describe('pickIssueBranch', () => {
     expect(ask.asked).toHaveLength(0);
   });
 
-  test('returns the picked issue number', async () => {
+  test('returns the picked branch choice', async () => {
     const choices: BranchChoice[] = [
       { issue: 7, branch: 'agent/issue-7', title: 'Add widgets' },
       { issue: 12, branch: 'agent/issue-12' },
     ];
     const ask = scriptedAsk(['12']);
-    expect(await pickIssueBranch(choices, ask)).toBe(12);
+    expect(await pickIssueBranch(choices, ask)).toEqual({ issue: 12, branch: 'agent/issue-12' });
   });
 });
 
@@ -379,7 +407,7 @@ describe('checkoutInteractive', () => {
       { match: ['git', '-C', REPO, 'checkout', 'main'] },
       { match: ['git', '-C', REPO, 'config', '--unset', 'cue.review.prev'] },
     ]);
-    const logger = { index: () => Promise.resolve([]) } as unknown as RunLogger;
+    const logger: RunIndexSource = { index: () => Promise.resolve([]) };
     const ask = scriptedAsk(['yes']);
     const result = await checkoutInteractive(exec, REPO, logger, ask);
     expect(result).toEqual({ action: 'exited', prev: 'main' });
@@ -392,7 +420,7 @@ describe('checkoutInteractive', () => {
         result: { stdout: 'main\n' },
       },
     ]);
-    const logger = { index: () => Promise.resolve([]) } as unknown as RunLogger;
+    const logger: RunIndexSource = { index: () => Promise.resolve([]) };
     const ask = scriptedAsk(['no']);
     const result = await checkoutInteractive(exec, REPO, logger, ask);
     expect(result).toEqual({ action: 'none' });
@@ -415,7 +443,7 @@ describe('checkoutInteractive', () => {
         result: { stdout: '' },
       },
     ]);
-    const logger = { index: () => Promise.resolve([]) } as unknown as RunLogger;
+    const logger: RunIndexSource = { index: () => Promise.resolve([]) };
     const ask = scriptedAsk([]);
     const result = await checkoutInteractive(exec, REPO, logger, ask);
     expect(result).toEqual({ action: 'no-branches' });
@@ -445,12 +473,12 @@ describe('checkoutInteractive', () => {
       {
         match: ['git', '-C', REPO, 'rev-parse', '--verify', '--quiet', 'refs/heads/agent/issue-7'],
       },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'agent/issue-7'] },
     ]);
-    const logger = {
+    const logger: RunIndexSource = {
       index: () => Promise.resolve([{ issue: 7, runs: 1, costUsd: 0, tokens: 0, lastTs: 1 }]),
-    } as unknown as RunLogger;
+    };
     const ask = scriptedAsk(['7']);
     const result = await checkoutInteractive(exec, REPO, logger, ask);
     expect(result).toEqual({ action: 'entered', branch: 'agent/issue-7', prev: 'main' });

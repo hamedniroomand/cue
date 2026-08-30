@@ -1,11 +1,12 @@
 import type { Ask, AskOption } from '@/configure';
 import type { Exec } from '@/exec';
-import type { RunLogger } from '@/log';
+import type { RunIndexEntry } from '@/log';
 
 const REVIEW_CONFIG_KEY = 'cue.review.prev';
 
-export function issueBranch(issue: number): string {
-  return `agent/issue-${issue}`;
+/** Structural subset of `RunLogger` — avoids a test-only cast to the concrete class. */
+export interface RunIndexSource {
+  index(): Promise<RunIndexEntry[]>;
 }
 
 async function git(exec: Exec, repoPath: string, args: string[]) {
@@ -51,13 +52,15 @@ export interface CheckoutResult {
 }
 
 /**
- * Enters review mode: detaches HEAD onto the issue branch so the main repo
- * can inspect it even though a worktree already owns that branch name.
+ * Enters review mode: detaches HEAD onto the given branch so the main repo
+ * can inspect it even though a worktree already owns that branch name. The
+ * caller supplies the branch name (`WorktreeManager.branch` is the single
+ * source of the `agent/issue-<n>` convention) so it is not re-derived here.
  */
 export async function enterReview(
   exec: Exec,
   repoPath: string,
-  issue: number,
+  branch: string,
 ): Promise<CheckoutResult> {
   if (await isDirty(exec, repoPath)) {
     throw new Error('working tree is dirty — commit or stash changes before checkout');
@@ -69,16 +72,20 @@ export async function enterReview(
   if (!prev) {
     throw new Error('HEAD is detached — cannot enter review mode from a detached HEAD');
   }
-  const branch = issueBranch(issue);
   let ref = branch;
   if (!(await localBranchExists(exec, repoPath, branch))) {
     const fetched = await git(exec, repoPath, ['fetch', 'origin', branch]);
     if (fetched.code !== 0) throw new Error(`git fetch failed: ${fetched.stderr.trim()}`);
     ref = `origin/${branch}`;
   }
-  const checkedOut = await git(exec, repoPath, ['checkout', '--detach', ref]);
-  if (checkedOut.code !== 0) throw new Error(`git checkout failed: ${checkedOut.stderr.trim()}`);
+  // Recorded before the checkout so a failed checkout leaves review mode
+  // recoverable either way: unset here on failure, or restored by `exit`.
   await setReviewPrev(exec, repoPath, prev);
+  const checkedOut = await git(exec, repoPath, ['checkout', '--detach', ref]);
+  if (checkedOut.code !== 0) {
+    await unsetReviewPrev(exec, repoPath).catch(() => {});
+    throw new Error(`git checkout failed: ${checkedOut.stderr.trim()}`);
+  }
   return { branch, prev };
 }
 
@@ -105,7 +112,7 @@ export interface BranchChoice {
 export async function listIssueBranches(
   exec: Exec,
   repoPath: string,
-  logger: RunLogger,
+  logger: RunIndexSource,
 ): Promise<BranchChoice[]> {
   const r = await git(exec, repoPath, [
     'branch',
@@ -137,11 +144,11 @@ export function formatBranchOptions(choices: BranchChoice[]): AskOption[] {
 export async function pickIssueBranch(
   choices: BranchChoice[],
   ask: Ask,
-): Promise<number | undefined> {
+): Promise<BranchChoice | undefined> {
   if (choices.length === 0) return undefined;
   const options = formatBranchOptions(choices);
   const picked = await ask.select('Select an issue branch to review:', options, options[0]!.value);
-  return Number(picked);
+  return choices.find((c) => String(c.issue) === picked);
 }
 
 const CONFIRM_EXIT_OPTIONS: AskOption[] = [
@@ -171,7 +178,7 @@ export type CheckoutOutcome =
 export async function checkoutInteractive(
   exec: Exec,
   repoPath: string,
-  logger: RunLogger,
+  logger: RunIndexSource,
   ask: Ask,
 ): Promise<CheckoutOutcome> {
   const prev = await reviewPrevBranch(exec, repoPath);
@@ -183,8 +190,8 @@ export async function checkoutInteractive(
   }
   const choices = await listIssueBranches(exec, repoPath, logger);
   if (choices.length === 0) return { action: 'no-branches' };
-  const issue = await pickIssueBranch(choices, ask);
-  if (issue === undefined) return { action: 'none' };
-  const r = await enterReview(exec, repoPath, issue);
+  const choice = await pickIssueBranch(choices, ask);
+  if (choice === undefined) return { action: 'none' };
+  const r = await enterReview(exec, repoPath, choice.branch);
   return { action: 'entered', branch: r.branch, prev: r.prev };
 }

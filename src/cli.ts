@@ -247,7 +247,11 @@ const CHECKOUT_USAGE = 'usage: cue checkout [issue-number|exit]';
 async function checkoutNumbered(ctx: StageContext, arg: string): Promise<void> {
   const n = Number(arg);
   if (!Number.isInteger(n)) throw new Error(CHECKOUT_USAGE);
-  const { branch, prev } = await enterReview(ctx.exec, ctx.config.repoPath, n);
+  const { branch, prev } = await enterReview(
+    ctx.exec,
+    ctx.config.repoPath,
+    ctx.worktrees.branch(n),
+  );
   consola.success(
     `entered review mode on ${branch} — run \`cue checkout exit\` to return to ${prev}`,
   );
