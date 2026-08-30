@@ -1,6 +1,6 @@
 {
   "name": "cue-agent",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Deterministic runner that drives headless coding agents through a GitHub-issue pipeline: triage, human plan approval, dev, test gate, review loop, draft PR.",
   "keywords": [
     "ai-agent",
