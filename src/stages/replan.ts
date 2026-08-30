@@ -1,5 +1,5 @@
 import type { Issue } from '@/github';
-import { loadPrompt, renderPrompt } from '@/prompt';
+import { fenceUntrusted, loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsPlanGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
 import { loggedRun } from '@/stages/run';
@@ -22,14 +22,20 @@ export async function runReplan(ctx: StageContext, issue: Issue): Promise<void> 
     '(no explicit feedback was left — the human simply wants a better plan than the previous one)';
 
   const template = await loadPrompt(ctx.promptsDirs, 'replan');
-  const prompt = renderPrompt(template, {
-    issue_number: String(issue.number),
-    issue_title: issue.title,
-    issue_body: issue.body,
-    previous_plan: previousPlan,
-    feedback,
-    ...(await knowledgeVars(ctx.config.repoPath, specsPlanGuidance)),
-  });
+  // The feedback is deliberately NOT fenced: a human read the thread and
+  // applied agent:replan — that label is the gate that makes it instructions.
+  const prompt = renderPrompt(
+    template,
+    {
+      issue_number: String(issue.number),
+      issue_title: fenceUntrusted(issue.title),
+      issue_body: fenceUntrusted(issue.body),
+      previous_plan: previousPlan,
+      feedback,
+      ...(await knowledgeVars(ctx.config.repoPath, specsPlanGuidance)),
+    },
+    ['previous_plan', 'feedback'],
+  );
   const res = await loggedRun(ctx, issue.number, 'replan', {
     prompt,
     cwd: ctx.config.repoPath,

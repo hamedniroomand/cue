@@ -48,7 +48,10 @@ async function reviewOnce(
 ): Promise<Verdict> {
   const diff = await ctx.worktrees.diff(issue.number);
   const template = await loadPrompt(ctx.promptsDirs, 'review');
-  let prompt = renderPrompt(template, { plan, diff, specs_guidance: specsGuidance });
+  let prompt = renderPrompt(template, { plan, diff, specs_guidance: specsGuidance }, [
+    'plan',
+    'diff',
+  ]);
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await loggedRun(ctx, issue.number, 'review', {
       prompt,
@@ -75,9 +78,13 @@ async function reviewOnce(
 
 async function fixFindings(ctx: StageContext, issue: Issue, verdict: Verdict): Promise<void> {
   const template = await loadPrompt(ctx.promptsDirs, 'fix');
-  const prompt = renderPrompt(template, {
-    failure_output: `Code review rejected the change. Findings:\n${JSON.stringify(verdict.findings, null, 2)}`,
-  });
+  const prompt = renderPrompt(
+    template,
+    {
+      failure_output: `Code review rejected the change. Findings:\n${JSON.stringify(verdict.findings, null, 2)}`,
+    },
+    ['failure_output'],
+  );
   const cwd = ctx.worktrees.path(issue.number);
   await loggedRun(ctx, issue.number, 'review-fix', {
     prompt,

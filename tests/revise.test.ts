@@ -100,6 +100,9 @@ describe('runRevise', () => {
     expect(run.prompt).toContain('src/a.ts:12');
     // Cue's own verdict comments are not human feedback.
     expect(run.prompt).not.toContain('cue review:');
+    // The issue title is fenced as data; the human-gated feedback is not.
+    // (The tag-plus-newline form is the fence; the preamble mentions the tag inline.)
+    expect(run.prompt.match(/<untrusted-data>\n/g)).toHaveLength(1);
     expect(notifications).toEqual([
       expect.objectContaining({
         event: 'revised',

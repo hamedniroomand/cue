@@ -1,5 +1,5 @@
 import type { Issue } from '@/github';
-import { loadPrompt, renderPrompt } from '@/prompt';
+import { fenceUntrusted, loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsPlanGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
 import { loggedRun } from '@/stages/run';
@@ -10,12 +10,16 @@ const TRIAGE_TIMEOUT_MS = 15 * 60_000;
 export async function runTriage(ctx: StageContext, issue: Issue): Promise<void> {
   await ctx.github.removeLabel(issue.number, 'agent:ready');
   const template = await loadPrompt(ctx.promptsDirs, 'triage');
-  const prompt = renderPrompt(template, {
-    issue_number: String(issue.number),
-    issue_title: issue.title,
-    issue_body: issue.body,
-    ...(await knowledgeVars(ctx.config.repoPath, specsPlanGuidance)),
-  });
+  const prompt = renderPrompt(
+    template,
+    {
+      issue_number: String(issue.number),
+      issue_title: fenceUntrusted(issue.title),
+      issue_body: fenceUntrusted(issue.body),
+      ...(await knowledgeVars(ctx.config.repoPath, specsPlanGuidance)),
+    },
+    ['issue_title', 'issue_body'],
+  );
   const res = await loggedRun(ctx, issue.number, 'triage', {
     prompt,
     cwd: ctx.config.repoPath,

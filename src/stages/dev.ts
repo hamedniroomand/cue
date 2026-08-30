@@ -1,6 +1,6 @@
 import { runGate } from '@/gates';
 import type { Issue } from '@/github';
-import { loadPrompt, renderPrompt } from '@/prompt';
+import { fenceUntrusted, loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsDevGuidance } from '@/specs';
 import type { StageContext } from '@/stages/context';
 import { loggedRun } from '@/stages/run';
@@ -15,7 +15,7 @@ export async function runFix(
   failureOutput: string,
 ): Promise<void> {
   const template = await loadPrompt(ctx.promptsDirs, 'fix');
-  const prompt = renderPrompt(template, { failure_output: failureOutput });
+  const prompt = renderPrompt(template, { failure_output: failureOutput }, ['failure_output']);
   await loggedRun(ctx, issue, 'fix', {
     prompt,
     cwd,
@@ -36,12 +36,17 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
 
   const wt = await ctx.worktrees.create(issue.number);
   const template = await loadPrompt(ctx.promptsDirs, 'dev');
-  const prompt = renderPrompt(template, {
-    issue_title: issue.title,
-    issue_body: issue.body,
-    plan,
-    ...(await knowledgeVars(wt.path, specsDevGuidance)),
-  });
+  const prompt = renderPrompt(
+    template,
+    {
+      issue_title: fenceUntrusted(issue.title),
+      issue_body: fenceUntrusted(issue.body),
+      plan,
+      ...(await knowledgeVars(wt.path, specsDevGuidance)),
+    },
+    // Without the plan the dev agent has no instruction source at all.
+    ['plan'],
+  );
   await loggedRun(ctx, issue.number, 'dev', {
     prompt,
     cwd: wt.path,
