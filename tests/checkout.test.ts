@@ -105,7 +105,7 @@ describe('reviewPrevBranch', () => {
 });
 
 describe('enterReview', () => {
-  test('fetches and detaches onto FETCH_HEAD so a stale local branch is never reviewed', async () => {
+  test('fetches into the private review ref so a stale local branch is never reviewed', async () => {
     const { exec, calls } = makeFakeExec([
       { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
       { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
@@ -113,13 +113,34 @@ describe('enterReview', () => {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', '+agent/issue-7:refs/cue/review'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'refs/cue/review'] },
+      { match: ['git', '-C', REPO, 'update-ref', '-d', 'refs/cue/review'] },
     ]);
     const result = await enterReview(exec, REPO, 'agent/issue-7');
     expect(result).toEqual({ branch: 'agent/issue-7', prev: 'main' });
-    expect(calls).toHaveLength(6);
+    expect(calls).toHaveLength(7);
+  });
+
+  test('enters review mode even when the post-checkout ref cleanup fails', async () => {
+    const { exec } = makeFakeExec([
+      { match: ['git', '-C', REPO, 'status', '--porcelain'], result: { stdout: '' } },
+      { match: ['git', '-C', REPO, 'config', '--get', 'cue.review.prev'], result: { code: 1 } },
+      {
+        match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
+        result: { stdout: 'main\n' },
+      },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', '+agent/issue-7:refs/cue/review'] },
+      { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'refs/cue/review'] },
+      {
+        match: ['git', '-C', REPO, 'update-ref', '-d', 'refs/cue/review'],
+        result: { code: 1, stderr: 'error: could not delete ref' },
+      },
+    ]);
+    const result = await enterReview(exec, REPO, 'agent/issue-7');
+    expect(result).toEqual({ branch: 'agent/issue-7', prev: 'main' });
   });
 
   test('falls back to the local branch when the fetch fails', async () => {
@@ -131,7 +152,7 @@ describe('enterReview', () => {
         result: { stdout: 'main\n' },
       },
       {
-        match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'],
+        match: ['git', '-C', REPO, 'fetch', 'origin', '+agent/issue-7:refs/cue/review'],
         result: { code: 128, stderr: 'fatal: unable to access remote' },
       },
       {
@@ -185,10 +206,10 @@ describe('enterReview', () => {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', '+agent/issue-7:refs/cue/review'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
       {
-        match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'],
+        match: ['git', '-C', REPO, 'checkout', '--detach', 'refs/cue/review'],
         result: { code: 1, stderr: 'error: pathspec did not match' },
       },
       { match: ['git', '-C', REPO, 'config', '--unset', 'cue.review.prev'] },
@@ -207,10 +228,10 @@ describe('enterReview', () => {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', '+agent/issue-7:refs/cue/review'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
       {
-        match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'],
+        match: ['git', '-C', REPO, 'checkout', '--detach', 'refs/cue/review'],
         result: { code: 1, stderr: 'error: pathspec did not match' },
       },
       {
@@ -232,7 +253,7 @@ describe('enterReview', () => {
         result: { stdout: 'main\n' },
       },
       {
-        match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'],
+        match: ['git', '-C', REPO, 'fetch', 'origin', '+agent/issue-7:refs/cue/review'],
         result: { code: 128, stderr: "fatal: couldn't find remote ref agent/issue-7" },
       },
       {
@@ -490,9 +511,10 @@ describe('checkoutInteractive', () => {
         match: ['git', '-C', REPO, 'symbolic-ref', '--short', '-q', 'HEAD'],
         result: { stdout: 'main\n' },
       },
-      { match: ['git', '-C', REPO, 'fetch', 'origin', 'agent/issue-7'] },
+      { match: ['git', '-C', REPO, 'fetch', 'origin', '+agent/issue-7:refs/cue/review'] },
       { match: ['git', '-C', REPO, 'config', 'cue.review.prev', 'main'] },
-      { match: ['git', '-C', REPO, 'checkout', '--detach', 'FETCH_HEAD'] },
+      { match: ['git', '-C', REPO, 'checkout', '--detach', 'refs/cue/review'] },
+      { match: ['git', '-C', REPO, 'update-ref', '-d', 'refs/cue/review'] },
     ]);
     const logger: RunIndexSource = {
       index: () => Promise.resolve([{ issue: 7, runs: 1, costUsd: 0, tokens: 0, lastTs: 1 }]),

@@ -3,6 +3,10 @@ import type { Exec } from '@/exec';
 import type { RunIndexEntry } from '@/log';
 
 const REVIEW_CONFIG_KEY = 'cue.review.prev';
+// Cue-private fetch target. FETCH_HEAD is repo-global and overwritten by ANY
+// concurrent fetch (an IDE's background fetch, another cue command), which
+// could detach review mode onto the wrong commit; nothing else writes refs/cue/*.
+const REVIEW_REF = 'refs/cue/review';
 
 /** Structural subset of `RunLogger` — avoids a test-only cast to the concrete class. */
 export interface RunIndexSource {
@@ -77,13 +81,14 @@ export async function enterReview(
     throw new Error('HEAD is detached — cannot enter review mode from a detached HEAD');
   }
   // Always fetched: a local branch left behind origin (the pipeline pushed
-  // from another machine) must never be silently reviewed stale. FETCH_HEAD
-  // rather than origin/<branch> because a --single-branch clone's refspec
-  // never materializes refs/remotes/origin/<branch> even when the fetch works.
+  // from another machine) must never be silently reviewed stale. The explicit
+  // refspec (forced — the agent branch may have been rewritten) also covers
+  // --single-branch clones, whose configured refspec never materializes
+  // refs/remotes/origin/<branch> even when the fetch works.
   let ref: string;
-  const fetched = await git(exec, repoPath, ['fetch', 'origin', branch]);
+  const fetched = await git(exec, repoPath, ['fetch', 'origin', `+${branch}:${REVIEW_REF}`]);
   if (fetched.code === 0) {
-    ref = 'FETCH_HEAD';
+    ref = REVIEW_REF;
   } else if (await localBranchExists(exec, repoPath, branch)) {
     ref = branch; // offline fallback — the fetch failed but the branch exists locally
   } else {
@@ -97,6 +102,9 @@ export async function enterReview(
     await unsetReviewPrev(exec, repoPath).catch(() => {});
     throw new Error(`git checkout failed: ${checkedOut.stderr.trim()}`);
   }
+  // HEAD is detached at the commit, not the ref, so the ref is disposable;
+  // best-effort — a leftover is harmless and force-updated by the next fetch.
+  if (ref === REVIEW_REF) await git(exec, repoPath, ['update-ref', '-d', REVIEW_REF]);
   return { branch, prev };
 }
 
