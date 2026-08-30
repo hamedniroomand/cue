@@ -41,6 +41,10 @@ export const ConfigSchema = v.object({
   gate: v.optional(v.object({ test: v.string(), lint: v.optional(v.string()) }), {
     test: 'bun test',
   }),
+  // One shell command run in every fresh or re-attached worktree before the
+  // agent starts (dependency install, codegen). A worktree begins without
+  // node_modules and the like, and the agent cannot be trusted to notice.
+  setup: v.optional(v.pipe(v.string(), v.minLength(1))),
   // Bash command patterns for dev/fix agents (Claude permission syntax, e.g.
   // "bun *", "git status"). Unset = Bash unrestricted.
   devBashAllowlist: v.optional(v.array(v.pipe(v.string(), v.minLength(1)))),

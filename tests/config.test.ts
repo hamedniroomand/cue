@@ -51,6 +51,12 @@ describe('resolveConfig', () => {
     expect(cfg.devBashAllowlist).toBeUndefined(); // default: Bash unrestricted
   });
 
+  test('accepts an optional worktree setup command', async () => {
+    const cwd = await tmpRepo({ repo: 'acme/widgets', setup: 'bun install' });
+    const cfg = await resolveConfig(makeFakeExec([]).exec, cwd);
+    expect(cfg.setup).toBe('bun install');
+  });
+
   test('the $schema key editors use is ignored by the parser, not rejected', async () => {
     const cwd = await tmpRepo({
       $schema: 'https://hamedniroomand.github.io/cue/schema/config.json',

@@ -135,6 +135,57 @@ describe('runDev', () => {
     expect(runs[0]!.bashAllowlist).toEqual(['bun *', 'git status']);
   });
 
+  test('runs the configured setup command in the fresh worktree before the agent', async () => {
+    const { ctx, runs, events } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        // The strict call order proves setup runs after the worktree exists
+        // and before the gate.
+        { match: ['sh', '-c', 'bun install --frozen-lockfile'] },
+        { match: ['sh', '-c', 'bun test'] },
+        { match: ['git', '-C', wt(7), 'add', '-A'] },
+        { match: ['git', '-C', wt(7), 'commit', '-m'] },
+        { match: ['git', '-C', wt(7), 'push'] },
+        { match: ['gh', 'pr', 'create'], result: { stdout: 'url' } },
+        { match: ['gh', 'issue', 'edit', '7'] },
+      ],
+      ['implemented the feature'],
+    );
+    ctx.config.setup = 'bun install --frozen-lockfile';
+    await runDev(ctx, ISSUE);
+    expect(runs).toHaveLength(1);
+    // An install can take minutes — the CLI must show why cue looks idle.
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        stage: 'dev',
+        kind: 'progress',
+        message: expect.stringContaining('bun install --frozen-lockfile'),
+      }),
+    );
+  });
+
+  test('a failing setup throws before the agent runs', async () => {
+    const { ctx, runs } = await makeCtx(
+      [
+        { match: ['gh', 'issue', 'edit', '7'] },
+        { match: ['gh', 'issue', 'view', '7'], result: planViewResult() },
+        { match: ['git', '-C', '/repos/widgets', 'fetch'] },
+        { match: ['git', '-C', '/repos/widgets', 'worktree', 'add'] },
+        {
+          match: ['sh', '-c', 'bun install'],
+          result: { code: 1, stderr: 'registry unreachable' },
+        },
+      ],
+      [],
+    );
+    ctx.config.setup = 'bun install';
+    await expect(runDev(ctx, ISSUE)).rejects.toThrow('registry unreachable');
+    expect(runs).toHaveLength(0);
+  });
+
   test('gate failure triggers one fix run, then succeeds', async () => {
     const { ctx, runs } = await makeCtx(
       [

@@ -50,7 +50,7 @@ src/
 ├── server.ts           # `cue ui`: Bun.serve — state/runs API, SSE events, poll/run triggers, serves ui/build/client
 ├── github.ts           # typed wrapper over the `gh` CLI
 ├── worktree.ts         # git worktree per issue; bootstraps empty repos (--allow-empty)
-├── gates.ts            # deterministic test/lint runner (sh -c in the worktree)
+├── gates.ts            # deterministic setup/test/lint runner (sh -c in the worktree)
 ├── specs.ts            # opt-in knowledge layer: OpenSpec-format specs dir + .cue/learnings.md, presence-detected (no config)
 ├── exec.ts             # THE ONLY place Bun.spawn is called; injectable Exec type
 ├── platform.ts         # POSIX/WINDOWS personality (gate shell, agent env allowlist), injected via StageContext

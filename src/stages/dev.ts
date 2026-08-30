@@ -1,4 +1,4 @@
-import { runGate } from '@/gates';
+import { runGate, runSetup } from '@/gates';
 import type { Issue } from '@/github';
 import { loadPrompt, renderPrompt } from '@/prompt';
 import { knowledgeVars, specsDevGuidance } from '@/specs';
@@ -35,6 +35,16 @@ export async function runDev(ctx: StageContext, issue: Issue): Promise<void> {
   if (!plan) throw new Error('no plan comment found');
 
   const wt = await ctx.worktrees.create(issue.number);
+  if (ctx.config.setup) {
+    ctx.onEvent({
+      ts: Date.now(),
+      issue: issue.number,
+      stage: 'dev',
+      kind: 'progress',
+      message: `worktree setup: ${ctx.config.setup}`,
+    });
+    await runSetup(ctx.exec, wt.path, ctx.config.setup, ctx.platform);
+  }
   const template = await loadPrompt(ctx.promptsDirs, 'dev');
   const prompt = renderPrompt(template, {
     issue_title: issue.title,
