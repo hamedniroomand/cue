@@ -48,7 +48,7 @@
     "lint": "oxlint --disable-nested-config",
     "format": "oxfmt --disable-nested-config",
     "format:check": "oxfmt --disable-nested-config --check",
-    "check": "bun run lint && bun run format:check && bun test",
+    "check": "bun run lint && bun run format:check && bun test --coverage",
     "prepublishOnly": "bun run ui:build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",

@@ -3,7 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { BOARD_LABELS, buildState, startServer } from '@/server';
+import { BOARD_LABELS, buildState, fanOut, startServer } from '@/server';
 import { UI_FILES } from '@/ui-manifest.g';
 
 import { makeCtx } from './triage.test';
@@ -748,6 +748,21 @@ describe.skipIf(bunWindowsListenBroken)('dashboard server', () => {
     } finally {
       stop();
     }
+  });
+
+  test('a dead SSE client is pruned without breaking delivery to live clients', async () => {
+    let dead!: ReadableStreamDefaultController<Uint8Array>;
+    let live!: ReadableStreamDefaultController<Uint8Array>;
+    const deadStream = new ReadableStream<Uint8Array>({ start: (c) => void (dead = c) });
+    const liveStream = new ReadableStream<Uint8Array>({ start: (c) => void (live = c) });
+    dead.close(); // enqueue on a closed controller throws
+    const clients = new Set([dead, live]);
+    fanOut(clients, new TextEncoder().encode('data: x\n\n'));
+    expect(clients.has(dead)).toBe(false);
+    expect(clients.has(live)).toBe(true);
+    expect((await deadStream.getReader().read()).done).toBe(true);
+    const { value } = await liveStream.getReader().read();
+    expect(new TextDecoder().decode(value)).toBe('data: x\n\n');
   });
 
   test('a failing launched task emits an error event then done', async () => {

@@ -115,6 +115,22 @@ async function findActionable(ctx: StageContext, n: number): Promise<Issue | und
   return undefined;
 }
 
+/** Fan an SSE chunk out to every client, pruning any whose stream is dead.
+ *  Bun normally removes a disconnected client via the stream's cancel() hook,
+ *  but a client whose enqueue throws must never break delivery to the rest. */
+export function fanOut(
+  clients: Set<ReadableStreamDefaultController<Uint8Array>>,
+  chunk: Uint8Array,
+): void {
+  for (const client of clients) {
+    try {
+      client.enqueue(chunk);
+    } catch {
+      clients.delete(client);
+    }
+  }
+}
+
 export function startServer(
   ctx: StageContext,
   port: number,
@@ -127,14 +143,7 @@ export function startServer(
   const printer = ctx.onEvent;
   ctx.onEvent = (e: CueEvent) => {
     printer(e);
-    const chunk = encoder.encode(`data: ${JSON.stringify(e)}\n\n`);
-    for (const client of clients) {
-      try {
-        client.enqueue(chunk);
-      } catch {
-        clients.delete(client);
-      }
-    }
+    fanOut(clients, encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
   };
 
   function launch(name: string, task: () => Promise<unknown>): Response {

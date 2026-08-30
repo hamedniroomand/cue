@@ -1,5 +1,7 @@
 import { JsonlAdapter } from '@/adapters/base';
 import type { AgentResult, AgentRunOptions } from '@/adapters/types';
+import type { Exec } from '@/exec';
+import type { Platform } from '@/platform';
 
 interface CodexItem {
   type?: string;
@@ -18,6 +20,11 @@ export class CodexAdapter extends JsonlAdapter<CodexEvent> {
   protected readonly bin = 'codex';
   protected readonly envKeys = ['OPENAI_API_KEY', 'CODEX_HOME'];
   protected readonly supportsWebSearch = true;
+
+  // oxlint-disable-next-line no-useless-constructor -- bun's function coverage counts an implicit derived constructor as a function that can never be hit
+  constructor(exec: Exec, platform?: Platform) {
+    super(exec, platform);
+  }
 
   protected command(opts: AgentRunOptions): string[] {
     // Codex has no per-command Bash scoping and no turn cap: write access maps

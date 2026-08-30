@@ -1,6 +1,8 @@
 import { JsonlAdapter } from '@/adapters/base';
 import { summarizeToolInput } from '@/adapters/summarize';
 import type { AgentResult, AgentRunOptions } from '@/adapters/types';
+import type { Exec } from '@/exec';
+import type { Platform } from '@/platform';
 
 interface AgyUsage {
   input_tokens?: number;
@@ -79,6 +81,11 @@ export class AntigravityAdapter extends JsonlAdapter<AgyStreamEvent> {
     'GOOGLE_API_KEY',
     'GOOGLE_GENAI_API_KEY',
   ];
+
+  // oxlint-disable-next-line no-useless-constructor -- bun's function coverage counts an implicit derived constructor as a function that can never be hit
+  constructor(exec: Exec, platform?: Platform) {
+    super(exec, platform);
+  }
 
   protected command(opts: AgentRunOptions): string[] {
     // agy has no per-command Bash scoping and no turn cap: write access maps
