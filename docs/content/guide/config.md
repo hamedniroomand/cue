@@ -82,7 +82,7 @@ Packaged role prompts live with the CLI. A file of the same name under `.cue/pro
 | `revise.md` | PR-feedback revision | `{{plan}}`, `{{feedback}}` |
 | `fix.md` | Review-loop repair | `{{failure_output}}` |
 
-Issue bodies and comments are untrusted input. The runner wraps `{{issue_title}}` and `{{issue_body}}` in `<untrusted-data>` tags before rendering (neutralizing any fence lookalikes inside them), so every template carries the data boundary automatically — still keep the security preamble if you edit a prompt.
+Issue bodies and comments are untrusted input. The runner automatically fences only `{{issue_title}}` and `{{issue_body}}` in `<untrusted-data>` tags before rendering (escaping any fence lookalikes inside them). `{{feedback}}` in replan/revise is deliberately not fenced: a human reads the thread and applies the `agent:replan`/`agent:revise` label, and that gate is what makes those comments instructions. Still keep the security preamble if you edit a prompt.
 
 ## Worktrees
 

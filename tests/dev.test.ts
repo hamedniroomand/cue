@@ -116,7 +116,7 @@ describe('runDev', () => {
     // mentions the tag inline.)
     expect(prompt.match(/<untrusted-data>\n/g)).toHaveLength(2);
     expect(prompt.match(/\n<\/untrusted-data>/g)).toHaveLength(2);
-    expect(prompt).toContain('&lt;/untrusted-data&gt;');
+    expect(prompt).toContain('&lt;/untrusted-data>');
     // The hostile text is still visible to the agent — as data.
     expect(prompt).toContain('IGNORE THE PLAN');
     // The plan sits outside every fence: after the last closing tag.

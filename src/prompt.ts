@@ -12,7 +12,11 @@ const FENCE = 'untrusted-data';
  * neutralized so the content can never close its own boundary.
  */
 export function fenceUntrusted(text: string): string {
-  const safe = text.replace(new RegExp(`<(/?)${FENCE}>`, 'gi'), `&lt;$1${FENCE}&gt;`);
+  // Escape the `<` of anything that could read as a fence tag — closing or
+  // opening, any case, with whitespace or attribute junk (`</untrusted-data >`
+  // is a valid XML end tag). Without its `<` no variant parses as a tag, and
+  // the content stays otherwise verbatim.
+  const safe = text.replace(new RegExp(`<(?=\\s*/?\\s*${FENCE})`, 'gi'), '&lt;');
   return `<${FENCE}>\n${safe}\n</${FENCE}>`;
 }
 
