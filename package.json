@@ -65,7 +65,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "husky": "^9.1.7",
-    "lint-staged": "^17.4.1",
+    "lint-staged": "^17.5.0",
     "mermaid": "^11.17.2",
     "oxfmt": "^0.66.0",
     "oxlint": "^1.81.0",
@@ -81,5 +81,5 @@
   "engines": {
     "bun": ">=1.1.0"
   },
-  "packageManager": "bun@1.4.0"
+  "packageManager": "bun@1.4.2"
 }
