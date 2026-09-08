@@ -58,14 +58,14 @@ export const clackAsk: Ask = {
   async select(message, options, initial) {
     const value = await select({ message, options, initialValue: initial });
     if (isCancel(value)) throw new PromptCancelled();
-    return value;
+    return value.toString();
   },
   async text(message, initial) {
     // initialValue pre-fills the editable buffer; defaultValue covers a
     // submitted-empty field so the answer is never an empty string by accident.
     const value = await text({ message, initialValue: initial, defaultValue: initial });
     if (isCancel(value)) throw new PromptCancelled();
-    return value;
+    return value.toString();
   },
   begin(message) {
     intro(message);
