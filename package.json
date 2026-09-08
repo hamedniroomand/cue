@@ -57,7 +57,7 @@
     "prepare": "husky || true"
   },
   "dependencies": {
-    "@clack/prompts": "^1.7.0",
+    "@clack/prompts": "^1.8.0",
     "consola": "^3.4.2",
     "ora": "^9.4.1",
     "valibot": "^1.4.2"
@@ -67,8 +67,8 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.5.0",
     "mermaid": "^11.17.2",
-    "oxfmt": "^0.66.0",
-    "oxlint": "^1.81.0",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
     "oxlint-tsgolint": "^7.0.2001",
     "vitepress": "^2.0.0-alpha.19",
     "vitepress-plugin-mermaid": "^2.0.17"
