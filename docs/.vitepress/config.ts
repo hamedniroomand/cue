@@ -72,7 +72,7 @@ export default withMermaid({
     // "does not provide an export named 'default'".
     vite: {
       optimizeDeps: {
-        include: ["fastdom", "fastdom/extensions/fastdom-promised.js"],
+        include: ["fastdom", "fastdom/extensions/fastdom-promised.js", "elkjs/lib/elk.bundled.js"],
       },
     },
   }),
