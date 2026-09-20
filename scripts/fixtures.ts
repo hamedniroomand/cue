@@ -97,14 +97,25 @@ const state = {
 };
 
 const index = Object.entries(runs)
-  .map(([n, rs]) => ({
-    issue: Number(n),
-    runs: rs.length,
-    costUsd: cost(n),
-    tokens: tokens(n),
-    lastTs: Math.max(...rs.map((r) => r.ts)),
-    ...(titles[n] ? { title: titles[n] } : {}),
-  }))
+  .map(([n, rs]) => {
+    const entry: {
+      issue: number;
+      runs: number;
+      costUsd: number;
+      tokens: number;
+      lastTs: number;
+      title?: string;
+    } = {
+      issue: Number(n),
+      runs: rs.length,
+      costUsd: cost(n),
+      tokens: tokens(n),
+      lastTs: Math.max(...rs.map((r) => r.ts)),
+    };
+    const title = titles[n];
+    if (title) entry.title = title;
+    return entry;
+  })
   .toSorted((a, b) => a.issue - b.issue);
 
 // The snapshot ships in a public repo: scrub machine-identifying home paths
