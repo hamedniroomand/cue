@@ -26,6 +26,7 @@ export default withMermaid({
         },
       ],
       ["meta", { name: "og:image", content: `${docs}/logo.svg` }],
+      ["script", { src: "https://umami.niroomand.dev/script.js", defer: 'true', 'data-website-id': '5cac7b08-5d54-4a12-9c2b-bfad45227d85' }],
     ],
     themeConfig: {
       logo: "/logo.svg",
