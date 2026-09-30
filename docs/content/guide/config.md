@@ -17,7 +17,7 @@ Cue publishes a JSON Schema for `config.json`. `cue init` writes it in as the fi
 
 ```json
 {
-  "$schema": "https://hamedniroomand.github.io/cue/schema/config.json",
+  "$schema": "https://cue.kitdev.space/schema/config.json",
   "gate": { "test": "bun test" }
 }
 ```
@@ -48,7 +48,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://hamedniroomand.github.io/cue/schema/config.json",
+  "$schema": "https://cue.kitdev.space/schema/config.json",
   "adapter": "codex",
   "gate": {
     "test": "npm test",

@@ -6,7 +6,7 @@ agents (Claude Code via `claude -p`) through a GitHub-issue pipeline:
 (a human can also label `agent:revise` to send PR feedback back through the agent).
 GitHub is the state store: `agent:*` labels are the state machine, issue comments
 carry handoffs (the plan), draft PRs are the output. User-facing flow and
-label table: `docs/content/` (VitePress) and https://hamedniroomand.github.io/cue/
+label table: `docs/content/` (VitePress) and https://cue.kitdev.space/
 
 ## Commands
 

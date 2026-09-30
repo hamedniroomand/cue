@@ -66,4 +66,4 @@ esac
 echo
 echo "next steps: install and authenticate the 'gh' and 'claude' CLIs, then run"
 echo "'cue init' inside a target repo."
-echo "Docs: https://hamedniroomand.github.io/cue/"
+echo "Docs: https://cue.kitdev.space/"

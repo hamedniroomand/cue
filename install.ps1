@@ -50,7 +50,7 @@ try {
   Write-Host ""
   Write-Host "next steps: install and authenticate the 'gh' and 'claude' CLIs, then run"
   Write-Host "'cue init' inside a target repo."
-  Write-Host "Docs: https://hamedniroomand.github.io/cue/"
+  Write-Host "Docs: https://cue.kitdev.space/"
 } finally {
   Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue
 }

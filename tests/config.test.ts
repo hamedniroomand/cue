@@ -59,7 +59,7 @@ describe('resolveConfig', () => {
 
   test('the $schema key editors use is ignored by the parser, not rejected', async () => {
     const cwd = await tmpRepo({
-      $schema: 'https://hamedniroomand.github.io/cue/schema/config.json',
+      $schema: 'https://cue.kitdev.space/schema/config.json',
       adapter: 'claude',
     });
     const cfg = await resolveConfig(originExec('git@github.com:acme/widgets.git'), cwd);

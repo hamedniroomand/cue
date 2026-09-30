@@ -1,5 +1,5 @@
 {
-  "$schema": "https://hamedniroomand.github.io/cue/schema/config.json",
+  "$schema": "https://cue.kitdev.space/schema/config.json",
   "adapter": "claude",
   "setup": "bun install && bun install --cwd ui",
   "models": { "triage": "haiku", "dev": "sonnet", "review": "opus" },

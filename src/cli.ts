@@ -197,7 +197,7 @@ Labels drive the pipeline: agent:ready → triage plans, a human approves
 agent:replan requests a revised plan; agent:revise sends PR feedback back to the
 agent; agent:stop freezes an issue.
 Full state machine and configuration:
-https://hamedniroomand.github.io/cue/`;
+https://cue.kitdev.space/`;
 
 const RUN_USAGE = 'usage: cue run [issue-number]';
 

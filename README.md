@@ -30,7 +30,7 @@ flowchart LR
 
 Instead of babysitting interactive agent sessions in your terminal, Cue runs coding agents through a deterministic pipeline where GitHub acts as the state store: labels drive the state machine, issue comments carry implementation plans, and draft PRs deliver the finished code.
 
-**Documentation & Guides:** [hamedniroomand.github.io/cue](https://hamedniroomand.github.io/cue/)
+**Documentation & Guides:** [cue.kitdev.space](https://cue.kitdev.space/)
 
 ## Why Cue?
 
@@ -58,17 +58,17 @@ Requires authenticated `gh` and `codex` CLIs (or Claude / Antigravity). Then, in
 cue init
 ```
 
-Label an issue `agent:ready` and run `cue process`. Full walkthrough: [Getting started](https://hamedniroomand.github.io/cue/guide/getting-started).
+Label an issue `agent:ready` and run `cue process`. Full walkthrough: [Getting started](https://cue.kitdev.space/guide/getting-started).
 
 ## Documentation
 
-- [Why Cue](https://hamedniroomand.github.io/cue/guide/why-cue) — how Cue differs from the built-in orchestration of agent CLIs
-- [Getting started](https://hamedniroomand.github.io/cue/guide/getting-started) — prerequisites, installation, and first issue
-- [Pipeline and labels](https://hamedniroomand.github.io/cue/guide/pipeline) — the state machine and human/Cue collaboration loop
-- [Commands](https://hamedniroomand.github.io/cue/guide/commands) — `init`, `process`, `run`, `cleanup`, `status`, `ui`, `upgrade`
-- [Configuration](https://hamedniroomand.github.io/cue/guide/config) — `.cue/config.json` schema and adapters
-- [Dashboard](https://hamedniroomand.github.io/cue/guide/dashboard) — local web UI for transcripts, costs, and issue tracking
-- [Contributing](https://hamedniroomand.github.io/cue/develop/setup) — setup and architecture for developing Cue
+- [Why Cue](https://cue.kitdev.space/guide/why-cue) — how Cue differs from the built-in orchestration of agent CLIs
+- [Getting started](https://cue.kitdev.space/guide/getting-started) — prerequisites, installation, and first issue
+- [Pipeline and labels](https://cue.kitdev.space/guide/pipeline) — the state machine and human/Cue collaboration loop
+- [Commands](https://cue.kitdev.space/guide/commands) — `init`, `process`, `run`, `cleanup`, `status`, `ui`, `upgrade`
+- [Configuration](https://cue.kitdev.space/guide/config) — `.cue/config.json` schema and adapters
+- [Dashboard](https://cue.kitdev.space/guide/dashboard) — local web UI for transcripts, costs, and issue tracking
+- [Contributing](https://cue.kitdev.space/develop/setup) — setup and architecture for developing Cue
 
 ## License
 

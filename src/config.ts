@@ -24,7 +24,7 @@ export const CONFIG_SCHEMA_PATH = 'docs/content/public/schema/config.json';
  * The schema itself is a hand-written mirror of ConfigSchema below, kept
  * honest by tests/schema.test.ts.
  */
-export const CONFIG_SCHEMA_URL = 'https://hamedniroomand.github.io/cue/schema/config.json';
+export const CONFIG_SCHEMA_URL = 'https://cue.kitdev.space/schema/config.json';
 
 // Everything is optional in the file: a project can adopt cue with an
 // empty (or absent) .cue/config.json.

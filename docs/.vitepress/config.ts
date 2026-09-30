@@ -2,19 +2,19 @@ import { defineConfig } from "vitepress";
 import { withMermaid } from "vitepress-plugin-mermaid";
 
 const repo = "https://github.com/hamedniroomand/cue";
-const docs = "https://hamedniroomand.github.io/cue";
+const docs = "https://cue.kitdev.space";
 
 export default withMermaid({
   ...defineConfig({
     srcDir: "content",
-    base: "/cue/",
+    base: "/",
     title: "Cue",
     description:
       "Drive headless coding agents through a GitHub-issue pipeline: triage, human-approved plan, implement, test, review, draft PR.",
     lastUpdated: true,
     cleanUrls: true,
     head: [
-      ["link", { rel: "icon", type: "image/svg+xml", href: "/cue/logo.svg" }],
+      ["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }],
       ["link", { rel: "canonical", href: docs }],
       ["meta", { name: "og:title", content: "Cue" }],
       [

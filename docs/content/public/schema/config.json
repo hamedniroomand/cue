@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
-  "$id": "https://hamedniroomand.github.io/cue/schema/config.json",
+  "$id": "https://cue.kitdev.space/schema/config.json",
   "title": "Cue configuration",
   "description": "Configuration for cue, the GitHub-issue agent pipeline runner. Lives at .cue/config.json in the target repo. Every field is optional.",
   "type": "object",
