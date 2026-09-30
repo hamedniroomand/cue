@@ -2,7 +2,7 @@ import { defineConfig } from "vitepress";
 import { withMermaid } from "vitepress-plugin-mermaid";
 
 const repo = "https://github.com/hamedniroomand/cue";
-const docs = "https://cue.kitdev.space";
+const SITE_URL = "https://cue.kitdev.space";
 
 export default withMermaid({
   ...defineConfig({
@@ -15,7 +15,7 @@ export default withMermaid({
     cleanUrls: true,
     head: [
       ["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }],
-      ["link", { rel: "canonical", href: docs }],
+      ["link", { rel: "canonical", href: SITE_URL }],
       ["meta", { name: "og:title", content: "Cue" }],
       [
         "meta",
@@ -25,8 +25,8 @@ export default withMermaid({
             "A globally-installed CLI that runs coding agents through a fixed GitHub-issue pipeline.",
         },
       ],
-      ["meta", { name: "og:image", content: `${docs}/logo.svg` }],
-      ["script", { src: "https://umami.niroomand.dev/script.js", defer: 'true', 'data-website-id': '5cac7b08-5d54-4a12-9c2b-bfad45227d85' }],
+      ["meta", { name: "og:image", content: `${SITE_URL}/logo.svg` }],
+      ["script", { src: "https://umami.niroomand.dev/script.js", defer: 'true', 'data-website-id': '60e07549-12f2-4e4b-bc75-41c6d3228a5b', 'data-domains': new URL(SITE_URL).hostname }],
     ],
     themeConfig: {
       logo: "/logo.svg",
