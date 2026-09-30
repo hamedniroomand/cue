@@ -25,7 +25,11 @@ export default withMermaid({
             "A globally-installed CLI that runs coding agents through a fixed GitHub-issue pipeline.",
         },
       ],
-      ["meta", { name: "og:image", content: `${SITE_URL}/logo.svg` }],
+      ["meta", { property: "og:image", content: `${SITE_URL}/og.png` }],
+      ["meta", { property: "og:image:width", content: "1200" }],
+      ["meta", { property: "og:image:height", content: "630" }],
+      ["meta", { name: "twitter:card", content: "summary_large_image" }],
+      ["meta", { name: "twitter:image", content: `${SITE_URL}/og.png` }],
       ["script", { src: "https://umami.niroomand.dev/script.js", defer: 'true', 'data-website-id': '60e07549-12f2-4e4b-bc75-41c6d3228a5b', 'data-domains': new URL(SITE_URL).hostname }],
     ],
     themeConfig: {
